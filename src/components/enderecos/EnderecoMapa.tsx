@@ -1,0 +1,41 @@
+"use client";
+
+import { MapViewer } from "@/components/maps/MapComponents";
+
+type Props = {
+  latitude?: number | null;
+  longitude?: number | null;
+  label?: string | null;
+};
+
+export function EnderecoMapa({ latitude, longitude, label }: Props) {
+  const lat =
+    typeof latitude === "number"
+      ? latitude
+      : latitude != null
+        ? Number(latitude)
+        : NaN;
+  const lng =
+    typeof longitude === "number"
+      ? longitude
+      : longitude != null
+        ? Number(longitude)
+        : NaN;
+
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+  if (!hasCoords) {
+    return (
+      <div className="flex min-h-[220px] flex-col items-center justify-center rounded border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center">
+        <p className="text-sm text-muted">
+          Sem coordenadas para exibir o mapa.
+        </p>
+        <p className="mt-1 text-xs text-zinc-400">
+          Preencha latitude/longitude ou use a geocodificação no cadastro.
+        </p>
+      </div>
+    );
+  }
+
+  return <MapViewer latitude={lat} longitude={lng} label={label} />;
+}

@@ -1,0 +1,393 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useRef, useState, useTransition } from "react";
+import { Button, Input, Label, Select } from "@/components/ui/Form";
+import { MapPicker } from "@/components/maps/MapComponents";
+import { geocodeEndereco } from "@/lib/geocode";
+import { maskCepInput, UFS } from "@/lib/format";
+import { createEndereco, updateEndereco } from "@/lib/supabase/enderecos";
+import { fetchViaCep } from "@/lib/viacep";
+import type { Endereco } from "@/lib/types";
+
+function parseCoord(value: string): number | null {
+  const trimmed = value.trim().replace(",", ".");
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}
+
+type Props = {
+  initial?: Endereco;
+};
+
+export function EnderecoForm({ initial }: Props) {
+  const isEdit = Boolean(initial);
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [cepLoading, setCepLoading] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [cepHint, setCepHint] = useState<string | null>(null);
+  const [geoHint, setGeoHint] = useState<string | null>(null);
+  const lastFetchedCep = useRef<string>(
+    initial?.cep?.replace(/\D/g, "") ?? "",
+  );
+
+  const [nome, setNome] = useState(initial?.nome ?? "");
+  const [cep, setCep] = useState(
+    initial?.cep ? maskCepInput(initial.cep) : "",
+  );
+  const [logradouro, setLogradouro] = useState(initial?.logradouro ?? "");
+  const [numero, setNumero] = useState(initial?.numero ?? "");
+  const [bairro, setBairro] = useState(initial?.bairro ?? "");
+  const [complemento, setComplemento] = useState(initial?.complemento ?? "");
+  const [cidade, setCidade] = useState(initial?.cidade ?? "");
+  const [estado, setEstado] = useState(initial?.estado ?? "");
+  const [latitude, setLatitude] = useState(
+    initial?.latitude != null ? String(initial.latitude) : "",
+  );
+  const [longitude, setLongitude] = useState(
+    initial?.longitude != null ? String(initial.longitude) : "",
+  );
+
+  const latNum = parseCoord(latitude);
+  const lngNum = parseCoord(longitude);
+
+  async function lookupCep(raw: string) {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 8 || digits === lastFetchedCep.current) return;
+
+    setCepLoading(true);
+    setCepHint(null);
+    const { data, error: viaError } = await fetchViaCep(digits);
+    setCepLoading(false);
+
+    if (viaError || !data) {
+      setCepHint(viaError ?? "CEP não encontrado.");
+      return;
+    }
+
+    lastFetchedCep.current = digits;
+    setLogradouro(data.logradouro || "");
+    setBairro(data.bairro || "");
+    setCidade(data.localidade || "");
+    setEstado(data.uf || "");
+    if (data.complemento) setComplemento(data.complemento);
+    setCepHint("Endereço preenchido via ViaCEP.");
+  }
+
+  function handleCepChange(value: string) {
+    const masked = maskCepInput(value);
+    setCep(masked);
+    const digits = masked.replace(/\D/g, "");
+    if (digits.length < 8) {
+      lastFetchedCep.current = "";
+      setCepHint(null);
+    }
+    if (digits.length === 8) {
+      void lookupCep(digits);
+    }
+  }
+
+  async function geocodeNow(showHint = true): Promise<{
+    lat: number | null;
+    lng: number | null;
+  }> {
+    const existingLat = parseCoord(latitude);
+    const existingLng = parseCoord(longitude);
+    if (existingLat != null && existingLng != null) {
+      return { lat: existingLat, lng: existingLng };
+    }
+
+    const hasAddress =
+      Boolean(logradouro.trim() || cidade.trim() || cep.replace(/\D/g, "")) &&
+      Boolean(cidade.trim() || estado || cep.replace(/\D/g, ""));
+
+    if (!hasAddress) {
+      return { lat: null, lng: null };
+    }
+
+    setGeoLoading(true);
+    if (showHint) setGeoHint("Buscando coordenadas no OpenStreetMap…");
+    const { data, error: geoError } = await geocodeEndereco({
+      logradouro,
+      numero,
+      bairro,
+      cidade,
+      estado,
+      cep,
+    });
+    setGeoLoading(false);
+
+    if (geoError || !data) {
+      if (showHint) setGeoHint(geoError ?? "Não foi possível geocodificar.");
+      return { lat: null, lng: null };
+    }
+
+    setLatitude(String(data.latitude));
+    setLongitude(String(data.longitude));
+    if (showHint) {
+      setGeoHint(`Coordenadas preenchidas: ${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}`);
+    }
+    return { lat: data.latitude, lng: data.longitude };
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    startTransition(async () => {
+      setError(null);
+
+      let lat = parseCoord(latitude);
+      let lng = parseCoord(longitude);
+
+      if (
+        (lat == null || lng == null) &&
+        (logradouro.trim() || cidade.trim() || cep.replace(/\D/g, ""))
+      ) {
+        setStatus("Geocodificando endereço…");
+        const geo = await geocodeNow(true);
+        lat = geo.lat;
+        lng = geo.lng;
+      }
+
+      if (latitude.trim() && lat === null) {
+        setStatus(null);
+        setError("Latitude inválida.");
+        return;
+      }
+      if (longitude.trim() && lng === null) {
+        setStatus(null);
+        setError("Longitude inválida.");
+        return;
+      }
+
+      setStatus(isEdit ? "Atualizando endereço…" : "Salvando endereço…");
+
+      const payload = {
+        nome,
+        logradouro,
+        numero,
+        bairro,
+        complemento,
+        cidade,
+        estado,
+        cep,
+        latitude: lat,
+        longitude: lng,
+      };
+
+      const { data, error: saveError } = isEdit
+        ? await updateEndereco(initial!.id, payload)
+        : await createEndereco(payload);
+
+      setStatus(null);
+      if (saveError || !data) {
+        setError(saveError ?? "Erro ao salvar endereço.");
+        return;
+      }
+      router.push(`/enderecos/${data.id}`);
+      router.refresh();
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
+      {error ? (
+        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+          {error}
+        </div>
+      ) : null}
+      {pending && status ? (
+        <div className="rounded border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+          {status}
+        </div>
+      ) : null}
+
+      <section className="rounded border border-border bg-panel p-4">
+        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
+          Dados do endereço
+        </h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label htmlFor="nome">Nome</Label>
+            <Input
+              id="nome"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex.: sede, galpão, residência"
+              disabled={pending}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="cep">CEP</Label>
+            <Input
+              id="cep"
+              value={cep}
+              onChange={(e) => handleCepChange(e.target.value)}
+              onBlur={() => void lookupCep(cep)}
+              placeholder="00000-000"
+              inputMode="numeric"
+              disabled={pending}
+            />
+            {cepLoading ? (
+              <p className="mt-1 text-xs text-muted">Consultando ViaCEP…</p>
+            ) : cepHint ? (
+              <p
+                className={`mt-1 text-xs ${
+                  cepHint.includes("preenchido")
+                    ? "text-zinc-500"
+                    : "text-amber-700"
+                }`}
+              >
+                {cepHint}
+              </p>
+            ) : null}
+          </div>
+
+          <div>
+            <Label htmlFor="estado">Estado (UF)</Label>
+            <Select
+              id="estado"
+              value={estado}
+              onChange={(e) => setEstado(e.target.value)}
+              disabled={pending}
+            >
+              <option value="">Selecione</option>
+              {UFS.map((uf) => (
+                <option key={uf} value={uf}>
+                  {uf}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="sm:col-span-2">
+            <Label htmlFor="logradouro">Logradouro</Label>
+            <Input
+              id="logradouro"
+              value={logradouro}
+              onChange={(e) => setLogradouro(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="numero">Número</Label>
+            <Input
+              id="numero"
+              value={numero}
+              onChange={(e) => setNumero(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="bairro">Bairro</Label>
+            <Input
+              id="bairro"
+              value={bairro}
+              onChange={(e) => setBairro(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="complemento">Complemento</Label>
+            <Input
+              id="complemento"
+              value={complemento}
+              onChange={(e) => setComplemento(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="cidade">Cidade</Label>
+            <Input
+              id="cidade"
+              value={cidade}
+              onChange={(e) => setCidade(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="latitude">Latitude</Label>
+            <Input
+              id="latitude"
+              value={latitude}
+              onChange={(e) => setLatitude(e.target.value)}
+              placeholder="-23.5505"
+              inputMode="decimal"
+              disabled={pending}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="longitude">Longitude</Label>
+            <Input
+              id="longitude"
+              value={longitude}
+              onChange={(e) => setLongitude(e.target.value)}
+              placeholder="-46.6333"
+              inputMode="decimal"
+              disabled={pending}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium text-zinc-600">Mapa</p>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending || geoLoading}
+                onClick={() => void geocodeNow(true)}
+              >
+                {geoLoading ? "Buscando…" : "Obter coordenadas do endereço"}
+              </Button>
+            </div>
+            {geoHint ? (
+              <p className="mb-2 text-xs text-zinc-500">{geoHint}</p>
+            ) : null}
+            <MapPicker
+              latitude={latNum}
+              longitude={lngNum}
+              onChange={(lat, lng) => {
+                setLatitude(lat.toFixed(6));
+                setLongitude(lng.toFixed(6));
+                setGeoHint("Posição ajustada pelo clique no mapa.");
+              }}
+            />
+          </div>
+        </div>
+      </section>
+
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() =>
+            router.push(isEdit ? `/enderecos/${initial!.id}` : "/enderecos")
+          }
+          disabled={pending}
+        >
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={pending || cepLoading || geoLoading}>
+          {pending
+            ? isEdit
+              ? "Salvando alterações…"
+              : "Salvando…"
+            : isEdit
+              ? "Salvar alterações"
+              : "Salvar endereço"}
+        </Button>
+      </div>
+    </form>
+  );
+}
