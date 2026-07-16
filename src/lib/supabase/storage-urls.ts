@@ -31,15 +31,28 @@ export function useSignedStorageUrls(
         return;
       }
 
+      // URLs absolutas (ex.: placeholders do seed) não passam pelo Storage.
+      const absolute = unique.filter((p) => /^https?:\/\//i.test(p));
+      const storagePaths = unique.filter((p) => !/^https?:\/\//i.test(p));
+      const map: Record<string, string> = {};
+      for (const url of absolute) map[url] = url;
+
+      if (storagePaths.length === 0) {
+        if (!cancelled) {
+          setUrls(map);
+          setLoading(false);
+        }
+        return;
+      }
+
       setLoading(true);
       const supabase = createClient();
       const { data, error } = await supabase.storage
         .from(bucket)
-        .createSignedUrls(unique, expiresIn);
+        .createSignedUrls(storagePaths, expiresIn);
 
       if (cancelled) return;
 
-      const map: Record<string, string> = {};
       if (!error && data) {
         for (const item of data) {
           if (item.path && item.signedUrl) {

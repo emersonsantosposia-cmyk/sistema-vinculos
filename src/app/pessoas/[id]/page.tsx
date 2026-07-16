@@ -20,7 +20,7 @@ function Field({ label, value }: { label: string; value: string }) {
       <dt className="text-[11px] font-medium tracking-wide text-muted uppercase">
         {label}
       </dt>
-      <dd className="mt-0.5 text-sm text-zinc-900">{value}</dd>
+      <dd className="mt-0.5 text-sm text-foreground">{value}</dd>
     </div>
   );
 }
@@ -36,7 +36,7 @@ export default async function PessoaDetailPage({ params }: Props) {
         actions={
           <Link
             href="/pessoas"
-            className="inline-flex h-8 items-center rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+            className="btn-acao-secundario"
           >
             Voltar à lista
           </Link>
@@ -63,14 +63,14 @@ export default async function PessoaDetailPage({ params }: Props) {
         <div className="flex items-center gap-2">
           <Link
             href={`/pessoas/${pessoa.id}/editar`}
-            className="inline-flex h-8 items-center rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+            className="btn-acao"
           >
             Editar
           </Link>
           <PessoaDeleteButton pessoaId={pessoa.id} />
           <Link
             href="/pessoas"
-            className="inline-flex h-8 items-center rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+            className="btn-acao-secundario"
           >
             Voltar à lista
           </Link>
@@ -86,6 +86,7 @@ export default async function PessoaDetailPage({ params }: Props) {
                   path={foto_perfil_path}
                   nome={pessoa.nome}
                   size="lg"
+                  expandable
                 />
                 <p className="text-[11px] font-medium tracking-wide text-muted uppercase">
                   Foto de perfil
@@ -120,7 +121,7 @@ export default async function PessoaDetailPage({ params }: Props) {
                     key={rede.id}
                     className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0"
                   >
-                    <span className="text-sm font-medium text-zinc-800">
+                    <span className="text-sm font-medium text-muted-strong">
                       {rede.rede || "Rede"}
                     </span>
                     {rede.link ? (
@@ -132,7 +133,7 @@ export default async function PessoaDetailPage({ params }: Props) {
                         }
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm text-zinc-600 underline-offset-2 hover:underline"
+                        className="text-sm text-muted underline-offset-2 hover:underline"
                       >
                         {rede.link}
                       </a>

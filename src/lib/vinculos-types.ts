@@ -7,6 +7,7 @@ export const ENTIDADE_LABELS: Record<EntidadeTipo, string> = {
   veiculo: "Veículo",
   procedimento: "Procedimento",
   caso: "Caso",
+  comunicacao: "Comunicação",
 };
 
 /** Títulos das subseções de vínculos (ex.: "Pessoas vinculadas"). */
@@ -17,6 +18,7 @@ export const ENTIDADE_VINCULOS_TITULOS: Record<EntidadeTipo, string> = {
   veiculo: "Veículos vinculados",
   procedimento: "Procedimentos vinculados",
   caso: "Casos vinculados",
+  comunicacao: "Comunicações vinculadas",
 };
 
 /** Texto do botão "+ Adicionar vínculo com …". */
@@ -27,6 +29,7 @@ export const ENTIDADE_VINCULOS_ADD: Record<EntidadeTipo, string> = {
   veiculo: "veículo",
   procedimento: "procedimento",
   caso: "caso",
+  comunicacao: "comunicação",
 };
 
 export const ENTIDADE_HREFS: Record<EntidadeTipo, string> = {
@@ -36,6 +39,7 @@ export const ENTIDADE_HREFS: Record<EntidadeTipo, string> = {
   veiculo: "/veiculos",
   procedimento: "/procedimentos",
   caso: "/casos",
+  comunicacao: "/comunicacoes",
 };
 
 export const TIPOS_VINCULO_COMUNS = [
@@ -56,6 +60,8 @@ export type EntidadeOpcao = {
   subtitulo?: string | null;
   /** Path no bucket fotos-pessoas (apenas para tipo pessoa). */
   foto_perfil_path?: string | null;
+  /** Path no bucket fotos-veiculos (apenas para tipo veiculo). */
+  foto_url?: string | null;
 };
 
 export type VinculoRow = {
@@ -74,10 +80,15 @@ export type VinculoCard = {
   id: string;
   tipo_vinculo: string | null;
   observacao: string | null;
+  usuario_cadastro: string | null;
+  data_cadastro: string;
+  usuario_nome: string | null;
   outroTipo: EntidadeTipo;
   outroId: string;
   titulo: string;
   subtitulo?: string | null;
   /** Path no bucket fotos-pessoas (apenas quando outroTipo === "pessoa"). */
   foto_perfil_path?: string | null;
+  /** Path no bucket fotos-veiculos (apenas quando outroTipo === "veiculo"). */
+  foto_url?: string | null;
 };

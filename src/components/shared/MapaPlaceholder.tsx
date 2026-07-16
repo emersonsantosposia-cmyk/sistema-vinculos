@@ -13,15 +13,15 @@ export function MapaPlaceholder({ latitude, longitude, label }: Props) {
     !Number.isNaN(longitude);
 
   return (
-    <div className="flex min-h-[220px] flex-col items-center justify-center rounded border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center">
-      <p className="text-xs font-medium tracking-wide text-zinc-400 uppercase">
+    <div className="flex min-h-[220px] flex-col items-center justify-center rounded border border-dashed border-border bg-panel-soft px-4 py-8 text-center">
+      <p className="text-xs font-medium tracking-wide text-muted uppercase">
         Mapa (placeholder)
       </p>
       {label ? (
-        <p className="mt-2 text-sm font-medium text-zinc-700">{label}</p>
+        <p className="mt-2 text-sm font-medium text-muted-strong">{label}</p>
       ) : null}
       {hasCoords ? (
-        <p className="mt-1 font-mono text-xs text-zinc-600">
+        <p className="mt-1 font-mono text-xs text-muted">
           {latitude}, {longitude}
         </p>
       ) : (
@@ -29,7 +29,7 @@ export function MapaPlaceholder({ latitude, longitude, label }: Props) {
           Coordenadas não informadas. Integração do mapa será feita depois.
         </p>
       )}
-      <p className="mt-3 max-w-sm text-[11px] text-zinc-400">
+      <p className="mt-3 max-w-sm text-[11px] text-muted">
         Este bloco será substituído por um componente de mapa (ex.: Leaflet /
         Mapbox / Google Maps).
       </p>

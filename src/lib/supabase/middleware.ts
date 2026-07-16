@@ -54,7 +54,7 @@ export async function updateSession(request: NextRequest) {
     const redirectUrl = request.nextUrl.clone();
     const next = request.nextUrl.searchParams.get("next");
     redirectUrl.pathname =
-      next && next.startsWith("/") && !next.startsWith("//") ? next : "/pessoas";
+      next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
     redirectUrl.search = "";
     return NextResponse.redirect(redirectUrl);
   }

@@ -74,7 +74,7 @@ export function MapViewer({
         <Recenter center={center} zoom={16} />
       </MapContainer>
       {label ? (
-        <p className="border-t border-border bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+        <p className="border-t border-border bg-panel-soft px-3 py-2 text-xs text-muted">
           {label} · {latitude.toFixed(6)}, {longitude.toFixed(6)}
         </p>
       ) : null}
@@ -122,7 +122,7 @@ export function MapPicker({
         <ClickHandler onPick={onChange} />
         <Recenter center={center} zoom={zoom} />
       </MapContainer>
-      <p className="border-t border-border bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+      <p className="border-t border-border bg-panel-soft px-3 py-2 text-xs text-muted">
         Clique no mapa para posicionar o marcador e preencher latitude/longitude.
       </p>
     </div>

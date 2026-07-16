@@ -101,13 +101,13 @@ export function GlobalSearch() {
     !pending && !error && results.length === 0 && query.trim().length >= MIN_CHARS;
 
   return (
-    <div ref={rootRef} className="relative min-w-0 flex-1 max-w-xl">
+    <div ref={rootRef} className="relative min-w-0 max-w-xl flex-1">
       <label htmlFor="global-search" className="sr-only">
         Busca global
       </label>
       <div className="relative">
         <svg
-          className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+          className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted"
           viewBox="0 0 20 20"
           fill="currentColor"
           aria-hidden
@@ -137,7 +137,7 @@ export function GlobalSearch() {
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className="h-8 w-full rounded border border-zinc-300 bg-white pl-8 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"
+          className="campo-institucional h-8 w-full rounded pl-8 pr-3 text-sm"
         />
       </div>
 
@@ -145,14 +145,14 @@ export function GlobalSearch() {
         <div
           id={listId}
           role="listbox"
-          className="absolute left-0 right-0 z-40 mt-1 max-h-80 overflow-auto rounded border border-border bg-white shadow-lg"
+          className="absolute right-0 left-0 z-40 mt-1 max-h-80 overflow-auto rounded border border-border bg-panel shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
         >
           {pending && results.length === 0 ? (
             <p className="px-3 py-2.5 text-xs text-muted">Buscando…</p>
           ) : null}
 
           {error ? (
-            <p className="px-3 py-2.5 text-xs text-red-700">{error}</p>
+            <p className="px-3 py-2.5 text-xs text-danger-fg">{error}</p>
           ) : null}
 
           {empty ? (
@@ -170,15 +170,17 @@ export function GlobalSearch() {
               href={item.href}
               onClick={() => setOpen(false)}
               onMouseEnter={() => setActiveIndex(index)}
-              className={`block border-b border-zinc-100 px-3 py-2 last:border-b-0 ${
-                index === activeIndex ? "bg-zinc-100" : "hover:bg-zinc-50"
+              className={`block border-b border-border px-3 py-2 last:border-b-0 ${
+                index === activeIndex
+                  ? "bg-panel-hover"
+                  : "hover:bg-panel-soft"
               }`}
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-sm font-medium text-zinc-900">
+                <span className="truncate text-sm font-medium text-foreground">
                   {item.titulo}
                 </span>
-                <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
+                <span className="shrink-0 rounded border border-border bg-panel-soft px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted-strong uppercase">
                   {BUSCA_TIPO_LABEL[item.tipo]}
                 </span>
               </div>
@@ -193,7 +195,7 @@ export function GlobalSearch() {
           <button
             type="button"
             onClick={() => goToResultsPage()}
-            className="sticky bottom-0 w-full border-t border-border bg-zinc-50 px-3 py-2 text-left text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+            className="sticky bottom-0 w-full border-t border-border bg-panel-soft px-3 py-2 text-left text-xs font-medium tracking-wide text-gold uppercase hover:bg-panel-hover"
           >
             Ver todos os resultados
             {pending ? "…" : ""}

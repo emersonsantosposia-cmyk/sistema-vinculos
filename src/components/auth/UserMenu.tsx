@@ -71,7 +71,7 @@ export function UserMenu() {
   return (
     <div className="flex items-center gap-3">
       <div className="hidden text-right sm:block">
-        <p className="max-w-[200px] truncate text-xs font-medium text-zinc-800">
+        <p className="max-w-[200px] truncate text-xs font-medium text-muted-strong">
           {label}
         </p>
         {user?.name && user.email ? (

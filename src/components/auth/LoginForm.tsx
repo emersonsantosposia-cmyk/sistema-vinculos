@@ -34,7 +34,7 @@ function LoginFormInner() {
       const dest =
         next && next.startsWith("/") && !next.startsWith("//")
           ? next
-          : "/pessoas";
+          : "/";
       router.push(dest);
       router.refresh();
     });
@@ -43,20 +43,37 @@ function LoginFormInner() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-sm space-y-3 rounded border border-border bg-panel p-5 shadow-sm"
+      className="w-full max-w-sm space-y-4 rounded border border-border bg-panel p-6 shadow-[0_16px_48px_rgba(0,0,0,0.45)]"
     >
-      <div>
-        <h1 className="text-base font-semibold text-zinc-900">
-          Rede Lince
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="w-full overflow-hidden rounded border border-border bg-black">
+          <img
+            src="/rede-lince-institucional.png"
+            alt="Rede Lince · PPF"
+            width={420}
+            height={238}
+            className="block h-auto w-full object-cover"
+          />
+        </div>
+        <p className="text-[10px] font-medium tracking-[0.22em] text-muted uppercase">
+          Sistema de contrainteligência
+        </p>
+        <h1
+          className="text-xl font-bold tracking-[0.28em] text-gold"
+          style={{
+            fontFamily: "var(--font-dash-display), ui-sans-serif, system-ui",
+          }}
+        >
+          REDE LINCE
         </h1>
-        <p className="mt-1 text-xs text-muted">
+        <p className="text-xs text-muted">
           Acesso restrito. Usuários são criados pelo administrador no Supabase
           (Authentication → Users). Não há cadastro público.
         </p>
       </div>
 
       {error ? (
-        <p className="rounded border border-red-300 bg-red-50 px-2 py-1.5 text-xs text-red-800">
+        <p className="rounded border border-danger-border bg-danger-bg px-2 py-1.5 text-xs text-danger-fg">
           {error}
         </p>
       ) : null}

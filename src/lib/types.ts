@@ -16,6 +16,7 @@ export const ENTIDADE_TIPOS = [
   "veiculo",
   "procedimento",
   "caso",
+  "comunicacao",
 ] as const;
 
 export type EntidadeTipo = (typeof ENTIDADE_TIPOS)[number];
@@ -118,6 +119,47 @@ export type Caso = {
   nome: string | null;
   data_abertura: string | null;
   link_cronos: string | null;
+  usuario_cadastro: string | null;
+  data_cadastro: string;
+};
+
+export const COMUNICACAO_TIPOS = [
+  { value: "imsi", label: "Número de celular (IMSI)" },
+  { value: "imei", label: "Aparelho de celular (IMEI)" },
+  { value: "email", label: "Endereço de e-mail" },
+  { value: "telefone_fixo", label: "Telefone fixo" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "telegram", label: "Telegram" },
+  { value: "radio", label: "Rádio" },
+  { value: "outros", label: "Outros" },
+] as const;
+
+export type ComunicacaoTipo = (typeof COMUNICACAO_TIPOS)[number]["value"];
+
+export const COMUNICACAO_STATUS = [
+  { value: "ativo", label: "Ativo" },
+  { value: "inativo", label: "Inativo" },
+  { value: "desconhecido", label: "Desconhecido" },
+] as const;
+
+export type ComunicacaoStatus = (typeof COMUNICACAO_STATUS)[number]["value"];
+
+/** Tipos em que o campo Operadora/Provedor faz sentido na UI. */
+export const COMUNICACAO_TIPOS_COM_OPERADORA = [
+  "imsi",
+  "imei",
+  "whatsapp",
+  "telegram",
+] as const satisfies readonly ComunicacaoTipo[];
+
+export type Comunicacao = {
+  id: string;
+  tipo: ComunicacaoTipo;
+  valor: string;
+  operadora_provedor: string | null;
+  status: ComunicacaoStatus;
+  fonte: string | null;
+  observacao_geral: string | null;
   usuario_cadastro: string | null;
   data_cadastro: string;
 };

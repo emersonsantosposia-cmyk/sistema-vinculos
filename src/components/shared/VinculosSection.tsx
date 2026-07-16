@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   Button,
   Input,
@@ -10,11 +10,15 @@ import {
   Textarea,
 } from "@/components/ui/Form";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
+import { VeiculoAvatar } from "@/components/veiculos/VeiculoAvatar";
+import { formatDateTime } from "@/lib/format";
+import { createClient } from "@/lib/supabase/client";
 import {
   createVinculo,
   deleteVinculo,
   listVinculosDaEntidade,
   searchEntidades,
+  updateVinculo,
 } from "@/lib/supabase/vinculos";
 import { ENTIDADE_TIPOS, type EntidadeTipo } from "@/lib/types";
 import {
@@ -32,80 +36,267 @@ type Props = {
   entidadeId: string;
 };
 
-function VinculoPessoaCard({
-  card,
-  pending,
-  onRemover,
-}: {
-  card: VinculoCard;
-  pending: boolean;
-  onRemover: (id: string) => void;
-}) {
-  const href = `${ENTIDADE_HREFS.pessoa}/${card.outroId}`;
+type FormMode = "create" | "edit";
 
-  return (
-    <div className="rounded border border-border bg-white px-3 py-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <Link
-          href={href}
-          className="flex min-w-0 items-center gap-3 font-medium text-zinc-900 hover:underline"
-        >
-          <PessoaAvatar
-            path={card.foto_perfil_path}
-            nome={card.titulo}
-            size="md"
-          />
-          <span className="truncate text-xs">{card.titulo}</span>
-        </Link>
-        <Button
-          type="button"
-          variant="ghost"
-          className="shrink-0 text-xs text-red-700 hover:bg-red-50"
-          onClick={() => onRemover(card.id)}
-          disabled={pending}
-        >
-          Remover
-        </Button>
-      </div>
-    </div>
-  );
+function resolveTipoSelectValue(tipo: string | null | undefined): {
+  select: string;
+  custom: string;
+} {
+  if (!tipo) return { select: "", custom: "" };
+  if ((TIPOS_VINCULO_COMUNS as readonly string[]).includes(tipo)) {
+    return { select: tipo, custom: "" };
+  }
+  return { select: "__custom", custom: tipo };
 }
 
-function VinculoListaItem({
+function VinculoCardBox({
   card,
   pending,
   onRemover,
+  onEditar,
+  onDetalhe,
 }: {
   card: VinculoCard;
   pending: boolean;
   onRemover: (id: string) => void;
+  onEditar: (card: VinculoCard) => void;
+  onDetalhe: (card: VinculoCard) => void;
 }) {
-  const href = `${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`;
-  const meta = [card.subtitulo, card.tipo_vinculo, card.observacao]
-    .filter(Boolean)
-    .join(" · ");
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const isPessoa = card.outroTipo === "pessoa";
+  const isVeiculo = card.outroTipo === "veiculo";
+  const showSubtitulo =
+    (card.outroTipo === "veiculo" || card.outroTipo === "endereco") &&
+    Boolean(card.subtitulo);
+  const tipoLabel = card.tipo_vinculo?.trim() || "Sem tipo";
+  const entidadeHref = `${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`;
 
-  return (
-    <li className="flex items-start justify-between gap-2 py-2 first:pt-0 last:pb-0">
-      <div className="min-w-0">
+  useEffect(() => {
+    if (!menu) return;
+
+    function close() {
+      setMenu(null);
+    }
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+
+    function onPointerDown(e: MouseEvent) {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      close();
+    }
+
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [menu]);
+
+  function openMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY });
+  }
+
+  const cardContent = isPessoa ? (
+    <div className="flex flex-1 flex-col items-center gap-3 text-center">
+      <button
+        type="button"
+        className="w-full text-[10px] font-semibold tracking-[0.12em] text-gold uppercase break-words hover:text-gold-bright hover:underline"
+        onClick={() => onDetalhe(card)}
+        title="Ver detalhes do vínculo"
+      >
+        {tipoLabel}
+      </button>
+      <PessoaAvatar
+        path={card.foto_perfil_path}
+        nome={card.titulo}
+        size="card"
+      />
+      <Link
+        href={entidadeHref}
+        className="w-full text-sm font-semibold text-foreground break-words hover:text-gold hover:underline"
+        title={`Abrir ${ENTIDADE_LABELS[card.outroTipo].toLowerCase()}`}
+      >
+        {card.titulo}
+      </Link>
+    </div>
+  ) : (
+    <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+      {isVeiculo ? (
+        <VeiculoAvatar
+          path={card.foto_url}
+          alt={card.titulo}
+          size="md"
+          className="shrink-0"
+        />
+      ) : null}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <button
+          type="button"
+          className="block w-full truncate text-left text-[10px] font-semibold tracking-[0.12em] text-gold uppercase hover:text-gold-bright hover:underline"
+          onClick={() => onDetalhe(card)}
+          title="Ver detalhes do vínculo"
+        >
+          {tipoLabel}
+        </button>
         <Link
-          href={href}
-          className="text-sm font-medium text-zinc-900 hover:underline"
+          href={entidadeHref}
+          className="mt-0.5 block truncate text-sm font-medium text-foreground hover:text-gold hover:underline"
+          title={`Abrir ${ENTIDADE_LABELS[card.outroTipo].toLowerCase()}`}
         >
           {card.titulo}
         </Link>
-        {meta ? <p className="mt-0.5 text-xs text-muted">{meta}</p> : null}
+        {showSubtitulo ? (
+          <p
+            className="mt-0.5 truncate text-xs text-muted"
+            title={card.subtitulo ?? undefined}
+          >
+            {card.subtitulo}
+          </p>
+        ) : null}
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        className="shrink-0 text-xs text-red-700 hover:bg-red-50"
-        onClick={() => onRemover(card.id)}
-        disabled={pending}
+    </div>
+  );
+
+  return (
+    <>
+      <div
+        className={
+          isPessoa
+            ? "flex h-full flex-col rounded border border-border bg-panel px-4 py-4 transition-colors hover:border-border-strong"
+            : "rounded border border-border bg-panel px-3 py-2.5 transition-colors hover:border-border-strong"
+        }
+        onContextMenu={openMenu}
       >
-        Remover
-      </Button>
-    </li>
+        {cardContent}
+      </div>
+
+      {menu ? (
+        <div
+          ref={menuRef}
+          className="fixed z-50 min-w-[9.5rem] rounded border border-border bg-panel py-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+          style={{ left: menu.x, top: menu.y }}
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-1.5 text-left text-sm text-gold hover:bg-panel-hover disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => {
+              setMenu(null);
+              onEditar(card);
+            }}
+            disabled={pending}
+          >
+            Editar
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-1.5 text-left text-sm text-danger-fg hover:bg-danger-bg disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => {
+              setMenu(null);
+              onRemover(card.id);
+            }}
+            disabled={pending}
+          >
+            Remover
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function VinculoDetalheModal({
+  card,
+  onClose,
+}: {
+  card: VinculoCard;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="vinculo-detalhe-titulo"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-md border border-border bg-panel p-4 shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p
+              id="vinculo-detalhe-titulo"
+              className="text-sm font-bold tracking-[0.14em] text-gold uppercase"
+            >
+              Detalhes do vínculo
+            </p>
+            <p className="mt-1 text-sm text-foreground">{card.titulo}</p>
+            <p className="mt-0.5 text-xs text-muted">
+              {ENTIDADE_LABELS[card.outroTipo]}
+              {card.tipo_vinculo ? ` · ${card.tipo_vinculo}` : ""}
+            </p>
+          </div>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Fechar
+          </Button>
+        </div>
+
+        <dl className="mt-4 space-y-3 border-t border-border pt-3">
+          <div>
+            <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+              Usuário
+            </dt>
+            <dd className="mt-0.5 text-sm text-foreground">
+              {card.usuario_nome?.trim() || "Não informado"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+              Data de criação
+            </dt>
+            <dd className="mt-0.5 text-sm text-foreground">
+              {formatDateTime(card.data_cadastro)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+              Observação
+            </dt>
+            <dd className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
+              {card.observacao?.trim() || "—"}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="mt-4 flex justify-end">
+          <a
+            href={`${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`}
+            className="btn-acao-secundario text-xs"
+          >
+            Abrir entidade
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -114,7 +305,15 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<FormMode>("create");
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [detalhe, setDetalhe] = useState<VinculoCard | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const [usuarioAtualNome, setUsuarioAtualNome] = useState<string>("Carregando…");
+  const [dataCriacaoPreview, setDataCriacaoPreview] = useState(
+    () => new Date().toISOString(),
+  );
 
   const [destinoTipo, setDestinoTipo] = useState<EntidadeTipo>("pessoa");
   const [busca, setBusca] = useState("");
@@ -126,7 +325,6 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
   const [observacao, setObservacao] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Tipos com accordion aberto (por padrão: só os que têm vínculos). */
   const [abertos, setAbertos] = useState<Set<EntidadeTipo>>(new Set());
   const abertosInitRef = useRef(false);
 
@@ -140,6 +338,23 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
     }
     return map;
   }, [cards]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        setUsuarioAtualNome("Usuário não identificado");
+        return;
+      }
+      setUsuarioAtualNome(
+        (user.user_metadata?.full_name as string | undefined) ||
+          (user.user_metadata?.name as string | undefined) ||
+          user.email?.split("@")[0] ||
+          user.email ||
+          "Você",
+      );
+    });
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -156,7 +371,6 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
       abertosInitRef.current = true;
       const withItems = new Set<EntidadeTipo>();
       for (const c of data) withItems.add(c.outroTipo);
-      // Se nenhum vínculo, deixa a 1ª seção aberta para orientar o usuário
       if (withItems.size === 0) withItems.add(ENTIDADE_TIPOS[0]);
       setAbertos(withItems);
     }
@@ -168,7 +382,7 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
   }, [load]);
 
   useEffect(() => {
-    if (!formOpen) return;
+    if (!formOpen || formMode !== "create") return;
     if (selecionada) return;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -196,6 +410,7 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
     };
   }, [
     formOpen,
+    formMode,
     destinoTipo,
     busca,
     selecionada,
@@ -210,6 +425,9 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
     setTipoVinculo("");
     setTipoVinculoCustom("");
     setObservacao("");
+    setEditandoId(null);
+    setFormMode("create");
+    setDataCriacaoPreview(new Date().toISOString());
   }
 
   function abrirFormulario(tipo: EntidadeTipo) {
@@ -217,7 +435,30 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
     resetFormFields();
     setError(null);
     setFormOpen(true);
+    setFormMode("create");
     setAbertos((prev) => new Set(prev).add(tipo));
+  }
+
+  function abrirEdicao(card: VinculoCard) {
+    const tipoVals = resolveTipoSelectValue(card.tipo_vinculo);
+    setFormMode("edit");
+    setEditandoId(card.id);
+    setDestinoTipo(card.outroTipo);
+    setSelecionada({
+      id: card.outroId,
+      titulo: card.titulo,
+      subtitulo: card.subtitulo,
+      foto_perfil_path: card.foto_perfil_path,
+      foto_url: card.foto_url,
+    });
+    setTipoVinculo(tipoVals.select);
+    setTipoVinculoCustom(tipoVals.custom);
+    setObservacao(card.observacao ?? "");
+    setDataCriacaoPreview(card.data_cadastro);
+    setError(null);
+    setFormOpen(true);
+    setAbertos((prev) => new Set(prev).add(card.outroTipo));
+    setDetalhe(null);
   }
 
   function fecharFormulario() {
@@ -236,14 +477,32 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
 
   function handleSalvar(e: React.FormEvent) {
     e.preventDefault();
-    if (!selecionada) {
-      setError("Selecione a entidade a vincular.");
-      return;
-    }
     const tipoFinal =
       tipoVinculo === "__custom"
         ? tipoVinculoCustom.trim()
         : tipoVinculo.trim();
+
+    if (formMode === "edit" && editandoId) {
+      startTransition(async () => {
+        setError(null);
+        const { error: updateError } = await updateVinculo(editandoId, {
+          tipoVinculo: tipoFinal || null,
+          observacao,
+        });
+        if (updateError) {
+          setError(updateError);
+          return;
+        }
+        fecharFormulario();
+        await load();
+      });
+      return;
+    }
+
+    if (!selecionada) {
+      setError("Selecione a entidade a vincular.");
+      return;
+    }
 
     startTransition(async () => {
       setError(null);
@@ -275,45 +534,73 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
         return;
       }
       setCards((prev) => prev.filter((c) => c.id !== id));
+      if (detalhe?.id === id) setDetalhe(null);
     });
   }
 
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted">
-        Relações desta entidade com outras do sistema, agrupadas por tipo.
-      </p>
+  const formUsuarioLabel =
+    formMode === "edit"
+      ? cards.find((c) => c.id === editandoId)?.usuario_nome ||
+        usuarioAtualNome
+      : usuarioAtualNome;
 
-      {error ? (
-        <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
-          {error}
-        </p>
-      ) : null}
+  const editFormRef = useRef<HTMLFormElement>(null);
 
-      {formOpen ? (
-        <form
-          onSubmit={handleSalvar}
-          className="space-y-3 rounded border border-border bg-zinc-50 p-3"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-medium text-zinc-900">
-                Novo vínculo com {ENTIDADE_LABELS[destinoTipo].toLowerCase()}
-              </p>
-              <p className="mt-0.5 text-xs text-muted">
-                Tipo de destino pré-selecionado. Busque e escolha o registro.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={fecharFormulario}
-              disabled={pending}
-            >
-              Cancelar
-            </Button>
+  useEffect(() => {
+    if (formOpen && formMode === "edit") {
+      editFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [formOpen, formMode, editandoId]);
+
+  function renderVinculoForm(mode: FormMode) {
+    return (
+      <form
+        ref={mode === "edit" ? editFormRef : undefined}
+        onSubmit={handleSalvar}
+        className="space-y-3 rounded border border-border bg-panel-soft p-3"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              {mode === "edit"
+                ? "Editar vínculo"
+                : `Novo vínculo com ${ENTIDADE_LABELS[destinoTipo].toLowerCase()}`}
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              {mode === "edit"
+                ? "Altere o tipo de vínculo ou a observação."
+                : "Tipo de destino pré-selecionado. Busque e escolha o registro."}
+            </p>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={fecharFormulario}
+            disabled={pending}
+          >
+            Cancelar
+          </Button>
+        </div>
 
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label>Usuário</Label>
+            <Input value={formUsuarioLabel} readOnly disabled />
+          </div>
+          <div>
+            <Label>Data de criação</Label>
+            <Input
+              value={formatDateTime(dataCriacaoPreview)}
+              readOnly
+              disabled
+            />
+          </div>
+        </div>
+
+        {mode === "create" ? (
           <div>
             <Label htmlFor="destino_tipo">Tipo da entidade</Label>
             <Select
@@ -334,22 +621,22 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
               ))}
             </Select>
           </div>
+        ) : null}
 
-          <div>
-            {selecionada ? (
-              <>
-                <Label>Entidade</Label>
-                <div className="flex items-center justify-between gap-2 rounded border border-zinc-300 bg-white px-2.5 py-1.5">
-                  <div>
-                    <p className="text-sm font-medium text-zinc-900">
-                      {selecionada.titulo}
-                    </p>
-                    {selecionada.subtitulo ? (
-                      <p className="text-xs text-muted">
-                        {selecionada.subtitulo}
-                      </p>
-                    ) : null}
-                  </div>
+        <div>
+          {selecionada ? (
+            <>
+              <Label>Entidade</Label>
+              <div className="flex items-center justify-between gap-2 rounded border border-border bg-panel px-2.5 py-1.5">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {selecionada.titulo}
+                  </p>
+                  {selecionada.subtitulo ? (
+                    <p className="text-xs text-muted">{selecionada.subtitulo}</p>
+                  ) : null}
+                </div>
+                {mode === "create" ? (
                   <Button
                     type="button"
                     variant="ghost"
@@ -358,102 +645,125 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
                   >
                     Trocar
                   </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <Label htmlFor="busca_entidade">Buscar entidade</Label>
-                <Input
-                  id="busca_entidade"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder={`Buscar ${ENTIDADE_LABELS[destinoTipo].toLowerCase()}…`}
-                  disabled={pending}
-                  autoComplete="off"
-                />
-                <div className="mt-1 max-h-44 overflow-auto rounded border border-border bg-white">
-                  {buscando ? (
-                    <p className="px-3 py-2 text-xs text-muted">Buscando…</p>
-                  ) : opcoes.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-muted">
-                      Nenhum resultado. Digite para buscar.
-                    </p>
-                  ) : (
-                    <ul>
-                      {opcoes.map((opcao) => (
-                        <li key={opcao.id}>
-                          <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left hover:bg-zinc-50"
-                            onClick={() => {
-                              setSelecionada(opcao);
-                              setBusca("");
-                              setOpcoes([]);
-                            }}
-                          >
-                            <p className="text-sm font-medium text-zinc-900">
-                              {opcao.titulo}
-                            </p>
-                            {opcao.subtitulo ? (
-                              <p className="text-xs text-muted">
-                                {opcao.subtitulo}
-                              </p>
-                            ) : null}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          <div>
-            <Label htmlFor="tipo_vinculo">Tipo de vínculo</Label>
-            <Select
-              id="tipo_vinculo"
-              value={tipoVinculo}
-              onChange={(e) => setTipoVinculo(e.target.value)}
-              disabled={pending}
-            >
-              <option value="">Selecione ou personalize</option>
-              {TIPOS_VINCULO_COMUNS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-              <option value="__custom">Outro (digitar)…</option>
-            </Select>
-            {tipoVinculo === "__custom" ? (
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <>
+              <Label htmlFor="busca_entidade">Buscar entidade</Label>
               <Input
-                className="mt-2"
-                value={tipoVinculoCustom}
-                onChange={(e) => setTipoVinculoCustom(e.target.value)}
-                placeholder="Descreva o tipo de vínculo"
+                id="busca_entidade"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder={`Buscar ${ENTIDADE_LABELS[destinoTipo].toLowerCase()}…`}
                 disabled={pending}
+                autoComplete="off"
               />
-            ) : null}
-          </div>
+              <div className="mt-1 max-h-44 overflow-auto rounded border border-border bg-panel">
+                {buscando ? (
+                  <p className="px-3 py-2 text-xs text-muted">Buscando…</p>
+                ) : opcoes.length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-muted">
+                    Nenhum resultado. Digite para buscar.
+                  </p>
+                ) : (
+                  <ul>
+                    {opcoes.map((opcao) => (
+                      <li key={opcao.id}>
+                        <button
+                          type="button"
+                          className="w-full px-3 py-2 text-left hover:bg-panel-hover"
+                          onClick={() => {
+                            setSelecionada(opcao);
+                            setBusca("");
+                            setOpcoes([]);
+                          }}
+                        >
+                          <p className="text-sm font-medium text-foreground">
+                            {opcao.titulo}
+                          </p>
+                          {opcao.subtitulo ? (
+                            <p className="text-xs text-muted">
+                              {opcao.subtitulo}
+                            </p>
+                          ) : null}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
-          <div>
-            <Label htmlFor="obs_vinculo">Observação (opcional)</Label>
-            <Textarea
-              id="obs_vinculo"
-              rows={2}
-              value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
+        <div>
+          <Label htmlFor={`tipo_vinculo_${mode}`}>Tipo de vínculo</Label>
+          <Select
+            id={`tipo_vinculo_${mode}`}
+            value={tipoVinculo}
+            onChange={(e) => setTipoVinculo(e.target.value)}
+            disabled={pending}
+          >
+            <option value="">Selecione ou personalize</option>
+            {TIPOS_VINCULO_COMUNS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+            <option value="__custom">Outro (digitar)…</option>
+          </Select>
+          {tipoVinculo === "__custom" ? (
+            <Input
+              className="mt-2"
+              value={tipoVinculoCustom}
+              onChange={(e) => setTipoVinculoCustom(e.target.value)}
+              placeholder="Descreva o tipo de vínculo"
               disabled={pending}
             />
-          </div>
+          ) : null}
+        </div>
 
-          <div className="flex justify-end">
-            <Button type="submit" disabled={pending || !selecionada}>
-              {pending ? "Salvando…" : "Salvar vínculo"}
-            </Button>
-          </div>
-        </form>
+        <div>
+          <Label htmlFor={`obs_vinculo_${mode}`}>Observação (opcional)</Label>
+          <Textarea
+            id={`obs_vinculo_${mode}`}
+            rows={2}
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+            disabled={pending}
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            disabled={pending || (mode === "create" && !selecionada)}
+          >
+            {pending
+              ? "Salvando…"
+              : mode === "edit"
+                ? "Salvar alterações"
+                : "Salvar vínculo"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted">
+        Relações desta entidade com outras do sistema, agrupadas por tipo.
+      </p>
+
+      {error ? (
+        <p className="rounded border border-danger-border bg-danger-bg px-3 py-2 text-xs text-danger-fg">
+          {error}
+        </p>
       ) : null}
+
+      {formOpen && formMode === "create" ? renderVinculoForm("create") : null}
 
       {loading ? (
         <p className="py-4 text-center text-sm text-muted">
@@ -472,20 +782,20 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
                 <button
                   type="button"
                   onClick={() => toggleSecao(tipo)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-zinc-50"
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-panel-hover"
                   aria-expanded={aberto}
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <span
-                      className={`text-zinc-400 transition-transform ${aberto ? "rotate-90" : ""}`}
+                      className={`text-muted transition-transform ${aberto ? "rotate-90" : ""}`}
                       aria-hidden
                     >
                       ▸
                     </span>
-                    <span className="text-sm font-semibold text-zinc-900">
+                    <span className="text-sm font-bold tracking-[0.12em] text-gold uppercase">
                       {ENTIDADE_VINCULOS_TITULOS[tipo]}
                     </span>
-                    <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                    <span className="rounded bg-panel-soft px-1.5 py-0.5 text-[10px] font-medium text-muted">
                       {items.length}
                     </span>
                   </span>
@@ -509,28 +819,38 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
                       <p className="py-1 text-xs text-muted">
                         Nenhum vínculo cadastrado
                       </p>
-                    ) : tipo === "pessoa" ? (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {items.map((card) => (
-                          <VinculoPessoaCard
-                            key={card.id}
-                            card={card}
-                            pending={pending}
-                            onRemover={handleRemover}
-                          />
-                        ))}
-                      </div>
                     ) : (
-                      <ul className="divide-y divide-border rounded border border-border bg-white px-3">
-                        {items.map((card) => (
-                          <VinculoListaItem
-                            key={card.id}
-                            card={card}
-                            pending={pending}
-                            onRemover={handleRemover}
-                          />
-                        ))}
-                      </ul>
+                      <div
+                        className={
+                          tipo === "pessoa"
+                            ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                            : "grid gap-2"
+                        }
+                      >
+                        {items.map((card) =>
+                          formOpen &&
+                          formMode === "edit" &&
+                          editandoId === card.id ? (
+                            <div
+                              key={card.id}
+                              className={
+                                tipo === "pessoa" ? "col-span-full" : undefined
+                              }
+                            >
+                              {renderVinculoForm("edit")}
+                            </div>
+                          ) : (
+                            <VinculoCardBox
+                              key={card.id}
+                              card={card}
+                              pending={pending}
+                              onRemover={handleRemover}
+                              onEditar={abrirEdicao}
+                              onDetalhe={setDetalhe}
+                            />
+                          ),
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : null}
@@ -539,6 +859,13 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
           })}
         </div>
       )}
+
+      {detalhe ? (
+        <VinculoDetalheModal
+          card={detalhe}
+          onClose={() => setDetalhe(null)}
+        />
+      ) : null}
     </div>
   );
 }

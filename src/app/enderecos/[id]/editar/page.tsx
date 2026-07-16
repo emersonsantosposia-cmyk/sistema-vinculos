@@ -20,7 +20,7 @@ export default async function EditarEnderecoPage({ params }: Props) {
         actions={
           <Link
             href={`/enderecos/${id}`}
-            className="inline-flex h-8 items-center rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+            className="btn-acao-secundario"
           >
             Voltar ao detalhe
           </Link>
@@ -44,7 +44,7 @@ export default async function EditarEnderecoPage({ params }: Props) {
       actions={
         <Link
           href={`/enderecos/${id}`}
-          className="inline-flex h-8 items-center rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+          className="btn-acao-secundario"
         >
           Voltar ao detalhe
         </Link>

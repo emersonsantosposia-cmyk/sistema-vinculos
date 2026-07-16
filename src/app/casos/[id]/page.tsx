@@ -26,7 +26,7 @@ function Field({
       <dt className="text-[11px] font-medium tracking-wide text-muted uppercase">
         {label}
       </dt>
-      <dd className="mt-0.5 text-sm text-zinc-900">
+      <dd className="mt-0.5 text-sm text-foreground">
         {children ?? value ?? "—"}
       </dd>
     </div>
@@ -61,14 +61,14 @@ export default async function CasoDetailPage({ params }: Props) {
         <div className="flex items-center gap-2">
           <Link
             href={`/casos/${caso.id}/editar`}
-            className="inline-flex h-8 items-center rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+            className="btn-acao"
           >
             Editar
           </Link>
           <CasoDeleteButton id={caso.id} />
           <Link
             href="/casos"
-            className="inline-flex h-8 items-center rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+            className="btn-acao-secundario"
           >
             Voltar à lista
           </Link>

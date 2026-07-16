@@ -94,7 +94,7 @@ export function ObservacoesTimeline({ entidadeTipo, entidadeId }: Props) {
         />
         <div className="flex items-center justify-between gap-3">
           {error ? (
-            <p className="text-xs text-red-700">{error}</p>
+            <p className="text-xs text-danger-fg">{error}</p>
           ) : (
             <span className="text-xs text-muted">
               Publicada na timeline desta entidade.
@@ -117,14 +117,14 @@ export function ObservacoesTimeline({ entidadeTipo, entidadeId }: Props) {
           {items.map((item) => (
             <li key={item.id} className="py-3">
               <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="text-xs font-semibold text-zinc-800">
+                <span className="text-xs font-semibold text-muted-strong">
                   {displayName(item.usuario)}
                 </span>
                 <span className="text-[11px] text-muted">
                   {formatObservacaoDataHora(item.data_hora)}
                 </span>
               </div>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-strong">
                 {item.mensagem}
               </p>
             </li>

@@ -196,18 +196,18 @@ export function EnderecoForm({ initial }: Props) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
       {error ? (
-        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <div className="rounded border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger-fg">
           {error}
         </div>
       ) : null}
       {pending && status ? (
-        <div className="rounded border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+        <div className="rounded border border-border bg-panel-soft px-3 py-2 text-sm text-muted-strong">
           {status}
         </div>
       ) : null}
 
       <section className="rounded border border-border bg-panel p-4">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">
           Dados do endereço
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -239,8 +239,8 @@ export function EnderecoForm({ initial }: Props) {
               <p
                 className={`mt-1 text-xs ${
                   cepHint.includes("preenchido")
-                    ? "text-zinc-500"
-                    : "text-amber-700"
+                    ? "text-muted"
+                    : "text-warning-fg"
                 }`}
               >
                 {cepHint}
@@ -341,7 +341,7 @@ export function EnderecoForm({ initial }: Props) {
 
           <div className="sm:col-span-2">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-medium text-zinc-600">Mapa</p>
+              <p className="text-xs font-medium text-muted">Mapa</p>
               <Button
                 type="button"
                 variant="secondary"
@@ -352,7 +352,7 @@ export function EnderecoForm({ initial }: Props) {
               </Button>
             </div>
             {geoHint ? (
-              <p className="mb-2 text-xs text-zinc-500">{geoHint}</p>
+              <p className="mb-2 text-xs text-muted">{geoHint}</p>
             ) : null}
             <MapPicker
               latitude={latNum}

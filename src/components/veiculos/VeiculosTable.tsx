@@ -28,7 +28,7 @@ export function VeiculosFilters({ veiculos }: Props) {
   return (
     <div className="mb-3 flex flex-wrap items-end gap-2">
       <div className="min-w-[220px] flex-1">
-        <label className="mb-1 block text-xs font-medium text-zinc-600">
+        <label className="mb-1 block text-xs font-medium text-muted">
           Buscar
         </label>
         <Input
@@ -44,7 +44,7 @@ export function VeiculosFilters({ veiculos }: Props) {
         type="button"
         disabled={pending}
         onClick={() => apply(q)}
-        className="h-8 rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+        className="h-8 rounded border border-border bg-panel px-3 text-sm font-medium text-muted-strong hover:bg-panel-hover hover:text-gold-bright disabled:opacity-50"
       >
         Filtrar
       </button>
@@ -70,7 +70,7 @@ export function VeiculosTable({ veiculos }: Props) {
     <div className="overflow-x-auto rounded border border-border bg-panel">
       <table className="w-full min-w-[760px] border-collapse text-left text-sm">
         <thead>
-          <tr className="border-b border-border bg-zinc-50 text-xs font-semibold tracking-wide text-zinc-600 uppercase">
+          <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
             <th className="px-3 py-2.5 font-semibold">Placa</th>
             <th className="px-3 py-2.5 font-semibold">Marca</th>
             <th className="px-3 py-2.5 font-semibold">Modelo</th>
@@ -83,29 +83,29 @@ export function VeiculosTable({ veiculos }: Props) {
           {rows.map((veiculo) => (
             <tr
               key={veiculo.id}
-              className="border-b border-border last:border-b-0 hover:bg-zinc-50"
+              className="border-b border-border last:border-b-0 hover:bg-panel-hover"
             >
               <td className="px-3 py-2">
                 <Link
                   href={`/veiculos/${veiculo.id}`}
-                  className="font-mono text-sm font-medium text-zinc-900 hover:underline"
+                  className="font-mono text-sm font-medium text-foreground hover:underline"
                 >
                   {formatPlaca(veiculo.placa)}
                 </Link>
               </td>
-              <td className="px-3 py-2 text-zinc-700">
+              <td className="px-3 py-2 text-muted-strong">
                 {veiculo.marca || "—"}
               </td>
-              <td className="px-3 py-2 text-zinc-700">
+              <td className="px-3 py-2 text-muted-strong">
                 {veiculo.modelo || "—"}
               </td>
-              <td className="px-3 py-2 text-zinc-700">{veiculo.cor || "—"}</td>
-              <td className="px-3 py-2 text-zinc-700">
+              <td className="px-3 py-2 text-muted-strong">{veiculo.cor || "—"}</td>
+              <td className="px-3 py-2 text-muted-strong">
                 {veiculo.ano_fabricacao || veiculo.ano_modelo
                   ? `${veiculo.ano_fabricacao ?? "—"}/${veiculo.ano_modelo ?? "—"}`
                   : "—"}
               </td>
-              <td className="px-3 py-2 text-zinc-600">
+              <td className="px-3 py-2 text-muted">
                 {formatDate(veiculo.data_cadastro)}
               </td>
             </tr>

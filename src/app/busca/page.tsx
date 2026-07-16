@@ -19,6 +19,7 @@ const TIPO_ORDER: BuscaEntidadeTipo[] = [
   "veiculo",
   "endereco",
   "caso",
+  "comunicacao",
 ];
 
 function groupByTipo(results: BuscaResultado[]) {
@@ -39,7 +40,7 @@ async function BuscaContent({ q }: { q?: string }) {
     return (
       <p className="text-sm text-muted">
         Digite pelo menos 2 caracteres na busca do topo para pesquisar pessoas,
-        empresas, veículos, endereços e casos.
+        empresas, veículos, endereços, casos e comunicações.
       </p>
     );
   }
@@ -63,7 +64,7 @@ async function BuscaContent({ q }: { q?: string }) {
         if (items.length === 0) return null;
         return (
           <section key={tipo}>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <h3 className="mb-2 text-xs font-bold tracking-[0.14em] text-gold uppercase">
               {BUSCA_TIPO_LABEL[tipo]} ({items.length})
             </h3>
             <ul className="divide-y divide-border rounded border border-border bg-panel">
@@ -71,10 +72,10 @@ async function BuscaContent({ q }: { q?: string }) {
                 <li key={`${item.tipo}-${item.id}`}>
                   <Link
                     href={item.href}
-                    className="flex items-start justify-between gap-3 px-3 py-2.5 hover:bg-zinc-50"
+                    className="flex items-start justify-between gap-3 px-3 py-2.5 hover:bg-panel-hover"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-zinc-900">
+                      <p className="truncate text-sm font-medium text-foreground">
                         {item.titulo}
                       </p>
                       {item.subtitulo ? (
@@ -83,7 +84,7 @@ async function BuscaContent({ q }: { q?: string }) {
                         </p>
                       ) : null}
                     </div>
-                    <span className="shrink-0 text-xs text-zinc-500">
+                    <span className="shrink-0 text-xs text-muted">
                       Abrir →
                     </span>
                   </Link>

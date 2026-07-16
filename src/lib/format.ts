@@ -1,6 +1,11 @@
 import {
+  COMUNICACAO_STATUS,
+  COMUNICACAO_TIPOS,
+  COMUNICACAO_TIPOS_COM_OPERADORA,
   PESSOA_TIPOS,
   PROCEDIMENTO_TIPOS,
+  type ComunicacaoStatus,
+  type ComunicacaoTipo,
   type PessoaTipo,
   type ProcedimentoTipo,
 } from "@/lib/types";
@@ -231,4 +236,59 @@ export function formatObservacaoDataHora(
 
 export function isPessoaTipo(value: string): value is PessoaTipo {
   return PESSOA_TIPOS.some((t) => t.value === value);
+}
+
+export function labelComunicacaoTipo(tipo: string | null | undefined): string {
+  if (!tipo) return "—";
+  return COMUNICACAO_TIPOS.find((t) => t.value === tipo)?.label ?? tipo;
+}
+
+export function labelComunicacaoStatus(
+  status: string | null | undefined,
+): string {
+  if (!status) return "—";
+  return COMUNICACAO_STATUS.find((t) => t.value === status)?.label ?? status;
+}
+
+export function isComunicacaoTipo(value: string): value is ComunicacaoTipo {
+  return COMUNICACAO_TIPOS.some((t) => t.value === value);
+}
+
+export function isComunicacaoStatus(value: string): value is ComunicacaoStatus {
+  return COMUNICACAO_STATUS.some((t) => t.value === value);
+}
+
+export function comunicacaoMostraOperadora(
+  tipo: string | null | undefined,
+): boolean {
+  return (
+    !!tipo &&
+    (COMUNICACAO_TIPOS_COM_OPERADORA as readonly string[]).includes(tipo)
+  );
+}
+
+/** Rótulo dinâmico do campo valor conforme o tipo escolhido. */
+export function labelComunicacaoValor(
+  tipo: string | null | undefined,
+): string {
+  switch (tipo) {
+    case "imsi":
+      return "Número (IMSI)";
+    case "imei":
+      return "Número IMEI do aparelho";
+    case "email":
+      return "Endereço de e-mail";
+    case "telefone_fixo":
+      return "Telefone fixo";
+    case "whatsapp":
+      return "Número ou usuário WhatsApp";
+    case "telegram":
+      return "Número ou usuário Telegram";
+    case "radio":
+      return "Identificador de rádio";
+    case "outros":
+      return "Identificador";
+    default:
+      return "Valor";
+  }
 }

@@ -5,8 +5,8 @@ export default function PessoasLoading() {
       <div className="flex flex-1 flex-col">
         <div className="h-12 border-b border-border bg-panel" />
         <div className="space-y-3 p-5">
-          <div className="h-8 w-64 animate-pulse rounded bg-zinc-200" />
-          <div className="h-56 animate-pulse rounded border border-border bg-zinc-100" />
+          <div className="h-8 w-64 animate-pulse rounded bg-panel-hover" />
+          <div className="h-56 animate-pulse rounded border border-border bg-panel-soft" />
           <p className="text-sm text-muted">Carregando…</p>
         </div>
       </div>

@@ -38,7 +38,7 @@ export function PessoaDeleteButton({ pessoaId }: { pessoaId: string }) {
       >
         {pending ? "Excluindo…" : "Excluir"}
       </Button>
-      {error ? <p className="text-xs text-red-700">{error}</p> : null}
+      {error ? <p className="text-xs text-danger-fg">{error}</p> : null}
     </div>
   );
 }

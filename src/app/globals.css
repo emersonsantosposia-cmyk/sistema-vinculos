@@ -1,14 +1,74 @@
 @import "tailwindcss";
 
+/*
+ * Identidade visual institucional — Rede Lince / PPF
+ * Variáveis semânticas (fonte da verdade). Demais tokens mapeiam para estas.
+ */
 :root {
-  --background: #f4f4f5;
-  --foreground: #18181b;
-  --sidebar: #18181b;
-  --sidebar-fg: #e4e4e7;
-  --panel: #ffffff;
-  --border: #e4e4e7;
-  --muted: #71717a;
-  --accent: #3f3f46;
+  /* Fundos */
+  --cor-fundo-primaria: #0c100c;
+  --cor-fundo-secundaria: #121812;
+  --cor-fundo-sidebar: #101510;
+  --cor-fundo-gradiente-inicio: #1a2216;
+  --cor-fundo-gradiente-fim: #080a08;
+
+  /* Cards / painéis */
+  --cor-card-fundo: #141a14;
+  --cor-card-fundo-hover: #1a2218;
+  --cor-card-fundo-suave: #171d16;
+
+  /* Bordas */
+  --cor-borda: rgba(184, 168, 110, 0.22);
+  --cor-borda-destaque: rgba(212, 175, 55, 0.45);
+
+  /* Destaque (ação / KPI / títulos) */
+  --cor-destaque-dourado: #d4af37;
+  --cor-destaque-dourado-claro: #e8c95a;
+  --cor-destaque-dourado-escuro: #121510;
+
+  /* Texto */
+  --cor-texto-primario: #e8e4d4;
+  --cor-texto-secundario: #c9bfa3;
+  --cor-texto-muted: #8a846f;
+  --cor-texto-inversao: #121510;
+
+  /* Feedback */
+  --cor-perigo: #b45353;
+  --cor-perigo-fundo: rgba(127, 29, 29, 0.35);
+  --cor-perigo-borda: rgba(248, 113, 113, 0.35);
+  --cor-perigo-texto: #fecaca;
+  --cor-alerta-fundo: rgba(212, 175, 55, 0.12);
+  --cor-alerta-borda: rgba(212, 175, 55, 0.4);
+  --cor-alerta-texto: #e8d5a3;
+
+  /* Campos de formulário */
+  --cor-campo-fundo: #0f140f;
+  --cor-campo-borda: rgba(184, 168, 110, 0.28);
+  --cor-campo-foco: var(--cor-destaque-dourado);
+
+  /* Aliases legados (compatíveis com bg-background, bg-panel, etc.) */
+  --background: var(--cor-fundo-primaria);
+  --foreground: var(--cor-texto-primario);
+  --sidebar: var(--cor-fundo-sidebar);
+  --sidebar-fg: var(--cor-texto-secundario);
+  --panel: var(--cor-card-fundo);
+  --border: var(--cor-borda);
+  --muted: var(--cor-texto-muted);
+  --accent: var(--cor-destaque-dourado);
+
+  /* Aliases do Dashboard (mesma linguagem) */
+  --dash-bg: var(--cor-fundo-primaria);
+  --dash-bg-mid: #161c14;
+  --dash-sidebar: var(--cor-fundo-sidebar);
+  --dash-header: var(--cor-fundo-secundaria);
+  --dash-panel: var(--cor-card-fundo);
+  --dash-panel-hover: var(--cor-card-fundo-hover);
+  --dash-border: var(--cor-borda);
+  --dash-border-strong: var(--cor-borda-destaque);
+  --dash-gold: var(--cor-destaque-dourado);
+  --dash-gold-bright: var(--cor-destaque-dourado-claro);
+  --dash-muted: var(--cor-texto-muted);
+  --dash-muted-strong: var(--cor-texto-secundario);
 }
 
 @theme inline {
@@ -17,19 +77,163 @@
   --color-sidebar: var(--sidebar);
   --color-sidebar-fg: var(--sidebar-fg);
   --color-panel: var(--panel);
+  --color-panel-hover: var(--cor-card-fundo-hover);
+  --color-panel-soft: var(--cor-card-fundo-suave);
   --color-border: var(--border);
+  --color-border-strong: var(--cor-borda-destaque);
   --color-muted: var(--muted);
+  --color-muted-strong: var(--cor-texto-secundario);
   --color-accent: var(--accent);
+  --color-gold: var(--cor-destaque-dourado);
+  --color-gold-bright: var(--cor-destaque-dourado-claro);
+  --color-gold-ink: var(--cor-destaque-dourado-escuro);
+  --color-field: var(--cor-campo-fundo);
+  --color-field-border: var(--cor-campo-borda);
+  --color-danger: var(--cor-perigo);
+  --color-danger-bg: var(--cor-perigo-fundo);
+  --color-danger-border: var(--cor-perigo-borda);
+  --color-danger-fg: var(--cor-perigo-texto);
+  --color-warning-bg: var(--cor-alerta-fundo);
+  --color-warning-border: var(--cor-alerta-borda);
+  --color-warning-fg: var(--cor-alerta-texto);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-dash-display);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--cor-fundo-primaria);
+  color: var(--cor-texto-primario);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 * {
   border-color: var(--border);
+}
+
+/* Camadas atmosféricas do Dashboard */
+.dash-bg-layer {
+  background:
+    radial-gradient(ellipse 80% 55% at 20% 15%, rgba(70, 85, 45, 0.28), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 80%, rgba(30, 38, 22, 0.55), transparent 50%),
+    linear-gradient(
+      160deg,
+      var(--cor-fundo-gradiente-inicio) 0%,
+      var(--cor-fundo-primaria) 48%,
+      var(--cor-fundo-gradiente-fim) 100%
+    );
+}
+
+.dash-grid-layer {
+  background-image:
+    linear-gradient(rgba(212, 175, 55, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(212, 175, 55, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
+}
+
+/* Compat: páginas ainda com .dashboard-tactical */
+.dashboard-tactical {
+  color: var(--cor-texto-secundario);
+}
+
+/* Títulos de página / seção institucionais */
+.titulo-institucional {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cor-destaque-dourado);
+}
+
+/* Botões-link reutilizados nas páginas de listagem/detalhe */
+.btn-acao {
+  display: inline-flex;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 0.25rem;
+  background: var(--cor-destaque-dourado);
+  padding-inline: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cor-destaque-dourado-escuro);
+  transition: background-color 150ms ease;
+}
+
+.btn-acao:hover {
+  background: var(--cor-destaque-dourado-claro);
+}
+
+.btn-acao-secundario {
+  display: inline-flex;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--cor-borda);
+  background: var(--cor-card-fundo);
+  padding-inline: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--cor-texto-secundario);
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.btn-acao-secundario:hover {
+  border-color: var(--cor-borda-destaque);
+  background: var(--cor-card-fundo-hover);
+  color: var(--cor-destaque-dourado-claro);
+}
+
+/* Campos nativos fora do Form.tsx (ex.: GlobalSearch) */
+.campo-institucional {
+  border: 1px solid var(--cor-campo-borda);
+  background: var(--cor-campo-fundo);
+  color: var(--cor-texto-primario);
+  outline: none;
+}
+
+.campo-institucional::placeholder {
+  color: var(--cor-texto-muted);
+}
+
+.campo-institucional:focus {
+  border-color: var(--cor-campo-foco);
+}
+
+/* Options nativos legíveis no tema escuro */
+option {
+  background-color: var(--cor-campo-fundo);
+  color: var(--cor-texto-primario);
+}
+
+/* Controles Leaflet sobre tema escuro */
+.leaflet-container {
+  background: var(--cor-card-fundo-suave);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.leaflet-control-attribution {
+  background: rgba(12, 16, 12, 0.85) !important;
+  color: var(--cor-texto-muted) !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--cor-destaque-dourado) !important;
+}
+
+.leaflet-bar a {
+  background: var(--cor-card-fundo) !important;
+  border-bottom-color: var(--cor-borda) !important;
+  color: var(--cor-destaque-dourado) !important;
+}
+
+.leaflet-bar a:hover {
+  background: var(--cor-card-fundo-hover) !important;
+  color: var(--cor-destaque-dourado-claro) !important;
 }

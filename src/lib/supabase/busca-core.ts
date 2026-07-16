@@ -4,6 +4,7 @@ import {
   formatCnpj,
   formatCpf,
   formatPlaca,
+  labelComunicacaoTipo,
   normalizePlaca,
 } from "@/lib/format";
 
@@ -12,7 +13,8 @@ export type BuscaEntidadeTipo =
   | "empresa"
   | "endereco"
   | "veiculo"
-  | "caso";
+  | "caso"
+  | "comunicacao";
 
 export type BuscaResultado = {
   tipo: BuscaEntidadeTipo;
@@ -28,6 +30,7 @@ export const BUSCA_TIPO_LABEL: Record<BuscaEntidadeTipo, string> = {
   endereco: "Endereço",
   veiculo: "Veículo",
   caso: "Caso",
+  comunicacao: "Comunicação",
 };
 
 function sanitizeTerm(q: string): string {
@@ -44,7 +47,7 @@ function pickTitle(...parts: Array<string | null | undefined>): string {
 }
 
 /**
- * Busca global em pessoas, empresas, endereços, veículos e casos.
+ * Busca global em pessoas, empresas, endereços, veículos, casos e comunicações.
  * Aceita cliente browser ou server do Supabase.
  */
 export async function buscaGlobalWithClient(
@@ -60,7 +63,8 @@ export async function buscaGlobalWithClient(
   const digits = digitsOnly(term);
   const placa = normalizePlaca(term);
 
-  const [pessoas, empresas, enderecos, veiculos, casos] = await Promise.all([
+  const [pessoas, empresas, enderecos, veiculos, casos, comunicacoes] =
+    await Promise.all([
     supabase
       .from("pessoas")
       .select("id, nome, cpf")
@@ -101,6 +105,12 @@ export async function buscaGlobalWithClient(
       .ilike("numero", `%${term}%`)
       .order("numero", { ascending: true })
       .limit(limitPerType),
+    supabase
+      .from("comunicacoes")
+      .select("id, tipo, valor, operadora_provedor")
+      .or(`valor.ilike.%${term}%,operadora_provedor.ilike.%${term}%`)
+      .order("data_cadastro", { ascending: false })
+      .limit(limitPerType),
   ]);
 
   const firstError =
@@ -108,7 +118,8 @@ export async function buscaGlobalWithClient(
     empresas.error ||
     enderecos.error ||
     ("error" in veiculos ? veiculos.error : null) ||
-    casos.error;
+    casos.error ||
+    comunicacoes.error;
 
   if (firstError) {
     return {
@@ -173,6 +184,21 @@ export async function buscaGlobalWithClient(
       titulo: pickTitle(row.numero, row.nome),
       subtitulo: row.numero && row.nome ? row.nome : null,
       href: `/casos/${row.id}`,
+    });
+  }
+
+  for (const row of comunicacoes.data ?? []) {
+    results.push({
+      tipo: "comunicacao",
+      id: row.id,
+      titulo: pickTitle(row.valor),
+      subtitulo: [
+        labelComunicacaoTipo(row.tipo),
+        row.operadora_provedor,
+      ]
+        .filter(Boolean)
+        .join(" · ") || null,
+      href: `/comunicacoes/${row.id}`,
     });
   }
 

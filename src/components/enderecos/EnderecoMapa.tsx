@@ -26,11 +26,11 @@ export function EnderecoMapa({ latitude, longitude, label }: Props) {
 
   if (!hasCoords) {
     return (
-      <div className="flex min-h-[220px] flex-col items-center justify-center rounded border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center">
+      <div className="flex min-h-[220px] flex-col items-center justify-center rounded border border-dashed border-border bg-panel-soft px-4 py-8 text-center">
         <p className="text-sm text-muted">
           Sem coordenadas para exibir o mapa.
         </p>
-        <p className="mt-1 text-xs text-zinc-400">
+        <p className="mt-1 text-xs text-muted">
           Preencha latitude/longitude ou use a geocodificação no cadastro.
         </p>
       </div>

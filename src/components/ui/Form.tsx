@@ -1,4 +1,9 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 
 export function Label({
   children,
@@ -10,12 +15,15 @@ export function Label({
   return (
     <label
       htmlFor={htmlFor}
-      className="mb-1 block text-xs font-medium text-zinc-600"
+      className="mb-1 block text-xs font-medium tracking-wide text-muted-strong uppercase"
     >
       {children}
     </label>
   );
 }
+
+const fieldBase =
+  "rounded border border-field-border bg-field text-sm text-foreground outline-none placeholder:text-muted focus:border-gold";
 
 export function Input({
   className = "",
@@ -23,7 +31,7 @@ export function Input({
 }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className={`h-8 w-full rounded border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-500 ${className}`}
+      className={`h-8 w-full px-2.5 ${fieldBase} ${className}`}
       {...props}
     />
   );
@@ -36,7 +44,7 @@ export function Select({
 }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
-      className={`h-8 w-full rounded border border-zinc-300 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 ${className}`}
+      className={`h-8 w-full px-2 ${fieldBase} ${className}`}
       {...props}
     >
       {children}
@@ -50,7 +58,7 @@ export function Textarea({
 }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className={`w-full rounded border border-zinc-300 bg-white px-2.5 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 ${className}`}
+      className={`w-full px-2.5 py-2 ${fieldBase} ${className}`}
       {...props}
     />
   );
@@ -64,10 +72,14 @@ export function Button({
   variant?: "primary" | "secondary" | "danger" | "ghost";
 }) {
   const variants = {
-    primary: "bg-zinc-900 text-white hover:bg-zinc-800",
-    secondary: "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50",
-    danger: "bg-red-700 text-white hover:bg-red-800",
-    ghost: "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
+    primary:
+      "bg-gold font-semibold text-gold-ink hover:bg-gold-bright active:bg-gold",
+    secondary:
+      "border border-border bg-panel text-muted-strong hover:border-border-strong hover:bg-panel-hover hover:text-gold-bright",
+    danger:
+      "border border-danger-border bg-danger-bg text-danger-fg hover:bg-danger",
+    ghost:
+      "text-muted-strong hover:bg-panel-hover hover:text-gold-bright",
   };
 
   return (
@@ -90,13 +102,13 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section
-      className={`rounded border border-border bg-panel ${className}`}
-    >
+    <section className={`rounded border border-border bg-panel ${className}`}>
       {(title || actions) && (
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           {title ? (
-            <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+            <h3 className="text-sm font-bold tracking-[0.12em] text-gold uppercase">
+              {title}
+            </h3>
           ) : (
             <span />
           )}
@@ -116,8 +128,12 @@ export function EmptyState({ children }: { children: React.ReactNode }) {
 
 export function ErrorBanner({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+    <div className="mb-4 rounded border border-warning-border bg-warning-bg px-3 py-2 text-sm text-warning-fg">
       {children}
     </div>
   );
 }
+
+/** Classes compartilhadas para Links estilizados como botão. */
+export const linkPrimaryClass = "btn-acao";
+export const linkSecondaryClass = "btn-acao-secundario";

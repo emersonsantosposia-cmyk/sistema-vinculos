@@ -3,7 +3,8 @@
 import { requireAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/supabase/errors";
-import { formatPlaca } from "@/lib/format";
+import { resolveUserDisplayNames } from "@/lib/supabase/observacoes";
+import { formatPlaca, labelComunicacaoTipo } from "@/lib/format";
 import type { EntidadeTipo } from "@/lib/types";
 import type {
   EntidadeOpcao,
@@ -106,7 +107,7 @@ export async function searchEntidades(
       case "veiculo": {
         let query = supabase
           .from("veiculos")
-          .select("id, placa, marca, modelo, cor")
+          .select("id, placa, marca, modelo, cor, foto_url")
           .order("data_cadastro", { ascending: false })
           .limit(limit);
         if (term) {
@@ -128,6 +129,7 @@ export async function searchEntidades(
             subtitulo: [row.marca, row.modelo, row.cor]
               .filter(Boolean)
               .join(" · "),
+            foto_url: row.foto_url,
           })),
           error: null,
         };
@@ -168,6 +170,33 @@ export async function searchEntidades(
             id: row.id,
             titulo: pickTitle(row.nome, row.numero),
             subtitulo: row.numero,
+          })),
+          error: null,
+        };
+      }
+      case "comunicacao": {
+        let query = supabase
+          .from("comunicacoes")
+          .select("id, tipo, valor, operadora_provedor, status")
+          .order("data_cadastro", { ascending: false })
+          .limit(limit);
+        if (term) {
+          query = query.or(
+            `valor.ilike.%${term}%,operadora_provedor.ilike.%${term}%`,
+          );
+        }
+        const { data, error } = await query;
+        if (error) throw error;
+        return {
+          data: (data ?? []).map((row) => ({
+            id: row.id,
+            titulo: pickTitle(row.valor),
+            subtitulo: [
+              labelComunicacaoTipo(row.tipo),
+              row.operadora_provedor,
+            ]
+              .filter(Boolean)
+              .join(" · "),
           })),
           error: null,
         };
@@ -239,7 +268,7 @@ export async function getEntidadeResumo(
     case "veiculo": {
       const { data } = await supabase
         .from("veiculos")
-        .select("id, placa, marca, modelo, cor")
+        .select("id, placa, marca, modelo, cor, foto_url")
         .eq("id", id)
         .maybeSingle();
       if (!data) return null;
@@ -252,6 +281,7 @@ export async function getEntidadeResumo(
         subtitulo: [data.marca, data.modelo, data.cor]
           .filter(Boolean)
           .join(" · "),
+        foto_url: data.foto_url,
       };
     }
     case "procedimento": {
@@ -278,6 +308,24 @@ export async function getEntidadeResumo(
         id: data.id,
         titulo: pickTitle(data.nome, data.numero),
         subtitulo: data.numero,
+      };
+    }
+    case "comunicacao": {
+      const { data } = await supabase
+        .from("comunicacoes")
+        .select("id, tipo, valor, operadora_provedor, status")
+        .eq("id", id)
+        .maybeSingle();
+      if (!data) return null;
+      return {
+        id: data.id,
+        titulo: pickTitle(data.valor),
+        subtitulo: [
+          labelComunicacaoTipo(data.tipo),
+          data.operadora_provedor,
+        ]
+          .filter(Boolean)
+          .join(" · "),
       };
     }
     default:
@@ -328,6 +376,10 @@ export async function listVinculosDaEntidade(
       new Date(b.data_cadastro).getTime() - new Date(a.data_cadastro).getTime(),
   );
   const cards: VinculoCard[] = [];
+  const userIds = rows
+    .map((r) => r.usuario_cadastro)
+    .filter((id): id is string => Boolean(id));
+  const names = await resolveUserDisplayNames(userIds);
 
   for (const row of rows) {
     const isOrigem =
@@ -345,11 +397,17 @@ export async function listVinculosDaEntidade(
       id: row.id,
       tipo_vinculo: row.tipo_vinculo,
       observacao: row.observacao,
+      usuario_cadastro: row.usuario_cadastro,
+      data_cadastro: row.data_cadastro,
+      usuario_nome: row.usuario_cadastro
+        ? (names[row.usuario_cadastro] ?? null)
+        : null,
       outroTipo,
       outroId,
       titulo: resumo?.titulo ?? "Entidade não encontrada",
       subtitulo: resumo?.subtitulo ?? null,
       foto_perfil_path: resumo?.foto_perfil_path ?? null,
+      foto_url: resumo?.foto_url ?? null,
     });
   }
 
@@ -364,7 +422,10 @@ export async function createVinculo(input: {
   tipoVinculo?: string | null;
   observacao?: string | null;
 }): Promise<{ error: string | null }> {
-  if (input.origemTipo === input.destinoTipo && input.origemId === input.destinoId) {
+  if (
+    input.origemTipo === input.destinoTipo &&
+    input.origemId === input.destinoId
+  ) {
     return { error: "Não é possível vincular uma entidade a ela mesma." };
   }
 
@@ -385,6 +446,28 @@ export async function createVinculo(input: {
 
   if (error) {
     return { error: friendlyError(error.message, "Erro ao salvar vínculo.") };
+  }
+  return { error: null };
+}
+
+export async function updateVinculo(
+  id: string,
+  input: {
+    tipoVinculo?: string | null;
+    observacao?: string | null;
+  },
+): Promise<{ error: string | null }> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("vinculos")
+    .update({
+      tipo_vinculo: input.tipoVinculo?.trim() || null,
+      observacao: input.observacao?.trim() || null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    return { error: friendlyError(error.message, "Erro ao atualizar vínculo.") };
   }
   return { error: null };
 }

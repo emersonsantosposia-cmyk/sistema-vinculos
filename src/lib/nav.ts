@@ -3,10 +3,12 @@ export const NAV_ITEMS: {
   label: string;
   disabled?: boolean;
 }[] = [
+  { href: "/", label: "Dashboard" },
   { href: "/pessoas", label: "Pessoas" },
-  { href: "/empresas", label: "Empresas" },
   { href: "/enderecos", label: "Endereços" },
+  { href: "/comunicacoes", label: "Comunicações" },
   { href: "/veiculos", label: "Veículos" },
+  { href: "/empresas", label: "Empresas" },
   { href: "/procedimentos", label: "Procedimentos" },
   { href: "/casos", label: "Casos" },
 ];

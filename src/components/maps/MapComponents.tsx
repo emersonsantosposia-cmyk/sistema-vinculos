@@ -7,7 +7,7 @@ const MapViewerInner = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[280px] items-center justify-center rounded border border-border bg-zinc-50 text-sm text-muted">
+      <div className="flex h-[280px] items-center justify-center rounded border border-border bg-panel-soft text-sm text-muted">
         Carregando mapa…
       </div>
     ),
@@ -19,7 +19,7 @@ const MapPickerInner = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[280px] items-center justify-center rounded border border-border bg-zinc-50 text-sm text-muted">
+      <div className="flex h-[280px] items-center justify-center rounded border border-border bg-panel-soft text-sm text-muted">
         Carregando mapa…
       </div>
     ),

@@ -12,8 +12,8 @@ type Props = {
 function LoadingSkeleton() {
   return (
     <div className="space-y-3">
-      <div className="h-8 w-full max-w-md animate-pulse rounded bg-zinc-200" />
-      <div className="h-48 animate-pulse rounded border border-border bg-zinc-100" />
+      <div className="h-8 w-full max-w-md animate-pulse rounded bg-panel-hover" />
+      <div className="h-48 animate-pulse rounded border border-border bg-panel-soft" />
       <p className="text-sm text-muted">Carregando casos…</p>
     </div>
   );
@@ -47,7 +47,7 @@ export default async function CasosPage({ searchParams }: Props) {
       actions={
         <Link
           href="/casos/novo"
-          className="inline-flex h-8 items-center rounded bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800"
+          className="btn-acao"
         >
           Novo Caso
         </Link>

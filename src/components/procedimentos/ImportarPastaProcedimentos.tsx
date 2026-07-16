@@ -225,7 +225,7 @@ export function ImportarPastaProcedimentos() {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-16 sm:pt-24">
           <div className="w-full max-w-4xl rounded border border-border bg-panel shadow-lg">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <h3 className="text-sm font-semibold text-zinc-900">
+              <h3 className="text-sm font-semibold text-foreground">
                 {summary
                   ? "Importação concluída"
                   : rows
@@ -247,7 +247,7 @@ export function ImportarPastaProcedimentos() {
                 <ErrorBanner>{unsupportedMsg}</ErrorBanner>
               ) : null}
               {error ? (
-                <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+                <div className="rounded border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger-fg">
                   {error}
                 </div>
               ) : null}
@@ -281,7 +281,7 @@ export function ImportarPastaProcedimentos() {
                   <div className="overflow-x-auto rounded border border-border">
                     <table className="w-full min-w-[640px] border-collapse text-left text-sm">
                       <thead>
-                        <tr className="border-b border-border bg-zinc-50 text-xs font-semibold tracking-wide text-zinc-600 uppercase">
+                        <tr className="border-b border-border bg-panel-soft text-xs font-semibold tracking-wide text-muted uppercase">
                           <th className="w-10 px-3 py-2.5">
                             <input
                               type="checkbox"
@@ -305,8 +305,8 @@ export function ImportarPastaProcedimentos() {
                             key={row.id}
                             className={`border-b border-border last:border-b-0 ${
                               row.jaExiste
-                                ? "bg-amber-50/80"
-                                : "hover:bg-zinc-50"
+                                ? "bg-warning-bg"
+                                : "hover:bg-panel-hover"
                             }`}
                           >
                             <td className="px-3 py-2">
@@ -338,15 +338,15 @@ export function ImportarPastaProcedimentos() {
                                 ))}
                               </Select>
                             </td>
-                            <td className="px-3 py-2 font-medium text-zinc-900">
+                            <td className="px-3 py-2 font-medium text-foreground">
                               {row.nome}
                             </td>
-                            <td className="px-3 py-2 text-zinc-700">
+                            <td className="px-3 py-2 text-muted-strong">
                               {formatDate(row.data)}
                             </td>
                             <td className="px-3 py-2">
                               {row.jaExiste ? (
-                                <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">
+                                <span className="inline-flex rounded border border-warning-border bg-warning-bg px-1.5 py-0.5 text-xs font-medium text-warning-fg">
                                   Já existe
                                 </span>
                               ) : (

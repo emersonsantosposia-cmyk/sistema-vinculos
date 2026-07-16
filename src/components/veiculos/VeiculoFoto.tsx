@@ -21,6 +21,11 @@ export function VeiculoFoto({ path, alt = "Foto do veículo" }: Props) {
         setLoading(false);
         return;
       }
+      if (/^https?:\/\//i.test(path)) {
+        setUrl(path);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       const supabase = createClient();
       const { data, error } = await supabase.storage
@@ -44,7 +49,7 @@ export function VeiculoFoto({ path, alt = "Foto do veículo" }: Props) {
 
   if (loading || !url) {
     return (
-      <div className="flex h-48 w-full max-w-sm items-center justify-center rounded border border-border bg-zinc-100 text-xs text-muted">
+      <div className="flex h-48 w-full max-w-sm items-center justify-center rounded border border-border bg-panel-soft text-xs text-muted">
         Carregando foto…
       </div>
     );
@@ -55,7 +60,7 @@ export function VeiculoFoto({ path, alt = "Foto do veículo" }: Props) {
     <img
       src={url}
       alt={alt}
-      className="h-48 w-full max-w-sm rounded border border-border object-cover bg-zinc-100"
+      className="h-48 w-full max-w-sm rounded border border-border object-cover bg-panel-soft"
     />
   );
 }

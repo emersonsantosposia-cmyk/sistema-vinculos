@@ -1,6 +1,7 @@
 "use client";
 
 import { EntityDeleteButton } from "@/components/shared/EntityDeleteButton";
+import { deleteComunicacao } from "@/lib/supabase/comunicacoes";
 import { deleteEmpresa } from "@/lib/supabase/empresas";
 import { deleteEndereco } from "@/lib/supabase/enderecos";
 import { deleteVeiculo } from "@/lib/supabase/veiculos";
@@ -53,6 +54,16 @@ export function CasoDeleteButton({ id }: { id: string }) {
       confirmMessage="Excluir este caso?"
       redirectTo="/casos"
       onDelete={() => deleteCaso(id)}
+    />
+  );
+}
+
+export function ComunicacaoDeleteButton({ id }: { id: string }) {
+  return (
+    <EntityDeleteButton
+      confirmMessage="Excluir esta comunicação?"
+      redirectTo="/comunicacoes"
+      onDelete={() => deleteComunicacao(id)}
     />
   );
 }

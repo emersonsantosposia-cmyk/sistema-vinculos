@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useSignedStorageUrl } from "@/lib/supabase/storage-urls";
+import { ImageLightbox } from "@/components/shared/ImageLightbox";
 
 const BUCKET = "fotos-pessoas";
 
@@ -20,7 +22,15 @@ function PlaceholderIcon({ className = "" }: { className?: string }) {
 const sizeClass = {
   sm: "h-8 w-8",
   md: "h-12 w-12",
+  card: "h-24 w-24",
   lg: "h-28 w-28 sm:h-36 sm:w-36",
+} as const;
+
+const placeholderIconClass = {
+  sm: "h-4 w-4",
+  md: "h-6 w-6",
+  card: "h-10 w-10",
+  lg: "h-14 w-14",
 } as const;
 
 type Props = {
@@ -28,6 +38,7 @@ type Props = {
   nome?: string;
   size?: keyof typeof sizeClass;
   className?: string;
+  expandable?: boolean;
 };
 
 export function PessoaAvatar({
@@ -35,41 +46,66 @@ export function PessoaAvatar({
   nome = "Pessoa",
   size = "sm",
   className = "",
+  expandable = false,
 }: Props) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const { url, loading } = useSignedStorageUrl(BUCKET, path);
   const box = sizeClass[size];
 
   if (path && (loading || !url)) {
     return (
       <div
-        className={`${box} shrink-0 animate-pulse rounded-full bg-zinc-200 ${className}`}
+        className={`${box} shrink-0 animate-pulse rounded-full bg-panel-hover ${className}`}
         aria-hidden
       />
     );
   }
 
   if (url) {
+    if (expandable) {
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(true)}
+            className={`${box} shrink-0 overflow-hidden rounded-full border border-border bg-panel-soft p-0 transition hover:border-border-strong hover:ring-2 hover:ring-gold/40 ${className}`}
+            title="Ver foto maior"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={url}
+              alt={nome}
+              className="h-full w-full object-cover"
+            />
+          </button>
+          {lightboxOpen ? (
+            <ImageLightbox
+              src={url}
+              alt={nome}
+              onClose={() => setLightboxOpen(false)}
+            />
+          ) : null}
+        </>
+      );
+    }
+
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={url}
         alt={nome}
-        className={`${box} shrink-0 rounded-full border border-border object-cover bg-zinc-100 ${className}`}
+        className={`${box} shrink-0 rounded-full border border-border object-cover bg-panel-soft ${className}`}
       />
     );
   }
 
   return (
     <div
-      className={`${box} flex shrink-0 items-center justify-center rounded-full border border-border bg-zinc-100 text-zinc-400 ${className}`}
+      className={`${box} flex shrink-0 items-center justify-center rounded-full border border-border bg-panel-soft text-muted ${className}`}
       title="Sem foto de perfil"
       aria-label="Sem foto de perfil"
     >
-      <PlaceholderIcon
-        className={
-          size === "lg" ? "h-14 w-14" : size === "md" ? "h-6 w-6" : "h-4 w-4"
-        }
-      />
+      <PlaceholderIcon className={placeholderIconClass[size]} />
     </div>
   );
 }

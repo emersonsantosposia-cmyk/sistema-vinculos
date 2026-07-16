@@ -45,7 +45,7 @@ export function EntityDeleteButton({
       >
         {pending ? "Excluindo…" : label}
       </Button>
-      {error ? <p className="text-xs text-red-700">{error}</p> : null}
+      {error ? <p className="text-xs text-danger-fg">{error}</p> : null}
     </div>
   );
 }

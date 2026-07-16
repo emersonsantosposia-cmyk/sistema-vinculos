@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Button, Input, Label, Select } from "@/components/ui/Form";
+import { ImageLightbox } from "@/components/shared/ImageLightbox";
 import { calcularIdade, formatIdade } from "@/lib/format";
 import {
   addRedesSociais,
@@ -65,6 +66,9 @@ export function PessoaForm({ initial }: Props) {
   const [perfilPreview, setPerfilPreview] = useState<string | null>(null);
   const [outrasFotos, setOutrasFotos] = useState<File[]>([]);
   const [galeriaPreviews, setGaleriaPreviews] = useState<string[]>([]);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(
+    null,
+  );
 
   const { url: existingPerfilUrl, loading: existingPerfilLoading } =
     useSignedStorageUrl("fotos-pessoas", initial?.foto_perfil_path);
@@ -223,21 +227,22 @@ export function PessoaForm({ initial }: Props) {
     perfilPreview ?? (fotoPerfil ? null : existingPerfilUrl);
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
+    <>
+      <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
       {error ? (
-        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <div className="rounded border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger-fg">
           {error}
         </div>
       ) : null}
 
       {pending && status ? (
-        <div className="rounded border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+        <div className="rounded border border-border bg-panel-soft px-3 py-2 text-sm text-muted-strong">
           {status}
         </div>
       ) : null}
 
       <section className="rounded border border-border bg-panel p-4">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">
           Dados principais
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -302,7 +307,7 @@ export function PessoaForm({ initial }: Props) {
                   }
                   placeholder="—"
                   disabled={pending}
-                  className="bg-zinc-50 text-zinc-700"
+                  className="bg-panel-soft text-muted-strong"
                   aria-live="polite"
                 />
               </div>
@@ -343,7 +348,7 @@ export function PessoaForm({ initial }: Props) {
 
       <section className="rounded border border-border bg-panel p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-zinc-900">
+          <h3 className="text-sm font-semibold text-foreground">
             Redes sociais
           </h3>
           <Button
@@ -387,7 +392,7 @@ export function PessoaForm({ initial }: Props) {
 
       <section className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-900">Fotos</h3>
+          <h3 className="text-sm font-semibold text-foreground">Fotos</h3>
           <p className="mt-0.5 text-xs text-muted">
             A foto de perfil aparece na listagem e no topo do detalhe. As
             demais ficam só na galeria.
@@ -397,10 +402,10 @@ export function PessoaForm({ initial }: Props) {
           </p>
         </div>
 
-        <div className="rounded-lg border-2 border-zinc-900 bg-panel p-4">
+        <div className="rounded-lg border-2 border-gold bg-panel p-4">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-zinc-900">
+              <p className="text-sm font-semibold text-foreground">
                 Foto de perfil
               </p>
               <p className="mt-0.5 text-xs text-muted">
@@ -409,27 +414,39 @@ export function PessoaForm({ initial }: Props) {
                 {isEdit ? " Deixe em branco para manter a foto atual." : ""}
               </p>
             </div>
-            <span className="shrink-0 rounded bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase">
+            <span className="shrink-0 rounded bg-gold px-2 py-0.5 text-[10px] font-semibold tracking-wide text-gold-ink uppercase">
               Perfil
             </span>
           </div>
 
           <div className="flex flex-col items-start gap-4 sm:flex-row">
-            <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-zinc-100">
+            <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-panel-soft">
               {existingPerfilLoading && isEdit && !perfilPreview ? (
-                <div className="h-full w-full animate-pulse bg-zinc-200" />
+                <div className="h-full w-full animate-pulse bg-panel-hover" />
               ) : perfilDisplaySrc ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={perfilDisplaySrc}
-                  alt="Preview do perfil"
-                  className="h-full w-full object-cover"
-                />
+                <button
+                  type="button"
+                  className="h-full w-full cursor-zoom-in p-0"
+                  onClick={() =>
+                    setLightbox({
+                      src: perfilDisplaySrc,
+                      alt: "Foto de perfil",
+                    })
+                  }
+                  title="Ver foto maior"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={perfilDisplaySrc}
+                    alt="Preview do perfil"
+                    className="h-full w-full object-cover"
+                  />
+                </button>
               ) : (
                 <svg
                   viewBox="0 0 24 24"
                   fill="currentColor"
-                  className="h-10 w-10 text-zinc-400"
+                  className="h-10 w-10 text-muted"
                   aria-hidden
                 >
                   <path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zm0 1.5c-4.1 0-7.5 2.4-7.5 5.25V20a1 1 0 001 1h13a1 1 0 001-1v-1.25c0-2.85-3.4-5.25-7.5-5.25z" />
@@ -449,7 +466,7 @@ export function PessoaForm({ initial }: Props) {
               />
               {fotoPerfil ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-xs text-zinc-600">
+                  <p className="text-xs text-muted">
                     {fotoPerfil.name} (
                     {Math.round(fotoPerfil.size / 1024)} KB)
                   </p>
@@ -473,10 +490,10 @@ export function PessoaForm({ initial }: Props) {
           </div>
         </div>
 
-        <div className="rounded border border-dashed border-zinc-300 bg-panel p-4">
+        <div className="rounded border border-dashed border-border bg-panel p-4">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-zinc-900">
+              <p className="text-sm font-semibold text-foreground">
                 Galeria (outras fotos)
               </p>
               <p className="mt-0.5 text-xs text-muted">
@@ -484,7 +501,7 @@ export function PessoaForm({ initial }: Props) {
                 {isEdit ? " Novas imagens serão adicionadas à galeria existente." : ""}
               </p>
             </div>
-            <span className="shrink-0 rounded border border-zinc-300 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-zinc-600 uppercase">
+            <span className="shrink-0 rounded border border-border bg-panel-soft px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted uppercase">
               Galeria
             </span>
           </div>
@@ -504,9 +521,17 @@ export function PessoaForm({ initial }: Props) {
           {galeriaPreviews.length > 0 ? (
             <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
               {galeriaPreviews.map((src, i) => (
-                <div
+                <button
                   key={`${src}-${i}`}
-                  className="aspect-square overflow-hidden rounded border border-border bg-zinc-100"
+                  type="button"
+                  className="aspect-square overflow-hidden rounded border border-border bg-panel-soft transition hover:border-border-strong hover:ring-2 hover:ring-gold/30"
+                  onClick={() =>
+                    setLightbox({
+                      src,
+                      alt: `Preview galeria ${i + 1}`,
+                    })
+                  }
+                  title="Ver foto maior"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -514,7 +539,7 @@ export function PessoaForm({ initial }: Props) {
                     alt={`Preview galeria ${i + 1}`}
                     className="h-full w-full object-cover"
                   />
-                </div>
+                </button>
               ))}
             </div>
           ) : (
@@ -547,5 +572,14 @@ export function PessoaForm({ initial }: Props) {
         </Button>
       </div>
     </form>
+
+      {lightbox ? (
+        <ImageLightbox
+          src={lightbox.src}
+          alt={lightbox.alt}
+          onClose={() => setLightbox(null)}
+        />
+      ) : null}
+    </>
   );
 }

@@ -137,18 +137,18 @@ export function VeiculoForm({ initial }: Props) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
       {error ? (
-        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <div className="rounded border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger-fg">
           {error}
         </div>
       ) : null}
       {pending && status ? (
-        <div className="rounded border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+        <div className="rounded border border-border bg-panel-soft px-3 py-2 text-sm text-muted-strong">
           {status}
         </div>
       ) : null}
 
       <section className="rounded border border-border bg-panel p-4">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">
           Dados do veículo
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -220,7 +220,7 @@ export function VeiculoForm({ initial }: Props) {
             {isEdit && initial?.foto_url ? (
               <div className="mb-2">
                 {existingFotoLoading ? (
-                  <div className="flex h-32 w-full max-w-xs items-center justify-center rounded border border-border bg-zinc-100 text-xs text-muted">
+                  <div className="flex h-32 w-full max-w-xs items-center justify-center rounded border border-border bg-panel-soft text-xs text-muted">
                     Carregando foto atual…
                   </div>
                 ) : previewSrc ? (
@@ -228,7 +228,7 @@ export function VeiculoForm({ initial }: Props) {
                   <img
                     src={previewSrc}
                     alt="Foto atual do veículo"
-                    className="h-32 w-full max-w-xs rounded border border-border object-cover bg-zinc-100"
+                    className="h-32 w-full max-w-xs rounded border border-border object-cover bg-panel-soft"
                   />
                 ) : null}
               </div>
