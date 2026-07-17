@@ -64,7 +64,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
           aria-modal="true"
           aria-label="Diagrama de vínculos em tela cheia"
         >
-          <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--cor-borda)] bg-[rgba(16,21,16,0.96)] px-4 py-3 shadow-lg">
+          <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-[color:var(--cor-fundo-secundaria)] px-4 py-3 shadow-lg">
             <div>
               <p className="text-xs font-medium tracking-wide text-muted uppercase">
                 Diagrama de vínculos

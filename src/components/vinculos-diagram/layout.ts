@@ -189,9 +189,14 @@ function assignAngles(
   return angles;
 }
 
-/** Empurra caixas sobrepostas para longe (hub fixo). */
-function resolveOverlaps(boxes: Box[], hubId: string): void {
+/** Empurra caixas sobrepostas para longe (hub e nós travados ficam fixos). */
+function resolveOverlaps(
+  boxes: Box[],
+  hubId: string,
+  lockedIds: Set<string> = new Set(),
+): void {
   const byId = new Map(boxes.map((b) => [b.id, b]));
+  const isFixed = (id: string) => id === hubId || lockedIds.has(id);
 
   for (let iter = 0; iter < SPREAD_ITERS; iter++) {
     let moved = false;
@@ -221,28 +226,31 @@ function resolveOverlaps(boxes: Box[], hubId: string): void {
         const ux = dx / dist;
         const uy = dy / dist;
 
-        const aIsHub = a.id === hubId;
-        const bIsHub = b.id === hubId;
+        const aFixed = isFixed(a.id);
+        const bFixed = isFixed(b.id);
 
-        if (!aIsHub && !bIsHub) {
+        if (!aFixed && !bFixed) {
           a.x -= ux * push;
           a.y -= uy * push;
           b.x += ux * push;
           b.y += uy * push;
-        } else if (aIsHub) {
+        } else if (aFixed && !bFixed) {
           b.x += ux * push * 2;
           b.y += uy * push * 2;
-        } else {
+        } else if (!aFixed && bFixed) {
           a.x -= ux * push * 2;
           a.y -= uy * push * 2;
         }
+        // ambos fixos: não move
         moved = true;
       }
     }
     if (!moved) break;
   }
 
-  // Recentra o hub em (0,0) após empurrões.
+  // Só recentra o hub se ele não estiver travado pelo usuário.
+  if (lockedIds.has(hubId)) return;
+
   const hub = byId.get(hubId);
   if (hub) {
     const { w, h } = hub;
@@ -250,9 +258,12 @@ function resolveOverlaps(boxes: Box[], hubId: string): void {
     const dy = -h / 2 - hub.y;
     if (dx !== 0 || dy !== 0) {
       for (const box of boxes) {
+        if (lockedIds.has(box.id)) continue;
         box.x += dx;
         box.y += dy;
       }
+      hub.x = -w / 2;
+      hub.y = -h / 2;
     }
   }
 }
@@ -260,6 +271,7 @@ function resolveOverlaps(boxes: Box[], hubId: string): void {
 /**
  * Coloca o nó no ângulo dado, empurrando o raio até não colidir
  * com os já posicionados (espalhamento irregular natural).
+ * Coordenadas relativas à origem (centro do hub).
  */
 function placeClearOf(
   id: string,
@@ -268,38 +280,44 @@ function placeClearOf(
   w: number,
   h: number,
   placed: Box[],
+  originCx = 0,
+  originCy = 0,
 ): { x: number; y: number; radius: number; angle: number } {
-  // Varia o raio inicial por id (±18%) — anéis “quebrados”.
   let radius = minRadius * (1 + idJitter(id) * 0.18);
   let bestAngle = angle;
 
   for (let attempt = 0; attempt < 100; attempt++) {
-    const tryAngle = bestAngle + (attempt > 0 ? idJitter(id + String(attempt)) * 0.12 : 0);
-    const cx = Math.cos(tryAngle) * radius;
-    const cy = Math.sin(tryAngle) * radius;
+    const tryAngle =
+      bestAngle + (attempt > 0 ? idJitter(id + String(attempt)) * 0.12 : 0);
+    const cx = originCx + Math.cos(tryAngle) * radius;
+    const cy = originCy + Math.sin(tryAngle) * radius;
     const box: Box = { id, x: cx - w / 2, y: cy - h / 2, w, h };
     if (!placed.some((p) => boxesOverlap(box, p))) {
       return { x: box.x, y: box.y, radius, angle: tryAngle };
     }
     radius += RADIUS_STEP;
-    // A cada poucos passos, tenta um desvio angular um pouco maior.
     if (attempt > 0 && attempt % 4 === 0) {
       bestAngle += idJitter(id + "a" + attempt) * 0.2;
     }
   }
 
-  const cx = Math.cos(bestAngle) * radius;
-  const cy = Math.sin(bestAngle) * radius;
+  const cx = originCx + Math.cos(bestAngle) * radius;
+  const cy = originCy + Math.sin(bestAngle) * radius;
   return { x: cx - w / 2, y: cy - h / 2, radius, angle: bestAngle };
 }
 
 export type LayoutDiagramaOptions = {
   preferredHubId?: string;
+  /**
+   * Posições a preservar (nós já na tela / movidos pelo usuário).
+   * Novos nós são posicionados sem deslocar estes.
+   */
+  lockedPositions?: Map<string, { x: number; y: number }>;
 };
 
 /**
  * Layout radial / estrela: hub no centro, órbita espalhada sem sobreposição.
- * Posições não são uniformes — raio e ângulo variam para respirar o grafo.
+ * Posições em `lockedPositions` são mantidas (ex.: após o usuário arrastar um nó).
  */
 export function layoutDiagramaNodes<T extends Record<string, unknown>>(
   nodes: Node<T>[],
@@ -310,13 +328,18 @@ export function layoutDiagramaNodes<T extends Record<string, unknown>>(
 
   const entidadeNodes = nodes.filter((n) => n.type === "entidade");
   const moreNodes = nodes.filter((n) => isCarregarMais(n));
+  const lockedPositions = options?.lockedPositions ?? new Map();
+  const lockedIds = new Set(lockedPositions.keys());
 
   const hubId = pickHubId(nodes, edges, options?.preferredHubId);
 
   if (!hubId || entidadeNodes.length === 0) {
     return nodes.map((node, i) => ({
       ...node,
-      position: { x: i * (NODE_WIDTH + 40), y: 0 },
+      position: lockedPositions.get(node.id) ?? {
+        x: i * (NODE_WIDTH + 40),
+        y: 0,
+      },
     }));
   }
 
@@ -328,6 +351,26 @@ export function layoutDiagramaNodes<T extends Record<string, unknown>>(
   const sizeById = new Map(
     nodes.map((n) => [n.id, nodeSize(n)] as const),
   );
+
+  const hubSize = sizeById.get(hubId) ?? { w: NODE_WIDTH, h: NODE_HEIGHT };
+  const lockedHub = lockedPositions.get(hubId);
+  const hubBox: Box = lockedHub
+    ? {
+        id: hubId,
+        x: lockedHub.x,
+        y: lockedHub.y,
+        w: hubSize.w,
+        h: hubSize.h,
+      }
+    : {
+        id: hubId,
+        x: -hubSize.w / 2,
+        y: -hubSize.h / 2,
+        w: hubSize.w,
+        h: hubSize.h,
+      };
+  const originCx = hubBox.x + hubBox.w / 2;
+  const originCy = hubBox.y + hubBox.h / 2;
 
   const ordered = [...entidadeNodes].sort((a, b) => {
     const la = level.get(a.id) ?? 99;
@@ -342,27 +385,62 @@ export function layoutDiagramaNodes<T extends Record<string, unknown>>(
     { x: number; y: number; angle: number; radius: number }
   >();
 
+  function commitLocked(
+    id: string,
+    w: number,
+    h: number,
+    pos: { x: number; y: number },
+  ) {
+    const box: Box = { id, x: pos.x, y: pos.y, w, h };
+    placed.push(box);
+    const cx = pos.x + w / 2;
+    const cy = pos.y + h / 2;
+    const dx = cx - originCx;
+    const dy = cy - originCy;
+    const radius = Math.hypot(dx, dy);
+    const angle = radius < 1e-3 ? -Math.PI / 2 : Math.atan2(dy, dx);
+    meta.set(id, { x: pos.x, y: pos.y, angle, radius });
+  }
+
   for (const node of ordered) {
     const { w, h } = sizeById.get(node.id) ?? { w: NODE_WIDTH, h: NODE_HEIGHT };
+    const locked = lockedPositions.get(node.id);
+
+    if (locked) {
+      commitLocked(node.id, w, h, locked);
+      continue;
+    }
 
     if (node.id === hubId) {
-      const box: Box = { id: hubId, x: -w / 2, y: -h / 2, w, h };
-      placed.push(box);
-      meta.set(hubId, { x: box.x, y: box.y, angle: -Math.PI / 2, radius: 0 });
+      placed.push(hubBox);
+      meta.set(hubId, {
+        x: hubBox.x,
+        y: hubBox.y,
+        angle: -Math.PI / 2,
+        radius: 0,
+      });
       continue;
     }
 
     const parentId = parent.get(node.id);
     const parentMeta = parentId ? meta.get(parentId) : undefined;
     const siblingCount = parentId ? childrenOf(parentId, parent).length : 1;
-    // Mais irmãos → empurra o anel para fora.
     const densityBoost = Math.max(0, siblingCount - 4) * 18;
     const minRadius = parentMeta
       ? parentMeta.radius + PARENT_GAP + densityBoost
       : BASE_RING + densityBoost;
 
     const angle = angles.get(node.id) ?? 0;
-    const spot = placeClearOf(node.id, angle, minRadius, w, h, placed);
+    const spot = placeClearOf(
+      node.id,
+      angle,
+      minRadius,
+      w,
+      h,
+      placed,
+      originCx,
+      originCy,
+    );
     placed.push({ id: node.id, x: spot.x, y: spot.y, w, h });
     meta.set(node.id, {
       x: spot.x,
@@ -379,11 +457,25 @@ export function layoutDiagramaNodes<T extends Record<string, unknown>>(
         ? data.parentNodeId
         : null;
     const { w, h } = sizeById.get(node.id) ?? { w: MORE_WIDTH, h: MORE_HEIGHT };
+    const locked = lockedPositions.get(node.id);
+    if (locked) {
+      commitLocked(node.id, w, h, locked);
+      continue;
+    }
+
     const parentMeta = parentId ? meta.get(parentId) : undefined;
-    const angle =
-      (parentMeta?.angle ?? 0) + idJitter(node.id) * 0.25;
+    const angle = (parentMeta?.angle ?? 0) + idJitter(node.id) * 0.25;
     const minRadius = (parentMeta?.radius ?? BASE_RING) + MORE_OUTSET;
-    const spot = placeClearOf(node.id, angle, minRadius, w, h, placed);
+    const spot = placeClearOf(
+      node.id,
+      angle,
+      minRadius,
+      w,
+      h,
+      placed,
+      originCx,
+      originCy,
+    );
     placed.push({ id: node.id, x: spot.x, y: spot.y, w, h });
     meta.set(node.id, {
       x: spot.x,
@@ -393,11 +485,15 @@ export function layoutDiagramaNodes<T extends Record<string, unknown>>(
     });
   }
 
-  resolveOverlaps(placed, hubId);
+  resolveOverlaps(placed, hubId, lockedIds);
 
   const finalPos = new Map(placed.map((b) => [b.id, { x: b.x, y: b.y }]));
 
   return nodes.map((node) => {
+    const locked = lockedPositions.get(node.id);
+    if (locked) {
+      return { ...node, position: { x: locked.x, y: locked.y } };
+    }
     const pos = finalPos.get(node.id);
     if (!pos) return node;
     return {

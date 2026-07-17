@@ -116,17 +116,40 @@ function DiagramaVinculosInner({
   const autoExpandedRootRef = useRef<string | null>(null);
 
   const applyLayout = useCallback(
-    (nextNodes: DiagramNode[], nextEdges: DiagramEdge[]) => {
+    (
+      nextNodes: DiagramNode[],
+      nextEdges: DiagramEdge[],
+      options?: { preserveExisting?: boolean; fitView?: boolean },
+    ) => {
+      const preserveExisting = options?.preserveExisting ?? true;
+      const shouldFitView = options?.fitView ?? !preserveExisting;
+
+      const previousIds = new Set(nodesRef.current.map((n) => n.id));
+      const lockedPositions = new Map<string, { x: number; y: number }>();
+      if (preserveExisting) {
+        for (const node of nextNodes) {
+          if (previousIds.has(node.id)) {
+            lockedPositions.set(node.id, {
+              x: node.position.x,
+              y: node.position.y,
+            });
+          }
+        }
+      }
+
       const edgesStraight = nextEdges.map((edge) =>
         edge.type === "straight" ? edge : { ...edge, type: "straight" as const },
       );
       const laidOut = layoutDiagramaNodes(nextNodes, edgesStraight, {
         preferredHubId: rootId,
+        lockedPositions: preserveExisting ? lockedPositions : undefined,
       });
       setAnimating(true);
       setNodes(laidOut);
       setEdges(edgesStraight);
-      setLayoutVersion((v) => v + 1);
+      if (shouldFitView) {
+        setLayoutVersion((v) => v + 1);
+      }
       window.setTimeout(() => setAnimating(false), 400);
     },
     [rootId],
@@ -595,7 +618,8 @@ function DiagramaVinculosInner({
     <div className={fullScreen ? "flex h-full flex-col gap-2" : "space-y-2"}>
       <p className="text-xs text-muted">
         Clique para expandir/recolher. Duplo clique remove o nó da tela (exceto
-        a origem). Nós compartilhados entre ramos abertos permanecem visíveis.
+        a origem). Arraste os nós para reposicionar — a posição é mantida ao
+        abrir outras ramificações.
       </p>
       <div
         className={`diagrama-vinculos-shell flex ${fullScreen ? "h-full min-h-0" : "h-[min(56vh,520px)] min-h-[340px]"} flex-col overflow-hidden rounded-lg border border-[var(--cor-borda)] sm:flex-row ${animating ? "layout-animating" : ""}`}
