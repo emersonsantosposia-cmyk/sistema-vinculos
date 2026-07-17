@@ -21,6 +21,7 @@ import {
   updateVinculo,
 } from "@/lib/supabase/vinculos";
 import { ENTIDADE_TIPOS, type EntidadeTipo } from "@/lib/types";
+import { formatTipoVinculoLabel } from "@/lib/vinculos-format";
 import {
   ENTIDADE_HREFS,
   ENTIDADE_LABELS,
@@ -47,14 +48,6 @@ function resolveTipoSelectValue(tipo: string | null | undefined): {
     return { select: tipo, custom: "" };
   }
   return { select: "__custom", custom: tipo };
-}
-
-/** Primeira letra maiúscula; restante em minúsculas. */
-function formatTipoVinculoLabel(tipo: string | null | undefined): string {
-  const raw = tipo?.trim();
-  if (!raw) return "Sem tipo";
-  const lower = raw.toLocaleLowerCase("pt-BR");
-  return lower.charAt(0).toLocaleUpperCase("pt-BR") + lower.slice(1);
 }
 
 function VinculoCardBox({
@@ -205,7 +198,7 @@ function VinculoCardBox({
       {menu ? (
         <div
           ref={menuRef}
-          className="fixed z-50 min-w-[9.5rem] rounded border border-border bg-panel py-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+          className="fixed z-50 min-w-[9.5rem] rounded border border-border bg-panel py-1 shadow-[var(--cor-sombra-dropdown)]"
           style={{ left: menu.x, top: menu.y }}
           role="menu"
         >
@@ -263,7 +256,7 @@ function VinculoDetalheModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-md border border-border bg-panel p-4 shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
+        className="w-full max-w-md rounded-md border border-border bg-panel p-4 shadow-[var(--cor-sombra-modal)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">

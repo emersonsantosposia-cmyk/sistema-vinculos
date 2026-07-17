@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { EnderecoMapa } from "@/components/enderecos/EnderecoMapa";
 import { EnderecoDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
+import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatCep, formatDate, formatEnderecoResumo } from "@/lib/format";
@@ -103,6 +104,8 @@ export default async function EnderecoDetailPage({ params }: Props) {
               label={titulo}
             />
           </Panel>
+          <VinculosDiagramPanel entidadeTipo="endereco" entidadeId={endereco.id} />
+
           <Panel title="Vínculos">
             <VinculosSection entidadeTipo="endereco" entidadeId={endereco.id} />
           </Panel>

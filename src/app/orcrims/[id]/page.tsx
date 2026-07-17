@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { OrcrimDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
+import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatDate } from "@/lib/format";
@@ -81,6 +82,8 @@ export default async function OrcrimDetailPage({ params }: Props) {
               </div>
             </dl>
           </Panel>
+          <VinculosDiagramPanel entidadeTipo="orcrim" entidadeId={orcrim.id} />
+
           <Panel title="Vínculos">
             <VinculosSection entidadeTipo="orcrim" entidadeId={orcrim.id} />
           </Panel>

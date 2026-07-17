@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { EmpresaDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
+import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatCnpj, formatDate } from "@/lib/format";
@@ -85,6 +86,8 @@ export default async function EmpresaDetailPage({ params }: Props) {
               />
             </dl>
           </Panel>
+          <VinculosDiagramPanel entidadeTipo="empresa" entidadeId={empresa.id} />
+
           <Panel title="Vínculos">
             <VinculosSection entidadeTipo="empresa" entidadeId={empresa.id} />
           </Panel>

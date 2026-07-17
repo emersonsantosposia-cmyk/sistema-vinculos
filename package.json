@@ -12,10 +12,13 @@
     "seed:cleanup": "tsx --env-file=.env.local scripts/seed-cleanup.ts"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "@supabase/ssr": "^0.12.1",
     "@supabase/supabase-js": "^2.110.3",
+    "@xyflow/react": "^12.11.2",
     "leaflet": "^1.9.4",
     "next": "16.2.10",
+    "next-themes": "^0.4.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-leaflet": "^5.0.0",
@@ -24,6 +27,7 @@
   "devDependencies": {
     "@faker-js/faker": "^10.5.0",
     "@tailwindcss/postcss": "^4",
+    "@types/dagre": "^0.7.54",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/react": "^19",

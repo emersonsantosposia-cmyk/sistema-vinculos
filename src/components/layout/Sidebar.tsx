@@ -43,7 +43,7 @@ export function Sidebar() {
       translate="no"
     >
       <div className="border-b border-border px-3 py-3">
-        <div className="overflow-hidden rounded border border-border bg-black">
+        <div className="overflow-hidden rounded border border-border bg-[color:var(--cor-fundo-primaria)]">
           <img
             src="/rede-lince-institucional.png"
             alt="Rede Lince · PPF"

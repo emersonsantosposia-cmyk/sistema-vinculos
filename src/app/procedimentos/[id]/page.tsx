@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ProcedimentoDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
+import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatDate, labelProcedimentoTipo } from "@/lib/format";
@@ -122,6 +123,11 @@ export default async function ProcedimentoDetailPage({ params }: Props) {
               />
             </dl>
           </Panel>
+          <VinculosDiagramPanel
+            entidadeTipo="procedimento"
+            entidadeId={procedimento.id}
+          />
+
           <Panel title="Vínculos">
             <VinculosSection
               entidadeTipo="procedimento"

@@ -102,3 +102,16 @@ export type VinculoCard = {
   /** Path no bucket fotos-veiculos (apenas quando outroTipo === "veiculo"). */
   foto_url?: string | null;
 };
+
+/** Resultado de buscarVinculosDaEntidade para o diagrama interativo. */
+export type VinculoDiagramItem = {
+  vinculoId: string;
+  outroTipo: EntidadeTipo;
+  outroId: string;
+  tipo_vinculo: string | null;
+  titulo: string;
+  subtitulo?: string | null;
+  restrito: boolean;
+  foto_perfil_path?: string | null;
+  foto_url?: string | null;
+};

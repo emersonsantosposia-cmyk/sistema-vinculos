@@ -14,12 +14,12 @@ export function EntityKpiCards({
           <Link
             key={entity.key}
             href={entity.href}
-            className="group relative overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] px-4 py-4 transition-[border-color,box-shadow,background-color] hover:border-[color:var(--dash-gold)] hover:bg-[color:var(--dash-panel-hover)] hover:shadow-[0_0_0_1px_rgba(212,175,55,0.25),0_8px_24px_rgba(0,0,0,0.35)]"
+            className="group relative overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] px-4 py-4 transition-[border-color,box-shadow,background-color] hover:border-[color:var(--dash-gold)] hover:bg-[color:var(--dash-panel-hover)] hover:shadow-[0_0_0_1px_var(--cor-borda-destaque),var(--cor-sombra-dropdown)]"
           >
             <div className="flex items-start justify-between gap-3">
               <EntityIcon
                 entityKey={entity.key}
-                className="h-6 w-6 text-[color:var(--dash-gold)] transition-[filter,color] group-hover:text-[color:var(--dash-gold-bright)] group-hover:drop-shadow-[0_0_6px_rgba(212,175,55,0.55)]"
+                className="h-6 w-6 text-[color:var(--dash-gold)] transition-[filter,color] group-hover:text-[color:var(--dash-gold-bright)] group-hover:drop-shadow-[0_0_6px_var(--cor-borda-destaque)]"
               />
               <span className="text-[10px] tracking-[0.18em] text-[color:var(--dash-muted)] uppercase">
                 Total

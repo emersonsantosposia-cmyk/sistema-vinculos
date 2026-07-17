@@ -31,7 +31,7 @@ export function DashboardView({
       <div className="pointer-events-none absolute inset-0 dash-grid-layer opacity-[0.07]" aria-hidden />
 
       <div className="relative space-y-6 p-5 sm:p-6">
-        <header className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-black shadow-[0_0_40px_rgba(0,0,0,0.45)]">
+        <header className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--cor-fundo-primaria)] shadow-[var(--cor-sombra-modal)]">
           <div className="relative">
             <img
               src="/rede-lince-institucional.png"
@@ -41,7 +41,7 @@ export function DashboardView({
               className="block h-auto w-full object-cover object-center"
             />
             <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/55 to-transparent"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[color:var(--cor-fundo-overlay)] to-transparent"
               aria-hidden
             />
           </div>
@@ -106,8 +106,8 @@ export function DashboardFallback() {
     <div className="dashboard-tactical relative min-h-full overflow-hidden">
       <div className="pointer-events-none absolute inset-0 dash-bg-layer" aria-hidden />
       <div className="relative space-y-6 p-5 sm:p-6">
-        <div className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-black">
-          <div className="aspect-[1024/320] w-full animate-pulse bg-[#121812] sm:aspect-[1024/280]" />
+        <div className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--cor-fundo-primaria)]">
+          <div className="aspect-[1024/320] w-full animate-pulse bg-[color:var(--cor-fundo-secundaria)] sm:aspect-[1024/280]" />
           <div className="flex justify-end gap-3 border-t border-[color:var(--dash-border)] px-4 py-3">
             <div className="h-14 w-28 animate-pulse rounded bg-[color:var(--dash-panel)]" />
             <div className="h-14 w-28 animate-pulse rounded bg-[color:var(--dash-panel)]" />

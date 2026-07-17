@@ -1,5 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import type { DashboardEntityKey } from "@/lib/dashboard";
+import { ENTIDADE_TO_DASHBOARD_KEY } from "@/lib/entidade-visual";
+import type { EntidadeTipo } from "@/lib/types";
 
 type IconProps = {
   className?: string;
@@ -147,4 +149,19 @@ export function EntityIcon({
 }) {
   const Icon = ICONS[entityKey];
   return <Icon className={className} />;
+}
+
+export function EntidadeTipoIcon({
+  tipo,
+  className,
+}: {
+  tipo: EntidadeTipo;
+  className?: string;
+}) {
+  return (
+    <EntityIcon
+      entityKey={ENTIDADE_TO_DASHBOARD_KEY[tipo]}
+      className={className}
+    />
+  );
 }

@@ -5,6 +5,7 @@ import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
 import { PessoaDeleteButton } from "@/components/pessoas/PessoaDeleteButton";
 import { PessoaFotosGaleria } from "@/components/pessoas/PessoaFotosGaleria";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
+import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatCpf, formatDate, formatNascimentoComIdade, labelPessoaTipo } from "@/lib/format";
@@ -149,6 +150,8 @@ export default async function PessoaDetailPage({ params }: Props) {
           <Panel title="Galeria de fotos">
             <PessoaFotosGaleria fotos={fotos} />
           </Panel>
+
+          <VinculosDiagramPanel entidadeTipo="pessoa" entidadeId={pessoa.id} />
 
           <Panel title="Vínculos">
             <VinculosSection entidadeTipo="pessoa" entidadeId={pessoa.id} />

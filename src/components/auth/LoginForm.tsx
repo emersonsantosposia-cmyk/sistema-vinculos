@@ -43,7 +43,7 @@ function LoginFormInner() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-sm space-y-4 rounded border border-border bg-panel p-6 shadow-[0_16px_48px_rgba(0,0,0,0.45)]"
+      className="w-full max-w-sm space-y-4 rounded border border-border bg-panel p-6 shadow-[var(--cor-sombra-modal)]"
     >
       <div className="flex flex-col items-center gap-3 text-center">
         <div className="w-full overflow-hidden rounded border border-border bg-black">

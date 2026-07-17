@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useTheme } from "next-themes";
 import { fetchDashboardPeriodAction } from "@/app/actions/dashboard";
 import {
   DASHBOARD_ENTITIES,
@@ -24,9 +25,16 @@ import {
 } from "@/lib/dashboard";
 
 const PROC_COLOR =
-  DASHBOARD_ENTITIES.find((e) => e.key === "procedimentos")?.color ?? "#6b7c4a";
+  DASHBOARD_ENTITIES.find((e) => e.key === "procedimentos")?.color ??
+  "var(--cor-entidade-procedimentos)";
 const CASOS_COLOR =
-  DASHBOARD_ENTITIES.find((e) => e.key === "casos")?.color ?? "#e8d5a3";
+  DASHBOARD_ENTITIES.find((e) => e.key === "casos")?.color ??
+  "var(--cor-entidade-casos)";
+
+const CHART_AXIS = "var(--cor-chart-axis)";
+const CHART_GRID = "var(--cor-chart-grid)";
+const CHART_AXIS_LINE = "var(--cor-chart-axis-line)";
+const CHART_LEGEND = "var(--cor-chart-legend)";
 
 type Props = {
   initialSeries: DashboardSeriesPoint[];
@@ -45,7 +53,7 @@ function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded border border-[color:var(--dash-border-strong)] bg-[#0f1410] px-3 py-2 shadow-xl">
+    <div className="rounded border border-[color:var(--dash-border-strong)] bg-[color:var(--cor-chart-tooltip-bg)] px-3 py-2 shadow-[var(--cor-sombra-dropdown)]">
       <p className="mb-1.5 text-[11px] tracking-[0.14em] text-[color:var(--dash-gold)] uppercase">
         {label}
       </p>
@@ -137,20 +145,20 @@ function UnidadeBarChart({
             margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
           >
             <CartesianGrid
-              stroke="rgba(184,168,110,0.12)"
+              stroke={CHART_GRID}
               strokeDasharray="3 3"
               vertical={false}
             />
             <XAxis
               dataKey="unidade"
-              tick={{ fill: "#a9a18a", fontSize: 11 }}
-              axisLine={{ stroke: "rgba(184,168,110,0.25)" }}
+              tick={{ fill: CHART_AXIS, fontSize: 11 }}
+              axisLine={{ stroke: CHART_AXIS_LINE }}
               tickLine={false}
               interval={0}
             />
             <YAxis
               allowDecimals={false}
-              tick={{ fill: "#a9a18a", fontSize: 11 }}
+              tick={{ fill: CHART_AXIS, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={36}
@@ -178,6 +186,7 @@ export function DashboardCharts({
   initialPorUnidade,
   initialMode = "mes",
 }: Props) {
+  const { resolvedTheme } = useTheme();
   const [mode, setMode] = useState<DashboardPeriodMode>(initialMode);
   const [series, setSeries] = useState<DashboardSeriesPoint[]>(initialSeries);
   const [porUnidade, setPorUnidade] =
@@ -268,7 +277,7 @@ export function DashboardCharts({
                   onClick={() => changeMode(value)}
                   className={`rounded px-3 py-1.5 text-[11px] tracking-[0.14em] uppercase transition-colors disabled:opacity-60 ${
                     mode === value
-                      ? "bg-[color:var(--dash-gold)] font-semibold text-[#121510]"
+                      ? "bg-[color:var(--dash-gold)] font-semibold text-gold-ink"
                       : "text-[color:var(--dash-muted-strong)] hover:text-[color:var(--dash-gold)]"
                   }`}
                 >
@@ -308,7 +317,10 @@ export function DashboardCharts({
         {pending ? (
           <ChartsSkeleton />
         ) : (
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <div
+            className="grid grid-cols-1 gap-3 xl:grid-cols-2"
+            key={resolvedTheme ?? "dark"}
+          >
             <Panel title="Evolução de cadastros">
               {series.length === 0 ? (
                 <EmptyChart />
@@ -342,26 +354,26 @@ export function DashboardCharts({
                       ))}
                     </defs>
                     <CartesianGrid
-                      stroke="rgba(184,168,110,0.12)"
+                      stroke={CHART_GRID}
                       strokeDasharray="3 3"
                       vertical={false}
                     />
                     <XAxis
                       dataKey="label"
-                      tick={{ fill: "#a9a18a", fontSize: 11 }}
-                      axisLine={{ stroke: "rgba(184,168,110,0.25)" }}
+                      tick={{ fill: CHART_AXIS, fontSize: 11 }}
+                      axisLine={{ stroke: CHART_AXIS_LINE }}
                       tickLine={false}
                     />
                     <YAxis
                       allowDecimals={false}
-                      tick={{ fill: "#a9a18a", fontSize: 11 }}
+                      tick={{ fill: CHART_AXIS, fontSize: 11 }}
                       axisLine={false}
                       tickLine={false}
                       width={36}
                     />
                     <Tooltip content={<ChartTooltip />} />
                     <Legend
-                      wrapperStyle={{ fontSize: 11, color: "#c9bfa3" }}
+                      wrapperStyle={{ fontSize: 11, color: CHART_LEGEND }}
                       iconType="circle"
                     />
                     {visibleEntities.map((entity) => (
@@ -392,14 +404,14 @@ export function DashboardCharts({
                     margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
                   >
                     <CartesianGrid
-                      stroke="rgba(184,168,110,0.12)"
+                      stroke={CHART_GRID}
                       strokeDasharray="3 3"
                       vertical={false}
                     />
                     <XAxis
                       dataKey="name"
-                      tick={{ fill: "#a9a18a", fontSize: 11 }}
-                      axisLine={{ stroke: "rgba(184,168,110,0.25)" }}
+                      tick={{ fill: CHART_AXIS, fontSize: 11 }}
+                      axisLine={{ stroke: CHART_AXIS_LINE }}
                       tickLine={false}
                       interval={0}
                       angle={-18}
@@ -408,7 +420,7 @@ export function DashboardCharts({
                     />
                     <YAxis
                       allowDecimals={false}
-                      tick={{ fill: "#a9a18a", fontSize: 11 }}
+                      tick={{ fill: CHART_AXIS, fontSize: 11 }}
                       axisLine={false}
                       tickLine={false}
                       width={36}
@@ -440,7 +452,10 @@ export function DashboardCharts({
         {pending ? (
           <ChartsSkeleton />
         ) : (
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <div
+            className="grid grid-cols-1 gap-3 xl:grid-cols-2"
+            key={`unidade-${resolvedTheme ?? "dark"}`}
+          >
             <UnidadeBarChart
               title="Procedimentos por unidade"
               dataKey="procedimentos"

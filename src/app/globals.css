@@ -2,15 +2,23 @@
 
 /*
  * Identidade visual institucional — Rede Lince / PPF
- * Variáveis semânticas (fonte da verdade). Demais tokens mapeiam para estas.
+ * Temas via next-themes: data-theme="dark" | "light"
+ * (defaultTheme=system na primeira visita; escolha manual persiste)
  */
-:root {
+
+/* Fallback + tema escuro oficial (valores atuais) */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
   /* Fundos */
   --cor-fundo-primaria: #0c100c;
   --cor-fundo-secundaria: #121812;
   --cor-fundo-sidebar: #101510;
   --cor-fundo-gradiente-inicio: #1a2216;
   --cor-fundo-gradiente-fim: #080a08;
+  --cor-fundo-overlay: rgba(0, 0, 0, 0.65);
+  --cor-fundo-mid: #161c14;
 
   /* Cards / painéis */
   --cor-card-fundo: #141a14;
@@ -46,7 +54,141 @@
   --cor-campo-borda: rgba(184, 168, 110, 0.28);
   --cor-campo-foco: var(--cor-destaque-dourado);
 
-  /* Aliases legados (compatíveis com bg-background, bg-panel, etc.) */
+  /* Restrito / neutro */
+  --cor-restrito: #6b7280;
+  --cor-restrito-texto: #9ca3af;
+  --cor-restrito-fundo: rgba(107, 114, 128, 0.2);
+  --cor-restrito-borda: rgba(107, 114, 128, 0.45);
+
+  /* Gráficos (Recharts) */
+  --cor-chart-axis: #a9a18a;
+  --cor-chart-grid: rgba(184, 168, 110, 0.12);
+  --cor-chart-axis-line: rgba(184, 168, 110, 0.25);
+  --cor-chart-legend: #c9bfa3;
+  --cor-chart-tooltip-bg: #0f1410;
+  --cor-chart-gauge-track: rgba(212, 175, 55, 0.15);
+
+  /* Entidades (séries / nós) — tema escuro */
+  --cor-entidade-pessoas: #d4af37;
+  --cor-entidade-enderecos: #b8a86e;
+  --cor-entidade-comunicacoes: #a8915f;
+  --cor-entidade-veiculos: #8f9a5c;
+  --cor-entidade-empresas: #c9a227;
+  --cor-entidade-orcrims: #9a8f5c;
+  --cor-entidade-procedimentos: #6b7c4a;
+  --cor-entidade-casos: #e8d5a3;
+
+  /* Camadas atmosféricas */
+  --cor-dash-glow-a: rgba(70, 85, 45, 0.28);
+  --cor-dash-glow-b: rgba(30, 38, 22, 0.55);
+  --cor-dash-grid-line: rgba(212, 175, 55, 0.08);
+
+  /* Diagrama / mapas */
+  --cor-diagrama-legenda-bg: rgba(20, 26, 20, 0.9);
+  --cor-diagrama-minimap-mask: rgba(8, 10, 8, 0.68);
+  --cor-diagrama-edge: rgba(184, 168, 110, 0.45);
+  --cor-diagrama-edge-more: rgba(212, 175, 55, 0.35);
+  --cor-diagrama-node-overlay: rgba(12, 16, 12, 0.72);
+  --cor-leaflet-attr-bg: rgba(12, 16, 12, 0.85);
+
+  /* Sombras */
+  --cor-sombra-dropdown: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --cor-sombra-modal: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+/* Tema claro — mesma identidade, luminosidade invertida */
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Fundos — bege/creme suave (não branco puro) */
+  --cor-fundo-primaria: #f3efe4;
+  --cor-fundo-secundaria: #ebe6d8;
+  --cor-fundo-sidebar: #e4dfd0;
+  --cor-fundo-gradiente-inicio: #f7f3e8;
+  --cor-fundo-gradiente-fim: #e8e2d2;
+  --cor-fundo-overlay: rgba(30, 36, 24, 0.45);
+  --cor-fundo-mid: #e7e1d2;
+
+  /* Cards quase-brancos */
+  --cor-card-fundo: #fbfaf6;
+  --cor-card-fundo-hover: #f3efe6;
+  --cor-card-fundo-suave: #f6f3eb;
+
+  /* Bordas douradas mais escuras/acinzentadas */
+  --cor-borda: rgba(110, 98, 58, 0.28);
+  --cor-borda-destaque: rgba(140, 110, 30, 0.5);
+
+  /* Dourado terroso (contraste no claro) */
+  --cor-destaque-dourado: #8f6f14;
+  --cor-destaque-dourado-claro: #a8841a;
+  --cor-destaque-dourado-escuro: #fbfaf6;
+
+  /* Texto verde-oliva escuro */
+  --cor-texto-primario: #1e2418;
+  --cor-texto-secundario: #3d4534;
+  --cor-texto-muted: #6b6554;
+  --cor-texto-inversao: #fbfaf6;
+
+  /* Feedback */
+  --cor-perigo: #a33d3d;
+  --cor-perigo-fundo: rgba(180, 60, 60, 0.12);
+  --cor-perigo-borda: rgba(180, 60, 60, 0.35);
+  --cor-perigo-texto: #7a2424;
+  --cor-alerta-fundo: rgba(143, 111, 20, 0.1);
+  --cor-alerta-borda: rgba(143, 111, 20, 0.4);
+  --cor-alerta-texto: #6b5210;
+
+  /* Campos */
+  --cor-campo-fundo: #f7f4ec;
+  --cor-campo-borda: rgba(110, 98, 58, 0.32);
+  --cor-campo-foco: var(--cor-destaque-dourado);
+
+  /* Restrito */
+  --cor-restrito: #6b7280;
+  --cor-restrito-texto: #4b5563;
+  --cor-restrito-fundo: rgba(107, 114, 128, 0.12);
+  --cor-restrito-borda: rgba(107, 114, 128, 0.4);
+
+  /* Gráficos */
+  --cor-chart-axis: #5c5648;
+  --cor-chart-grid: rgba(110, 98, 58, 0.14);
+  --cor-chart-axis-line: rgba(110, 98, 58, 0.3);
+  --cor-chart-legend: #3d4534;
+  --cor-chart-tooltip-bg: #fbfaf6;
+  --cor-chart-gauge-track: rgba(143, 111, 20, 0.18);
+
+  /* Entidades — tons mais escuros/terrosos no claro */
+  --cor-entidade-pessoas: #8f6f14;
+  --cor-entidade-enderecos: #7a6e42;
+  --cor-entidade-comunicacoes: #6e5c38;
+  --cor-entidade-veiculos: #5a6840;
+  --cor-entidade-empresas: #8a7018;
+  --cor-entidade-orcrims: #655c3a;
+  --cor-entidade-procedimentos: #4a5a32;
+  --cor-entidade-casos: #8a7340;
+
+  /* Camadas atmosféricas */
+  --cor-dash-glow-a: rgba(184, 168, 110, 0.22);
+  --cor-dash-glow-b: rgba(143, 111, 20, 0.1);
+  --cor-dash-grid-line: rgba(143, 111, 20, 0.08);
+
+  /* Diagrama / mapas */
+  --cor-diagrama-legenda-bg: rgba(251, 250, 246, 0.94);
+  --cor-diagrama-minimap-mask: rgba(243, 239, 228, 0.72);
+  --cor-diagrama-edge: rgba(110, 98, 58, 0.45);
+  --cor-diagrama-edge-more: rgba(143, 111, 20, 0.4);
+  --cor-diagrama-node-overlay: rgba(243, 239, 228, 0.78);
+  --cor-leaflet-attr-bg: rgba(251, 250, 246, 0.9);
+
+  /* Sombras */
+  --cor-sombra-dropdown: 0 12px 40px rgba(30, 36, 24, 0.12);
+  --cor-sombra-modal: 0 20px 60px rgba(30, 36, 24, 0.18);
+}
+
+/* Aliases legados (ambos os temas) */
+:root,
+[data-theme="dark"],
+[data-theme="light"] {
   --background: var(--cor-fundo-primaria);
   --foreground: var(--cor-texto-primario);
   --sidebar: var(--cor-fundo-sidebar);
@@ -56,9 +198,8 @@
   --muted: var(--cor-texto-muted);
   --accent: var(--cor-destaque-dourado);
 
-  /* Aliases do Dashboard (mesma linguagem) */
   --dash-bg: var(--cor-fundo-primaria);
-  --dash-bg-mid: #161c14;
+  --dash-bg-mid: var(--cor-fundo-mid);
   --dash-sidebar: var(--cor-fundo-sidebar);
   --dash-header: var(--cor-fundo-secundaria);
   --dash-panel: var(--cor-card-fundo);
@@ -105,6 +246,33 @@ body {
   background: var(--cor-fundo-primaria);
   color: var(--cor-texto-primario);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+/* Transição suave ao alternar tema (superfícies e tipografia) */
+aside,
+header,
+main,
+.bg-background,
+.bg-panel,
+.bg-sidebar,
+.bg-field,
+.btn-acao,
+.btn-acao-secundario,
+.campo-institucional,
+.titulo-institucional,
+.diagrama-vinculos-shell,
+.diagrama-vinculos-shell .react-flow,
+.dash-bg-layer {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    fill 0.3s ease,
+    stroke 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 * {
@@ -114,8 +282,8 @@ body {
 /* Camadas atmosféricas do Dashboard */
 .dash-bg-layer {
   background:
-    radial-gradient(ellipse 80% 55% at 20% 15%, rgba(70, 85, 45, 0.28), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 80%, rgba(30, 38, 22, 0.55), transparent 50%),
+    radial-gradient(ellipse 80% 55% at 20% 15%, var(--cor-dash-glow-a), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 80%, var(--cor-dash-glow-b), transparent 50%),
     linear-gradient(
       160deg,
       var(--cor-fundo-gradiente-inicio) 0%,
@@ -126,18 +294,16 @@ body {
 
 .dash-grid-layer {
   background-image:
-    linear-gradient(rgba(212, 175, 55, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(212, 175, 55, 0.08) 1px, transparent 1px);
+    linear-gradient(var(--cor-dash-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cor-dash-grid-line) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
 }
 
-/* Compat: páginas ainda com .dashboard-tactical */
 .dashboard-tactical {
   color: var(--cor-texto-secundario);
 }
 
-/* Títulos de página / seção institucionais */
 .titulo-institucional {
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -145,7 +311,6 @@ body {
   color: var(--cor-destaque-dourado);
 }
 
-/* Botões-link reutilizados nas páginas de listagem/detalhe */
 .btn-acao {
   display: inline-flex;
   height: 2rem;
@@ -190,7 +355,6 @@ body {
   color: var(--cor-destaque-dourado-claro);
 }
 
-/* Campos nativos fora do Form.tsx (ex.: GlobalSearch) */
 .campo-institucional {
   border: 1px solid var(--cor-campo-borda);
   background: var(--cor-campo-fundo);
@@ -206,20 +370,18 @@ body {
   border-color: var(--cor-campo-foco);
 }
 
-/* Options nativos legíveis no tema escuro */
 option {
   background-color: var(--cor-campo-fundo);
   color: var(--cor-texto-primario);
 }
 
-/* Controles Leaflet sobre tema escuro */
 .leaflet-container {
   background: var(--cor-card-fundo-suave);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 .leaflet-control-attribution {
-  background: rgba(12, 16, 12, 0.85) !important;
+  background: var(--cor-leaflet-attr-bg) !important;
   color: var(--cor-texto-muted) !important;
 }
 

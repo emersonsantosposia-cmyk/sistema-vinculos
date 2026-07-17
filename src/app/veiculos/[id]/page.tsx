@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { VeiculoDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
+import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { VeiculoFoto } from "@/components/veiculos/VeiculoFoto";
@@ -104,6 +105,8 @@ export default async function VeiculoDetailPage({ params }: Props) {
               alt={`${veiculo.marca ?? ""} ${veiculo.modelo ?? ""}`.trim()}
             />
           </Panel>
+          <VinculosDiagramPanel entidadeTipo="veiculo" entidadeId={veiculo.id} />
+
           <Panel title="Vínculos">
             <VinculosSection entidadeTipo="veiculo" entidadeId={veiculo.id} />
           </Panel>

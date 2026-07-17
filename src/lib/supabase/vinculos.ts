@@ -9,6 +9,7 @@ import type { EntidadeTipo } from "@/lib/types";
 import type {
   EntidadeOpcao,
   VinculoCard,
+  VinculoDiagramItem,
   VinculoRow,
 } from "@/lib/vinculos-types";
 
@@ -467,6 +468,32 @@ export async function listVinculosDaEntidade(
   }
 
   return { data: cards, error: null };
+}
+
+/** Vínculos de uma entidade para o diagrama interativo (origem ou destino). */
+export async function buscarVinculosDaEntidade(
+  entidadeTipo: EntidadeTipo,
+  entidadeId: string,
+): Promise<{ data: VinculoDiagramItem[]; error: string | null }> {
+  const { data, error } = await listVinculosDaEntidade(
+    entidadeTipo,
+    entidadeId,
+  );
+  if (error) return { data: [], error };
+  return {
+    data: data.map((card) => ({
+      vinculoId: card.id,
+      outroTipo: card.outroTipo,
+      outroId: card.outroId,
+      tipo_vinculo: card.tipo_vinculo,
+      titulo: card.titulo,
+      subtitulo: card.subtitulo,
+      restrito: Boolean(card.restrito),
+      foto_perfil_path: card.foto_perfil_path,
+      foto_url: card.foto_url,
+    })),
+    error: null,
+  };
 }
 
 export async function createVinculo(input: {

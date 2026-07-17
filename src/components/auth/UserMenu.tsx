@@ -76,7 +76,7 @@ function ChangePasswordModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[color:var(--cor-fundo-overlay)] p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="trocar-senha-titulo"
@@ -84,7 +84,7 @@ function ChangePasswordModal({
     >
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-3 rounded-md border border-border bg-panel p-4 shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
+        className="w-full max-w-sm space-y-3 rounded-md border border-border bg-panel p-4 shadow-[var(--cor-sombra-modal)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2">
@@ -281,7 +281,7 @@ export function UserMenu() {
         {menuOpen ? (
           <div
             role="menu"
-            className="absolute right-0 z-50 mt-1 min-w-[11rem] overflow-hidden rounded border border-border bg-panel py-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+            className="absolute right-0 z-50 mt-1 min-w-[11rem] overflow-hidden rounded border border-border bg-panel py-1 shadow-[var(--cor-sombra-dropdown)]"
           >
             <button
               type="button"

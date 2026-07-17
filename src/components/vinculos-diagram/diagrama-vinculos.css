@@ -1,0 +1,108 @@
+.diagrama-vinculos-shell .react-flow {
+  background: linear-gradient(
+    165deg,
+    var(--cor-fundo-gradiente-inicio) 0%,
+    var(--cor-fundo-gradiente-fim) 100%
+  );
+}
+
+.diagrama-vinculos-shell .react-flow__edge-text {
+  font-family: inherit;
+}
+
+.diagrama-vinculos-shell .react-flow__controls {
+  border: 1px solid var(--cor-borda);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.diagrama-vinculos-shell .react-flow__controls-button {
+  background: var(--cor-card-fundo);
+  border-bottom: 1px solid var(--cor-borda);
+  color: var(--cor-texto-secundario);
+  fill: var(--cor-texto-secundario);
+}
+
+.diagrama-vinculos-shell .react-flow__controls-button:hover {
+  background: var(--cor-card-fundo-hover);
+  color: var(--cor-destaque-dourado);
+  fill: var(--cor-destaque-dourado);
+}
+
+.diagrama-vinculos-shell .react-flow__controls-button:last-child {
+  border-bottom: none;
+}
+
+.diagrama-vinculos-shell .react-flow__handle {
+  opacity: 0.6;
+}
+
+.diagrama-vinculos-shell .react-flow__node:focus,
+.diagrama-vinculos-shell .react-flow__node:focus-visible {
+  outline: none;
+}
+
+/* Transição suave após o layout automático (dagre). */
+.diagrama-vinculos-shell.layout-animating .react-flow__node {
+  transition: transform 0.35s ease;
+}
+
+.diagrama-vinculos-shell .react-flow__edge-path {
+  transition: d 0.35s ease;
+}
+
+.diagrama-vinculos-shell .diagrama-vinculos-minimap {
+  background: var(--cor-diagrama-legenda-bg);
+  border: 1px solid var(--cor-borda);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.diagrama-vinculos-shell .diagrama-vinculos-minimap svg {
+  background: transparent;
+}
+
+/* Fade-out ao recolher ramos. */
+.diagrama-vinculos-shell .react-flow__node.diagrama-node-removing,
+.diagrama-vinculos-shell .diagrama-node-removing {
+  opacity: 0 !important;
+  transition: opacity 0.28s ease !important;
+  pointer-events: none;
+}
+
+.diagrama-vinculos-shell .react-flow__edge.diagrama-edge-removing {
+  opacity: 0 !important;
+  transition: opacity 0.28s ease !important;
+  pointer-events: none;
+}
+
+.diagrama-vinculos-shell .react-flow__edge.diagrama-edge-removing .react-flow__edge-path,
+.diagrama-vinculos-shell .react-flow__edge.diagrama-edge-removing .react-flow__edge-text,
+.diagrama-vinculos-shell .react-flow__edge.diagrama-edge-removing .react-flow__edge-textbg {
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+@keyframes diagrama-node-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+.diagrama-vinculos-shell .diagrama-node-shake {
+  animation: diagrama-node-shake 0.4s ease;
+}

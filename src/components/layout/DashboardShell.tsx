@@ -1,6 +1,7 @@
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserMenu } from "@/components/auth/UserMenu";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function DashboardShell({
   title,
@@ -28,10 +29,11 @@ export function DashboardShell({
             {title}
           </h2>
           <GlobalSearch />
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {actions ? (
               <div className="flex items-center gap-2">{actions}</div>
             ) : null}
+            <ThemeToggle compact />
             <UserMenu />
           </div>
         </header>

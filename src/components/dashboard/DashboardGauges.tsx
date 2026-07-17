@@ -21,7 +21,7 @@ function Ring({
             cy="54"
             r={radius}
             fill="none"
-            stroke="rgba(212,175,55,0.15)"
+            stroke="var(--cor-chart-gauge-track)"
             strokeWidth="8"
           />
           <circle

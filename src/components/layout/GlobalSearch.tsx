@@ -145,7 +145,7 @@ export function GlobalSearch() {
         <div
           id={listId}
           role="listbox"
-          className="absolute right-0 left-0 z-40 mt-1 max-h-80 overflow-auto rounded border border-border bg-panel shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+          className="absolute right-0 left-0 z-40 mt-1 max-h-80 overflow-auto rounded border border-border bg-panel shadow-[var(--cor-sombra-dropdown)]"
         >
           {pending && results.length === 0 ? (
             <p className="px-3 py-2.5 text-xs text-muted">Buscando…</p>
