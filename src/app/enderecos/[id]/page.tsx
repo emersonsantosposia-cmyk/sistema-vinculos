@@ -55,6 +55,7 @@ export default async function EnderecoDetailPage({ params }: Props) {
         <div className="flex items-center gap-2">
           <Link
             href={`/enderecos/${endereco.id}/editar`}
+            prefetch={false}
             className="btn-acao"
           >
             Editar

@@ -2,6 +2,8 @@ export const NAV_ITEMS: {
   href: string;
   label: string;
   disabled?: boolean;
+  /** Visível apenas para role administrador ativo. */
+  adminOnly?: boolean;
 }[] = [
   { href: "/", label: "Dashboard" },
   { href: "/pessoas", label: "Pessoas" },
@@ -11,4 +13,6 @@ export const NAV_ITEMS: {
   { href: "/empresas", label: "Empresas" },
   { href: "/procedimentos", label: "Procedimentos" },
   { href: "/casos", label: "Casos" },
+  { href: "/usuarios", label: "Usuários", adminOnly: true },
+  { href: "/auditoria", label: "Auditoria", adminOnly: true },
 ];

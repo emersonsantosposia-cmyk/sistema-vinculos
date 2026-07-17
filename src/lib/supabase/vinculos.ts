@@ -82,7 +82,7 @@ export async function searchEntidades(
       case "endereco": {
         let query = supabase
           .from("enderecos")
-          .select("id, nome, logradouro, cidade, estado, cep")
+          .select("id, nome, logradouro, numero, cidade, estado, cep")
           .order("data_cadastro", { ascending: false })
           .limit(limit);
         if (term) {
@@ -99,7 +99,12 @@ export async function searchEntidades(
               row.nome,
               [row.logradouro, row.cidade].filter(Boolean).join(", "),
             ),
-            subtitulo: [row.cidade, row.estado].filter(Boolean).join(" · "),
+            subtitulo: [
+              [row.logradouro, row.numero].filter(Boolean).join(", "),
+              [row.cidade, row.estado].filter(Boolean).join(" · "),
+            ]
+              .filter(Boolean)
+              .join(", "),
           })),
           error: null,
         };
@@ -252,7 +257,7 @@ export async function getEntidadeResumo(
     case "endereco": {
       const { data } = await supabase
         .from("enderecos")
-        .select("id, nome, logradouro, cidade, estado")
+        .select("id, nome, logradouro, numero, cidade, estado")
         .eq("id", id)
         .maybeSingle();
       if (!data) return null;
@@ -262,7 +267,12 @@ export async function getEntidadeResumo(
           data.nome,
           [data.logradouro, data.cidade].filter(Boolean).join(", "),
         ),
-        subtitulo: [data.cidade, data.estado].filter(Boolean).join(" · "),
+        subtitulo: [
+          [data.logradouro, data.numero].filter(Boolean).join(", "),
+          [data.cidade, data.estado].filter(Boolean).join(" · "),
+        ]
+          .filter(Boolean)
+          .join(", "),
       };
     }
     case "veiculo": {
@@ -393,10 +403,13 @@ export async function listVinculosDaEntidade(
       : row.entidade_origem_id;
 
     const resumo = await getEntidadeResumo(outroTipo, outroId);
+    const restrito =
+      !resumo && (outroTipo === "procedimento" || outroTipo === "caso");
+
     cards.push({
       id: row.id,
       tipo_vinculo: row.tipo_vinculo,
-      observacao: row.observacao,
+      fundamentacao: row.observacao,
       usuario_cadastro: row.usuario_cadastro,
       data_cadastro: row.data_cadastro,
       usuario_nome: row.usuario_cadastro
@@ -404,10 +417,15 @@ export async function listVinculosDaEntidade(
         : null,
       outroTipo,
       outroId,
-      titulo: resumo?.titulo ?? "Entidade não encontrada",
-      subtitulo: resumo?.subtitulo ?? null,
-      foto_perfil_path: resumo?.foto_perfil_path ?? null,
-      foto_url: resumo?.foto_url ?? null,
+      titulo: restrito
+        ? outroTipo === "procedimento"
+          ? "Procedimento restrito"
+          : "Caso restrito"
+        : (resumo?.titulo ?? "Entidade não encontrada"),
+      subtitulo: restrito ? null : (resumo?.subtitulo ?? null),
+      restrito,
+      foto_perfil_path: restrito ? null : (resumo?.foto_perfil_path ?? null),
+      foto_url: restrito ? null : (resumo?.foto_url ?? null),
     });
   }
 
@@ -420,13 +438,18 @@ export async function createVinculo(input: {
   destinoTipo: EntidadeTipo;
   destinoId: string;
   tipoVinculo?: string | null;
-  observacao?: string | null;
+  fundamentacao?: string | null;
 }): Promise<{ error: string | null }> {
   if (
     input.origemTipo === input.destinoTipo &&
     input.origemId === input.destinoId
   ) {
     return { error: "Não é possível vincular uma entidade a ela mesma." };
+  }
+
+  const fundamentacao = input.fundamentacao?.trim() || "";
+  if (!fundamentacao) {
+    return { error: "Informe a fundamentação do vínculo." };
   }
 
   const auth = await requireAuthUser();
@@ -439,7 +462,7 @@ export async function createVinculo(input: {
     entidade_destino_tipo: input.destinoTipo,
     entidade_destino_id: input.destinoId,
     tipo_vinculo: input.tipoVinculo?.trim() || null,
-    observacao: input.observacao?.trim() || null,
+    observacao: fundamentacao,
     usuario_cadastro: auth.user.id,
     data_cadastro: new Date().toISOString(),
   });
@@ -454,15 +477,20 @@ export async function updateVinculo(
   id: string,
   input: {
     tipoVinculo?: string | null;
-    observacao?: string | null;
+    fundamentacao?: string | null;
   },
 ): Promise<{ error: string | null }> {
+  const fundamentacao = input.fundamentacao?.trim() || "";
+  if (!fundamentacao) {
+    return { error: "Informe a fundamentação do vínculo." };
+  }
+
   const supabase = createClient();
   const { error } = await supabase
     .from("vinculos")
     .update({
       tipo_vinculo: input.tipoVinculo?.trim() || null,
-      observacao: input.observacao?.trim() || null,
+      observacao: fundamentacao,
     })
     .eq("id", id);
 

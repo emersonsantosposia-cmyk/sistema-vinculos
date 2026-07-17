@@ -1,9 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState, useTransition } from "react";
-import { Button, ErrorBanner, Select } from "@/components/ui/Form";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Button, ErrorBanner, Label, Select } from "@/components/ui/Form";
 import { formatDate } from "@/lib/format";
+import {
+  canChooseUnidade,
+  defaultUnidadeForPerfil,
+  UNIDADES,
+  type PerfilUsuario,
+  type Unidade,
+} from "@/lib/perfis";
 import {
   detectTipoFromFilename,
   fileLastModifiedToDate,
@@ -12,6 +19,7 @@ import {
   createProcedimentosBatch,
   findExistingProcedimentoNomes,
 } from "@/lib/supabase/procedimentos";
+import { createClient } from "@/lib/supabase/client";
 import {
   PROCEDIMENTO_TIPOS,
   type ProcedimentoTipo,
@@ -61,6 +69,27 @@ export function ImportarPastaProcedimentos() {
   const [status, setStatus] = useState<string | null>(null);
   const [rows, setRows] = useState<PreviewRow[] | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
+  const [unidade, setUnidade] = useState<Unidade | "">("");
+  const lockedUnidade = perfil ? !canChooseUnidade(perfil) : false;
+
+  useEffect(() => {
+    const supabase = createClient();
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("perfis_usuario")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+      const p = (data as PerfilUsuario | null) ?? null;
+      setPerfil(p);
+      setUnidade(defaultUnidadeForPerfil(p));
+    })();
+  }, []);
 
   const resetPreview = useCallback(() => {
     setRows(null);
@@ -181,6 +210,10 @@ export function ImportarPastaProcedimentos() {
 
     startTransition(async () => {
       setError(null);
+      if (!unidade) {
+        setError("Selecione a unidade dos procedimentos importados.");
+        return;
+      }
       setStatus(`Importando ${selected.length} procedimento(s)…`);
 
       const { created, error: saveError } = await createProcedimentosBatch(
@@ -190,6 +223,7 @@ export function ImportarPastaProcedimentos() {
           resumo: null,
           data: r.data,
           link_cronos: null,
+          unidade,
         })),
       );
 
@@ -272,6 +306,31 @@ export function ImportarPastaProcedimentos() {
 
               {rows && rows.length > 0 ? (
                 <>
+                  <div className="max-w-xs">
+                    <Label htmlFor="import_unidade">Unidade</Label>
+                    <Select
+                      id="import_unidade"
+                      value={unidade}
+                      onChange={(e) =>
+                        setUnidade(e.target.value as Unidade | "")
+                      }
+                      disabled={pending || lockedUnidade}
+                      required
+                    >
+                      <option value="">Selecione</option>
+                      {UNIDADES.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </Select>
+                    {lockedUnidade ? (
+                      <p className="mt-1 text-[11px] text-muted">
+                        Unidade fixada conforme sua lotação.
+                      </p>
+                    ) : null}
+                  </div>
+
                   <p className="text-sm text-muted">
                     {rows.length} arquivo{rows.length === 1 ? "" : "s"} na pasta
                     (sem subpastas). Revise o tipo, desmarque o que não quiser

@@ -14,6 +14,7 @@ export type CasoInput = {
   nome?: string | null;
   data_abertura?: string | null;
   link_cronos?: string | null;
+  unidade?: string | null;
 };
 
 export async function createCaso(
@@ -21,6 +22,11 @@ export async function createCaso(
 ): Promise<{ data: Caso | null; error: string | null }> {
   const auth = await requireAuthUser();
   if (!auth.user) return { data: null, error: auth.error };
+
+  const unidade = input.unidade?.trim();
+  if (!unidade) {
+    return { data: null, error: "Informe a unidade do caso." };
+  }
 
   const supabase = createClient();
   const { data, error } = await supabase
@@ -30,6 +36,7 @@ export async function createCaso(
       nome: emptyToNull(input.nome),
       data_abertura: emptyToNull(input.data_abertura),
       link_cronos: normalizeUrl(input.link_cronos),
+      unidade,
       usuario_cadastro: auth.user.id,
       data_cadastro: new Date().toISOString(),
     })
@@ -58,6 +65,13 @@ export async function updateCaso(
   }
   if (input.link_cronos !== undefined) {
     payload.link_cronos = normalizeUrl(input.link_cronos);
+  }
+  if (input.unidade !== undefined) {
+    const unidade = input.unidade?.trim();
+    if (!unidade) {
+      return { data: null, error: "Informe a unidade do caso." };
+    }
+    payload.unidade = unidade;
   }
 
   const { data, error } = await supabase

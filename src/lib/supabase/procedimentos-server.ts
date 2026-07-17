@@ -1,11 +1,13 @@
 import { isProcedimentoTipo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
+import { isUnidade } from "@/lib/perfis";
 import type { Procedimento } from "@/lib/types";
 
 export async function listProcedimentos(filters: {
   q?: string;
   tipo?: string;
+  unidade?: string;
 }): Promise<{ data: Procedimento[]; error: string | null }> {
   const supabase = await createClient();
   let query = supabase
@@ -15,6 +17,10 @@ export async function listProcedimentos(filters: {
 
   if (filters.tipo && isProcedimentoTipo(filters.tipo)) {
     query = query.eq("tipo", filters.tipo);
+  }
+
+  if (filters.unidade && isUnidade(filters.unidade)) {
+    query = query.eq("unidade", filters.unidade);
   }
 
   if (filters.q?.trim()) {

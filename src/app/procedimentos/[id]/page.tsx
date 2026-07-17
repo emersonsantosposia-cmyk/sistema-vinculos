@@ -77,6 +77,7 @@ export default async function ProcedimentoDetailPage({ params }: Props) {
         <div className="space-y-4">
           <Panel title="Dados cadastrais">
             <dl className="grid gap-3 sm:grid-cols-2">
+              <Field label="Unidade" value={procedimento.unidade || "—"} />
               <Field
                 label="Tipo"
                 value={labelProcedimentoTipo(procedimento.tipo)}

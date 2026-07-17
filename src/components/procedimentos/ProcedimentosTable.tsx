@@ -5,23 +5,36 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Input, Select } from "@/components/ui/Form";
 import { formatDate, labelProcedimentoTipo } from "@/lib/format";
+import { UNIDADES } from "@/lib/perfis";
 import { PROCEDIMENTO_TIPOS, type Procedimento } from "@/lib/types";
 
 type Props = {
   procedimentos: Procedimento[];
 };
 
-export function ProcedimentosFilters({ procedimentos }: Props) {
+type FiltersProps = Props & {
+  /** Admin e Analista CGIN veem o filtro; demais analistas não. */
+  showUnidadeFilter?: boolean;
+};
+
+export function ProcedimentosFilters({
+  procedimentos,
+  showUnidadeFilter = true,
+}: FiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [q, setQ] = useState(searchParams.get("q") ?? "");
   const [tipo, setTipo] = useState(searchParams.get("tipo") ?? "");
+  const [unidade, setUnidade] = useState(
+    showUnidadeFilter ? (searchParams.get("unidade") ?? "") : "",
+  );
   const [pending, startTransition] = useTransition();
 
-  function apply(nextQ: string, nextTipo: string) {
+  function apply(nextQ: string, nextTipo: string, nextUnidade: string) {
     const params = new URLSearchParams();
     if (nextQ.trim()) params.set("q", nextQ.trim());
     if (nextTipo) params.set("tipo", nextTipo);
+    if (showUnidadeFilter && nextUnidade) params.set("unidade", nextUnidade);
     startTransition(() => {
       router.push(`/procedimentos${params.toString() ? `?${params}` : ""}`);
     });
@@ -38,10 +51,31 @@ export function ProcedimentosFilters({ procedimentos }: Props) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") apply(q, tipo);
+            if (e.key === "Enter") apply(q, tipo, unidade);
           }}
         />
       </div>
+      {showUnidadeFilter ? (
+        <div className="w-40">
+          <label className="mb-1 block text-xs font-medium text-muted">
+            Unidade
+          </label>
+          <Select
+            value={unidade}
+            onChange={(e) => {
+              setUnidade(e.target.value);
+              apply(q, tipo, e.target.value);
+            }}
+          >
+            <option value="">Todas</option>
+            {UNIDADES.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </Select>
+        </div>
+      ) : null}
       <div className="w-44">
         <label className="mb-1 block text-xs font-medium text-muted">
           Tipo
@@ -50,7 +84,7 @@ export function ProcedimentosFilters({ procedimentos }: Props) {
           value={tipo}
           onChange={(e) => {
             setTipo(e.target.value);
-            apply(q, e.target.value);
+            apply(q, e.target.value, unidade);
           }}
         >
           <option value="">Todos</option>
@@ -64,7 +98,7 @@ export function ProcedimentosFilters({ procedimentos }: Props) {
       <button
         type="button"
         disabled={pending}
-        onClick={() => apply(q, tipo)}
+        onClick={() => apply(q, tipo, unidade)}
         className="h-8 rounded border border-border bg-panel px-3 text-sm font-medium text-muted-strong hover:bg-panel-hover hover:text-gold-bright disabled:opacity-50"
       >
         Filtrar
@@ -89,10 +123,11 @@ export function ProcedimentosTable({ procedimentos }: Props) {
 
   return (
     <div className="overflow-x-auto rounded border border-border bg-panel">
-      <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+      <table className="w-full min-w-[820px] border-collapse text-left text-sm">
         <thead>
           <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
             <th className="px-3 py-2.5 font-semibold">Nome</th>
+            <th className="px-3 py-2.5 font-semibold">Unidade</th>
             <th className="px-3 py-2.5 font-semibold">Tipo</th>
             <th className="px-3 py-2.5 font-semibold">Data</th>
             <th className="px-3 py-2.5 font-semibold">Cadastro</th>
@@ -111,6 +146,9 @@ export function ProcedimentosTable({ procedimentos }: Props) {
                 >
                   {procedimento.nome || "Sem nome"}
                 </Link>
+              </td>
+              <td className="px-3 py-2 text-muted-strong">
+                {procedimento.unidade || "—"}
               </td>
               <td className="px-3 py-2 text-muted-strong">
                 {labelProcedimentoTipo(procedimento.tipo)}

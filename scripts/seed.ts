@@ -59,6 +59,7 @@ const TIPOS_VINCULO = [
   "presente em",
   "mencionado em",
   "familiar de",
+  "citado(a)",
 ] as const;
 
 const UFS = [
@@ -455,12 +456,14 @@ async function seedProcedimentos(
   supabase: SupabaseClient,
   usuarioId: string,
 ): Promise<string[]> {
+  const unidades = ["CGIN", "PFCAT", "PFCG", "PFMOS", "PFPV", "PFBRA"] as const;
   const rows = Array.from({ length: COUNT }, (_, i) => ({
     tipo: PROCEDIMENTO_TIPOS[i % PROCEDIMENTO_TIPOS.length]!,
     nome: withPrefix(`${PROCEDIMENTO_TIPOS[i % PROCEDIMENTO_TIPOS.length]} ${faker.lorem.words(3)}`),
     resumo: faker.lorem.paragraph(),
     data: dateOnly(faker.date.past({ years: 3 })),
     link_cronos: `https://cronos.exemplo.local/proc/${faker.string.uuid()}`,
+    unidade: unidades[i % unidades.length]!,
     usuario_cadastro: usuarioId,
   }));
   return (await insertRows(supabase, "procedimentos", rows)).map((r) => r.id);
@@ -470,6 +473,7 @@ async function seedCasos(
   supabase: SupabaseClient,
   usuarioId: string,
 ): Promise<string[]> {
+  const unidades = ["CGIN", "PFCAT", "PFCG", "PFMOS", "PFPV", "PFBRA"] as const;
   const rows = Array.from({ length: COUNT }, (_, i) => ({
     numero: withPrefix(
       `${faker.number.int({ min: 1000, max: 9999 })}/${faker.number.int({ min: 2020, max: 2026 })}`,
@@ -477,6 +481,7 @@ async function seedCasos(
     nome: withPrefix(`Caso ${faker.lorem.words(2)} #${i + 1}`),
     data_abertura: dateOnly(faker.date.past({ years: 4 })),
     link_cronos: `https://cronos.exemplo.local/caso/${faker.string.uuid()}`,
+    unidade: unidades[i % unidades.length]!,
     usuario_cadastro: usuarioId,
   }));
   return (await insertRows(supabase, "casos", rows)).map((r) => r.id);
@@ -537,9 +542,7 @@ async function seedVinculos(
         entidade_destino_tipo: destinoTipo,
         entidade_destino_id: destinoId,
         tipo_vinculo: faker.helpers.arrayElement([...TIPOS_VINCULO]),
-        observacao: faker.helpers.maybe(() => faker.lorem.sentence(), {
-          probability: 0.4,
-        }) ?? null,
+        observacao: faker.lorem.sentence(),
         usuario_cadastro: usuarioId,
       });
       porTipo[origemTipo] += 1;

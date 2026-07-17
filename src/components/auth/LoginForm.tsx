@@ -67,8 +67,9 @@ function LoginFormInner() {
           REDE LINCE
         </h1>
         <p className="text-xs text-muted">
-          Acesso restrito. Usuários são criados pelo administrador no Supabase
-          (Authentication → Users). Não há cadastro público.
+          Acesso restrito. Usuários são criados pelo administrador em{" "}
+          <span className="text-muted-strong">Usuários</span>. Não há cadastro
+          público.
         </p>
       </div>
 

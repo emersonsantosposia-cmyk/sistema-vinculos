@@ -1,15 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
+import { isUnidade } from "@/lib/perfis";
 import type { Caso } from "@/lib/types";
 
 export async function listCasos(filters: {
   q?: string;
+  unidade?: string;
 }): Promise<{ data: Caso[]; error: string | null }> {
   const supabase = await createClient();
   let query = supabase
     .from("casos")
     .select("*")
     .order("data_cadastro", { ascending: false });
+
+  if (filters.unidade && isUnidade(filters.unidade)) {
+    query = query.eq("unidade", filters.unidade);
+  }
 
   if (filters.q?.trim()) {
     const term = filters.q.trim().replace(/[%_,]/g, "");

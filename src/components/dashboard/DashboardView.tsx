@@ -5,18 +5,25 @@ import {
   EntityKpiCards,
   EntityKpiCardsSkeleton,
 } from "@/components/dashboard/EntityKpiCards";
-import type { DashboardCounts, DashboardSeriesPoint } from "@/lib/dashboard";
+import type {
+  DashboardCounts,
+  DashboardSeriesPoint,
+  DashboardUnidadePoint,
+} from "@/lib/dashboard";
 import {
   getDashboardCounts,
   getInsercoesPorPeriodo,
+  getProcCasosPorUnidade,
 } from "@/lib/supabase/dashboard-server";
 
 export function DashboardView({
   counts,
   initialSeries,
+  initialPorUnidade,
 }: {
   counts: DashboardCounts;
   initialSeries: DashboardSeriesPoint[];
+  initialPorUnidade: DashboardUnidadePoint[];
 }) {
   return (
     <div className="dashboard-tactical relative min-h-full overflow-hidden">
@@ -52,7 +59,11 @@ export function DashboardView({
 
         <EntityKpiCards entities={counts.entities} />
 
-        <DashboardCharts initialSeries={initialSeries} initialMode="mes" />
+        <DashboardCharts
+          initialSeries={initialSeries}
+          initialPorUnidade={initialPorUnidade}
+          initialMode="mes"
+        />
 
         <DashboardGauges
           pessoasPresasPct={counts.gauges.pessoasPresasPct}
@@ -65,9 +76,10 @@ export function DashboardView({
 
 /** Carrega contagens e série inicial no servidor (Suspense-friendly). */
 export async function DashboardData() {
-  const [countsResult, seriesResult] = await Promise.all([
+  const [countsResult, seriesResult, porUnidadeResult] = await Promise.all([
     getDashboardCounts(),
     getInsercoesPorPeriodo("mes"),
+    getProcCasosPorUnidade("mes"),
   ]);
 
   if (countsResult.error || !countsResult.data) {
@@ -84,6 +96,7 @@ export async function DashboardData() {
     <DashboardView
       counts={countsResult.data}
       initialSeries={seriesResult.data}
+      initialPorUnidade={porUnidadeResult.data}
     />
   );
 }
@@ -103,6 +116,11 @@ export function DashboardFallback() {
         <EntityKpiCardsSkeleton />
         <div className="space-y-3">
           <div className="h-4 w-56 animate-pulse rounded bg-[color:var(--dash-border)]" />
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
+            <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
+          </div>
+          <div className="h-4 w-72 animate-pulse rounded bg-[color:var(--dash-border)]" />
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
             <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />

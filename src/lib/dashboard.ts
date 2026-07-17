@@ -89,3 +89,10 @@ export type DashboardMetrics = DashboardCounts & {
   series: DashboardSeriesPoint[];
   periodMode: DashboardPeriodMode;
 };
+
+/** Totais de procedimentos/casos por unidade no período (mês ou ano corrente). */
+export type DashboardUnidadePoint = {
+  unidade: string;
+  procedimentos: number;
+  casos: number;
+};

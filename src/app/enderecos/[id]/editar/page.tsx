@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { EnderecoForm } from "@/components/enderecos/EnderecoForm";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ErrorBanner } from "@/components/ui/Form";
@@ -36,7 +35,25 @@ export default async function EditarEnderecoPage({ params }: Props) {
     );
   }
 
-  if (!endereco) notFound();
+  if (!endereco) {
+    return (
+      <DashboardShell
+        title="Editar endereço"
+        actions={
+          <Link href="/enderecos" className="btn-acao-secundario">
+            Voltar à lista
+          </Link>
+        }
+      >
+        <ErrorBanner>
+          Não foi possível carregar este endereço para edição.{" "}
+          <Link href={`/enderecos/${id}`} className="font-medium underline">
+            Voltar ao detalhe
+          </Link>
+        </ErrorBanner>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell

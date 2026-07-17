@@ -48,6 +48,7 @@ export const TIPOS_VINCULO_COMUNS = [
   "associado a",
   "familiar de",
   "testemunha de",
+  "citado(a)",
   "trabalha em",
   "frequentador de",
   "sócio de",
@@ -71,6 +72,7 @@ export type VinculoRow = {
   entidade_destino_tipo: EntidadeTipo;
   entidade_destino_id: string;
   tipo_vinculo: string | null;
+  /** Coluna no banco: observacao (exibida como Fundamentação). */
   observacao: string | null;
   usuario_cadastro: string | null;
   data_cadastro: string;
@@ -79,7 +81,7 @@ export type VinculoRow = {
 export type VinculoCard = {
   id: string;
   tipo_vinculo: string | null;
-  observacao: string | null;
+  fundamentacao: string | null;
   usuario_cadastro: string | null;
   data_cadastro: string;
   usuario_nome: string | null;
@@ -87,6 +89,8 @@ export type VinculoCard = {
   outroId: string;
   titulo: string;
   subtitulo?: string | null;
+  /** Sem permissão de ver o procedimento/caso (RLS). */
+  restrito?: boolean;
   /** Path no bucket fotos-pessoas (apenas quando outroTipo === "pessoa"). */
   foto_perfil_path?: string | null;
   /** Path no bucket fotos-veiculos (apenas quando outroTipo === "veiculo"). */

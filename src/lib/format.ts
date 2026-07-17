@@ -23,6 +23,15 @@ export function isProcedimentoTipo(value: string): value is ProcedimentoTipo {
   return PROCEDIMENTO_TIPOS.some((t) => t.value === value);
 }
 
+/** Máscara 000.000.000-00 enquanto digita. */
+export function maskCpfInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  return digits
+    .replace(/^(\d{3})(\d)/, "$1.$2")
+    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1-$2");
+}
+
 export function formatCpf(cpf: string | null | undefined): string {
   if (!cpf) return "—";
   const digits = cpf.replace(/\D/g, "");

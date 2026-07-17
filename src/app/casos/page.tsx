@@ -3,10 +3,12 @@ import { Suspense } from "react";
 import { CasosFilters, CasosTable } from "@/components/casos/CasosTable";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ErrorBanner } from "@/components/ui/Form";
+import { canChooseUnidade } from "@/lib/perfis";
 import { listCasos } from "@/lib/supabase/casos-server";
+import { getCurrentPerfil } from "@/lib/supabase/perfis-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; unidade?: string }>;
 };
 
 function LoadingSkeleton() {
@@ -19,8 +21,13 @@ function LoadingSkeleton() {
   );
 }
 
-async function Content({ q }: { q?: string }) {
-  const { data, error } = await listCasos({ q });
+async function Content({ q, unidade }: { q?: string; unidade?: string }) {
+  const { perfil } = await getCurrentPerfil();
+  const showUnidadeFilter = canChooseUnidade(perfil);
+  const { data, error } = await listCasos({
+    q,
+    unidade: showUnidadeFilter ? unidade : undefined,
+  });
   return (
     <>
       {error ? (
@@ -32,7 +39,7 @@ async function Content({ q }: { q?: string }) {
         </ErrorBanner>
       ) : null}
       <Suspense fallback={null}>
-        <CasosFilters casos={data} />
+        <CasosFilters casos={data} showUnidadeFilter={showUnidadeFilter} />
       </Suspense>
       <CasosTable casos={data} />
     </>
@@ -54,7 +61,7 @@ export default async function CasosPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} />
+        <Content q={params.q} unidade={params.unidade} />
       </Suspense>
     </DashboardShell>
   );

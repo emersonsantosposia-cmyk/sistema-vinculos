@@ -14,16 +14,23 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { fetchInsercoesPorPeriodoAction } from "@/app/actions/dashboard";
+import { fetchDashboardPeriodAction } from "@/app/actions/dashboard";
 import {
   DASHBOARD_ENTITIES,
   type DashboardEntityKey,
   type DashboardPeriodMode,
   type DashboardSeriesPoint,
+  type DashboardUnidadePoint,
 } from "@/lib/dashboard";
+
+const PROC_COLOR =
+  DASHBOARD_ENTITIES.find((e) => e.key === "procedimentos")?.color ?? "#6b7c4a";
+const CASOS_COLOR =
+  DASHBOARD_ENTITIES.find((e) => e.key === "casos")?.color ?? "#e8d5a3";
 
 type Props = {
   initialSeries: DashboardSeriesPoint[];
+  initialPorUnidade: DashboardUnidadePoint[];
   initialMode?: DashboardPeriodMode;
 };
 
@@ -82,10 +89,10 @@ function Panel({
   );
 }
 
-function ChartsSkeleton() {
+function ChartsSkeleton({ count = 2 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-2" aria-busy="true">
-      {[0, 1].map((i) => (
+      {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
           className="rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] p-4"
@@ -106,12 +113,75 @@ function ChartsSkeleton() {
   );
 }
 
+function UnidadeBarChart({
+  title,
+  dataKey,
+  data,
+  fill,
+}: {
+  title: string;
+  dataKey: "procedimentos" | "casos";
+  data: DashboardUnidadePoint[];
+  fill: string;
+}) {
+  const empty = data.every((d) => d[dataKey] === 0);
+
+  return (
+    <Panel title={title}>
+      {empty ? (
+        <EmptyChart message="Sem registros no período para exibir." />
+      ) : (
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={data}
+            margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
+          >
+            <CartesianGrid
+              stroke="rgba(184,168,110,0.12)"
+              strokeDasharray="3 3"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="unidade"
+              tick={{ fill: "#a9a18a", fontSize: 11 }}
+              axisLine={{ stroke: "rgba(184,168,110,0.25)" }}
+              tickLine={false}
+              interval={0}
+            />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fill: "#a9a18a", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              width={36}
+            />
+            <Tooltip content={<ChartTooltip />} />
+            <Bar
+              dataKey={dataKey}
+              name={title}
+              fill={fill}
+              radius={[3, 3, 0, 0]}
+            >
+              {data.map((entry) => (
+                <Cell key={entry.unidade} fill={fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </Panel>
+  );
+}
+
 export function DashboardCharts({
   initialSeries,
+  initialPorUnidade,
   initialMode = "mes",
 }: Props) {
   const [mode, setMode] = useState<DashboardPeriodMode>(initialMode);
   const [series, setSeries] = useState<DashboardSeriesPoint[]>(initialSeries);
+  const [porUnidade, setPorUnidade] =
+    useState<DashboardUnidadePoint[]>(initialPorUnidade);
   const [error, setError] = useState<string | null>(null);
   const [entityFilter, setEntityFilter] = useState<"todas" | DashboardEntityKey>(
     "todas",
@@ -122,18 +192,26 @@ export function DashboardCharts({
     setSeries(initialSeries);
   }, [initialSeries]);
 
+  useEffect(() => {
+    setPorUnidade(initialPorUnidade);
+  }, [initialPorUnidade]);
+
   function changeMode(next: DashboardPeriodMode) {
     if (next === mode && !error) return;
     setMode(next);
     startTransition(async () => {
       setError(null);
-      const result = await fetchInsercoesPorPeriodoAction(next);
-      if (result.error) {
-        setError(result.error);
-        setSeries([]);
+      const result = await fetchDashboardPeriodAction(next);
+      if (result.seriesError || result.porUnidadeError) {
+        setError(result.seriesError ?? result.porUnidadeError);
+        if (!result.seriesError) setSeries(result.series);
+        else setSeries([]);
+        if (!result.porUnidadeError) setPorUnidade(result.porUnidade);
+        else setPorUnidade([]);
         return;
       }
-      setSeries(result.data);
+      setSeries(result.series);
+      setPorUnidade(result.porUnidade);
     });
   }
 
@@ -159,196 +237,237 @@ export function DashboardCharts({
     });
   }, [series, visibleEntities]);
 
+  const periodHint =
+    mode === "ano" ? "ano civil corrente" : "mês civil corrente";
+
   return (
-    <section aria-label="Gráficos quantitativos" className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-8">
+      <section aria-label="Gráficos quantitativos" className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold tracking-[0.18em] text-[color:var(--dash-gold)] uppercase">
+              Inserções por entidade
+            </h2>
+            <p className="mt-1 text-xs text-[color:var(--dash-muted)]">
+              Baseado em data de cadastro — compare o ritmo entre entidades
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] p-0.5">
+              {(
+                [
+                  ["mes", "Por mês"],
+                  ["ano", "Por ano"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  disabled={pending}
+                  onClick={() => changeMode(value)}
+                  className={`rounded px-3 py-1.5 text-[11px] tracking-[0.14em] uppercase transition-colors disabled:opacity-60 ${
+                    mode === value
+                      ? "bg-[color:var(--dash-gold)] font-semibold text-[#121510]"
+                      : "text-[color:var(--dash-muted-strong)] hover:text-[color:var(--dash-gold)]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <label className="flex items-center gap-2 text-[11px] tracking-[0.12em] text-[color:var(--dash-muted)] uppercase">
+              Entidade
+              <select
+                value={entityFilter}
+                onChange={(e) =>
+                  setEntityFilter(
+                    e.target.value as "todas" | DashboardEntityKey,
+                  )
+                }
+                className="rounded border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] px-2 py-1.5 text-xs tracking-normal text-[color:var(--dash-gold)] normal-case outline-none focus:border-[color:var(--dash-gold)]"
+              >
+                <option value="todas">Todas</option>
+                {DASHBOARD_ENTITIES.map((entity) => (
+                  <option key={entity.key} value={entity.key}>
+                    {entity.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger-fg">
+            {error}
+          </div>
+        ) : null}
+
+        {pending ? (
+          <ChartsSkeleton />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <Panel title="Evolução de cadastros">
+              {series.length === 0 ? (
+                <EmptyChart />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={series}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      {visibleEntities.map((entity) => (
+                        <linearGradient
+                          key={entity.key}
+                          id={`grad-${entity.key}`}
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor={entity.color}
+                            stopOpacity={0.45}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor={entity.color}
+                            stopOpacity={0.02}
+                          />
+                        </linearGradient>
+                      ))}
+                    </defs>
+                    <CartesianGrid
+                      stroke="rgba(184,168,110,0.12)"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: "#a9a18a", fontSize: 11 }}
+                      axisLine={{ stroke: "rgba(184,168,110,0.25)" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fill: "#a9a18a", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={36}
+                    />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Legend
+                      wrapperStyle={{ fontSize: 11, color: "#c9bfa3" }}
+                      iconType="circle"
+                    />
+                    {visibleEntities.map((entity) => (
+                      <Area
+                        key={entity.key}
+                        type="monotone"
+                        dataKey={entity.key}
+                        name={entity.label}
+                        stroke={entity.color}
+                        fill={`url(#grad-${entity.key})`}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 0 }}
+                      />
+                    ))}
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </Panel>
+
+            <Panel title="Total no período">
+              {barData.every((d) => d.total === 0) ? (
+                <EmptyChart />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={barData}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
+                  >
+                    <CartesianGrid
+                      stroke="rgba(184,168,110,0.12)"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fill: "#a9a18a", fontSize: 11 }}
+                      axisLine={{ stroke: "rgba(184,168,110,0.25)" }}
+                      tickLine={false}
+                      interval={0}
+                      angle={-18}
+                      textAnchor="end"
+                      height={54}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fill: "#a9a18a", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={36}
+                    />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Bar dataKey="total" name="Registros" radius={[3, 3, 0, 0]}>
+                      {barData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </Panel>
+          </div>
+        )}
+      </section>
+
+      <section aria-label="Procedimentos e casos por unidade" className="space-y-4">
         <div>
           <h2 className="text-sm font-semibold tracking-[0.18em] text-[color:var(--dash-gold)] uppercase">
-            Inserções por entidade
+            Procedimentos e casos por unidade
           </h2>
           <p className="mt-1 text-xs text-[color:var(--dash-muted)]">
-            Baseado em data de cadastro — compare o ritmo entre entidades
+            Totais no {periodHint}, conforme o seletor Por mês / Por ano
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] p-0.5">
-            {(
-              [
-                ["mes", "Por mês"],
-                ["ano", "Por ano"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                disabled={pending}
-                onClick={() => changeMode(value)}
-                className={`rounded px-3 py-1.5 text-[11px] tracking-[0.14em] uppercase transition-colors disabled:opacity-60 ${
-                  mode === value
-                    ? "bg-[color:var(--dash-gold)] font-semibold text-[#121510]"
-                    : "text-[color:var(--dash-muted-strong)] hover:text-[color:var(--dash-gold)]"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+        {pending ? (
+          <ChartsSkeleton />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <UnidadeBarChart
+              title="Procedimentos por unidade"
+              dataKey="procedimentos"
+              data={porUnidade}
+              fill={PROC_COLOR}
+            />
+            <UnidadeBarChart
+              title="Casos por unidade"
+              dataKey="casos"
+              data={porUnidade}
+              fill={CASOS_COLOR}
+            />
           </div>
-
-          <label className="flex items-center gap-2 text-[11px] tracking-[0.12em] text-[color:var(--dash-muted)] uppercase">
-            Entidade
-            <select
-              value={entityFilter}
-              onChange={(e) =>
-                setEntityFilter(e.target.value as "todas" | DashboardEntityKey)
-              }
-              className="rounded border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] px-2 py-1.5 text-xs tracking-normal text-[color:var(--dash-gold)] normal-case outline-none focus:border-[color:var(--dash-gold)]"
-            >
-              <option value="todas">Todas</option>
-              {DASHBOARD_ENTITIES.map((entity) => (
-                <option key={entity.key} value={entity.key}>
-                  {entity.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </div>
-
-      {error ? (
-        <div className="rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger-fg">
-          {error}
-        </div>
-      ) : null}
-
-      {pending ? (
-        <ChartsSkeleton />
-      ) : (
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-          <Panel title="Evolução de cadastros">
-            {series.length === 0 ? (
-              <EmptyChart />
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={series}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    {visibleEntities.map((entity) => (
-                      <linearGradient
-                        key={entity.key}
-                        id={`grad-${entity.key}`}
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor={entity.color}
-                          stopOpacity={0.45}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor={entity.color}
-                          stopOpacity={0.02}
-                        />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid
-                    stroke="rgba(184,168,110,0.12)"
-                    strokeDasharray="3 3"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fill: "#a9a18a", fontSize: 11 }}
-                    axisLine={{ stroke: "rgba(184,168,110,0.25)" }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tick={{ fill: "#a9a18a", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={36}
-                  />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11, color: "#c9bfa3" }}
-                    iconType="circle"
-                  />
-                  {visibleEntities.map((entity) => (
-                    <Area
-                      key={entity.key}
-                      type="monotone"
-                      dataKey={entity.key}
-                      name={entity.label}
-                      stroke={entity.color}
-                      fill={`url(#grad-${entity.key})`}
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 4, strokeWidth: 0 }}
-                    />
-                  ))}
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </Panel>
-
-          <Panel title="Total no período">
-            {barData.every((d) => d.total === 0) ? (
-              <EmptyChart />
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={barData}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
-                >
-                  <CartesianGrid
-                    stroke="rgba(184,168,110,0.12)"
-                    strokeDasharray="3 3"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fill: "#a9a18a", fontSize: 11 }}
-                    axisLine={{ stroke: "rgba(184,168,110,0.25)" }}
-                    tickLine={false}
-                    interval={0}
-                    angle={-18}
-                    textAnchor="end"
-                    height={54}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tick={{ fill: "#a9a18a", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={36}
-                  />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="total" name="Registros" radius={[3, 3, 0, 0]}>
-                    {barData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </Panel>
-        </div>
-      )}
-    </section>
+        )}
+      </section>
+    </div>
   );
 }
 
-function EmptyChart() {
+function EmptyChart({
+  message = "Sem cadastros no período para exibir.",
+}: {
+  message?: string;
+}) {
   return (
     <div className="flex h-full items-center justify-center text-sm text-[color:var(--dash-muted)]">
-      Sem cadastros no período para exibir.
+      {message}
     </div>
   );
 }

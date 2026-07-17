@@ -4,7 +4,9 @@ import {
   type DashboardEntityKey,
   type DashboardPeriodMode,
   type DashboardSeriesPoint,
+  type DashboardUnidadePoint,
 } from "@/lib/dashboard";
+import { UNIDADES } from "@/lib/perfis";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
 
@@ -329,4 +331,154 @@ export async function getInsercoesPorPeriodo(
   }
 
   return { data: [], error: null };
+}
+
+type RpcUnidadeRow = {
+  unidade: string;
+  procedimentos: number | string;
+  casos: number | string;
+};
+
+function emptyUnidadeSeries(): DashboardUnidadePoint[] {
+  return UNIDADES.map((unidade) => ({
+    unidade,
+    procedimentos: 0,
+    casos: 0,
+  }));
+}
+
+function inCurrentPeriod(iso: string, mode: DashboardPeriodMode): boolean {
+  const d = new Date(iso);
+  const now = new Date();
+  if (mode === "ano") return d.getFullYear() === now.getFullYear();
+  return (
+    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  );
+}
+
+function mergeUnidadeRows(rows: RpcUnidadeRow[]): DashboardUnidadePoint[] {
+  const byUnidade = new Map(
+    rows.map((row) => [
+      row.unidade,
+      {
+        unidade: row.unidade,
+        procedimentos: toNum(row.procedimentos),
+        casos: toNum(row.casos),
+      } satisfies DashboardUnidadePoint,
+    ]),
+  );
+
+  return UNIDADES.map((unidade) => {
+    const hit = byUnidade.get(unidade);
+    return (
+      hit ?? {
+        unidade,
+        procedimentos: 0,
+        casos: 0,
+      }
+    );
+  });
+}
+
+/** Fallback quando a RPC ainda não foi aplicada no projeto Supabase. */
+async function fetchUnidadeFallback(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  mode: DashboardPeriodMode,
+): Promise<{ data: DashboardUnidadePoint[]; error: string | null }> {
+  const pageSize = 1000;
+
+  async function loadTable(
+    table: "procedimentos" | "casos",
+  ): Promise<{ counts: Map<string, number>; error: string | null }> {
+    const counts = new Map<string, number>();
+    let from = 0;
+    for (;;) {
+      const { data, error } = await supabase
+        .from(table)
+        .select("unidade, data_cadastro")
+        .order("data_cadastro", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        return {
+          counts,
+          error: friendlyError(
+            error.message,
+            `Erro ao ler ${table} por unidade.`,
+          ),
+        };
+      }
+      if (!data?.length) break;
+      for (const row of data) {
+        const iso = row.data_cadastro as string;
+        if (!inCurrentPeriod(iso, mode)) continue;
+        const unidade = (row.unidade as string) ?? "";
+        if (!unidade) continue;
+        counts.set(unidade, (counts.get(unidade) ?? 0) + 1);
+      }
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return { counts, error: null };
+  }
+
+  const [proc, cas] = await Promise.all([
+    loadTable("procedimentos"),
+    loadTable("casos"),
+  ]);
+
+  const firstError = proc.error ?? cas.error;
+  if (firstError) {
+    return { data: [], error: firstError };
+  }
+
+  return {
+    data: UNIDADES.map((unidade) => ({
+      unidade,
+      procedimentos: proc.counts.get(unidade) ?? 0,
+      casos: cas.counts.get(unidade) ?? 0,
+    })),
+    error: null,
+  };
+}
+
+/**
+ * Procedimentos e casos por unidade no mês ou ano civil corrente.
+ * Prefere a RPC `contagem_proc_casos_por_unidade(p_agrupamento)`.
+ * Sem filtro extra de permissão — RLS já limita as linhas visíveis.
+ */
+export async function getProcCasosPorUnidade(
+  agrupamento: DashboardPeriodMode,
+): Promise<{ data: DashboardUnidadePoint[]; error: string | null }> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("contagem_proc_casos_por_unidade", {
+    p_agrupamento: agrupamento,
+  });
+
+  if (!error && data) {
+    return {
+      data: mergeUnidadeRows((data as RpcUnidadeRow[]) ?? []),
+      error: null,
+    };
+  }
+
+  if (
+    error &&
+    /function|does not exist|schema cache|PGRST202/i.test(error.message)
+  ) {
+    return fetchUnidadeFallback(supabase, agrupamento);
+  }
+
+  if (error) {
+    return {
+      data: emptyUnidadeSeries(),
+      error: friendlyError(
+        error.message,
+        "Erro ao carregar procedimentos e casos por unidade.",
+      ),
+    };
+  }
+
+  return { data: emptyUnidadeSeries(), error: null };
 }

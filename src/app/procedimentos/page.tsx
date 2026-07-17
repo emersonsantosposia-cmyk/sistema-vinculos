@@ -7,10 +7,12 @@ import {
   ProcedimentosTable,
 } from "@/components/procedimentos/ProcedimentosTable";
 import { ErrorBanner } from "@/components/ui/Form";
+import { canChooseUnidade } from "@/lib/perfis";
+import { getCurrentPerfil } from "@/lib/supabase/perfis-server";
 import { listProcedimentos } from "@/lib/supabase/procedimentos-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string; tipo?: string }>;
+  searchParams: Promise<{ q?: string; tipo?: string; unidade?: string }>;
 };
 
 function LoadingSkeleton() {
@@ -23,8 +25,22 @@ function LoadingSkeleton() {
   );
 }
 
-async function Content({ q, tipo }: { q?: string; tipo?: string }) {
-  const { data, error } = await listProcedimentos({ q, tipo });
+async function Content({
+  q,
+  tipo,
+  unidade,
+}: {
+  q?: string;
+  tipo?: string;
+  unidade?: string;
+}) {
+  const { perfil } = await getCurrentPerfil();
+  const showUnidadeFilter = canChooseUnidade(perfil);
+  const { data, error } = await listProcedimentos({
+    q,
+    tipo,
+    unidade: showUnidadeFilter ? unidade : undefined,
+  });
   return (
     <>
       {error ? (
@@ -36,7 +52,10 @@ async function Content({ q, tipo }: { q?: string; tipo?: string }) {
         </ErrorBanner>
       ) : null}
       <Suspense fallback={null}>
-        <ProcedimentosFilters procedimentos={data} />
+        <ProcedimentosFilters
+          procedimentos={data}
+          showUnidadeFilter={showUnidadeFilter}
+        />
       </Suspense>
       <ProcedimentosTable procedimentos={data} />
     </>
@@ -61,7 +80,7 @@ export default async function ProcedimentosPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} tipo={params.tipo} />
+        <Content q={params.q} tipo={params.tipo} unidade={params.unidade} />
       </Suspense>
     </DashboardShell>
   );

@@ -2,10 +2,40 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { NAV_ITEMS } from "@/lib/nav";
+import { createClient } from "@/lib/supabase/client";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let cancelled = false;
+
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      const { data } = await supabase
+        .from("perfis_usuario")
+        .select("role, ativo")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+      setIsAdmin(data?.role === "administrador" && data?.ativo === true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const items = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-fg">
@@ -22,7 +52,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 p-2">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const active =
             !item.disabled &&
             (item.href === "/"

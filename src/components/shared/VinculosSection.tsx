@@ -66,11 +66,14 @@ function VinculoCardBox({
   const menuRef = useRef<HTMLDivElement>(null);
   const isPessoa = card.outroTipo === "pessoa";
   const isVeiculo = card.outroTipo === "veiculo";
+  const isRestrito = Boolean(card.restrito);
   const showSubtitulo =
+    !isRestrito &&
     (card.outroTipo === "veiculo" || card.outroTipo === "endereco") &&
     Boolean(card.subtitulo);
   const tipoLabel = card.tipo_vinculo?.trim() || "Sem tipo";
   const entidadeHref = `${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`;
+  const entidadeTipoLabel = ENTIDADE_LABELS[card.outroTipo];
 
   useEffect(() => {
     if (!menu) return;
@@ -103,7 +106,21 @@ function VinculoCardBox({
     setMenu({ x: e.clientX, y: e.clientY });
   }
 
-  const cardContent = isPessoa ? (
+  const cardContent = isRestrito ? (
+    <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <p className="truncate text-[10px] font-semibold tracking-[0.12em] text-gold uppercase">
+          {tipoLabel}
+        </p>
+        <p className="mt-0.5 truncate text-[11px] text-muted">
+          {entidadeTipoLabel}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-medium text-muted-strong italic">
+          {card.titulo}
+        </p>
+      </div>
+    </div>
+  ) : isPessoa ? (
     <div className="flex flex-1 flex-col items-center gap-3 text-center">
       <button
         type="button"
@@ -279,21 +296,27 @@ function VinculoDetalheModal({
           </div>
           <div>
             <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
-              Observação
+              Fundamentação
             </dt>
             <dd className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
-              {card.observacao?.trim() || "—"}
+              {card.fundamentacao?.trim() || "—"}
             </dd>
           </div>
         </dl>
 
         <div className="mt-4 flex justify-end">
-          <a
-            href={`${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`}
-            className="btn-acao-secundario text-xs"
-          >
-            Abrir entidade
-          </a>
+          {card.restrito ? (
+            <p className="text-xs text-muted italic">
+              Sem permissão para abrir este registro.
+            </p>
+          ) : (
+            <a
+              href={`${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`}
+              className="btn-acao-secundario text-xs"
+            >
+              Abrir entidade
+            </a>
+          )}
         </div>
       </div>
     </div>
@@ -322,7 +345,7 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
   const [selecionada, setSelecionada] = useState<EntidadeOpcao | null>(null);
   const [tipoVinculo, setTipoVinculo] = useState<string>("");
   const [tipoVinculoCustom, setTipoVinculoCustom] = useState("");
-  const [observacao, setObservacao] = useState("");
+  const [fundamentacao, setFundamentacao] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [abertos, setAbertos] = useState<Set<EntidadeTipo>>(new Set());
@@ -424,7 +447,7 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
     setSelecionada(null);
     setTipoVinculo("");
     setTipoVinculoCustom("");
-    setObservacao("");
+    setFundamentacao("");
     setEditandoId(null);
     setFormMode("create");
     setDataCriacaoPreview(new Date().toISOString());
@@ -453,7 +476,7 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
     });
     setTipoVinculo(tipoVals.select);
     setTipoVinculoCustom(tipoVals.custom);
-    setObservacao(card.observacao ?? "");
+    setFundamentacao(card.fundamentacao ?? "");
     setDataCriacaoPreview(card.data_cadastro);
     setError(null);
     setFormOpen(true);
@@ -481,13 +504,19 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
       tipoVinculo === "__custom"
         ? tipoVinculoCustom.trim()
         : tipoVinculo.trim();
+    const fundamentacaoFinal = fundamentacao.trim();
+
+    if (!fundamentacaoFinal) {
+      setError("Informe a fundamentação do vínculo.");
+      return;
+    }
 
     if (formMode === "edit" && editandoId) {
       startTransition(async () => {
         setError(null);
         const { error: updateError } = await updateVinculo(editandoId, {
           tipoVinculo: tipoFinal || null,
-          observacao,
+          fundamentacao: fundamentacaoFinal,
         });
         if (updateError) {
           setError(updateError);
@@ -512,7 +541,7 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
         destinoTipo,
         destinoId: selecionada.id,
         tipoVinculo: tipoFinal || null,
-        observacao,
+        fundamentacao: fundamentacaoFinal,
       });
       if (createError) {
         setError(createError);
@@ -544,24 +573,28 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
         usuarioAtualNome
       : usuarioAtualNome;
 
-  const editFormRef = useRef<HTMLFormElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    if (formOpen && formMode === "edit") {
-      editFormRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
-    }
-  }, [formOpen, formMode, editandoId]);
+    if (!formOpen) return;
+    formRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }, [formOpen, formMode, editandoId, destinoTipo]);
 
   function renderVinculoForm(mode: FormMode) {
     return (
       <form
-        ref={mode === "edit" ? editFormRef : undefined}
+        ref={formRef}
         onSubmit={handleSalvar}
         className="space-y-3 rounded border border-border bg-panel-soft p-3"
       >
+        {error ? (
+          <p className="rounded border border-danger-border bg-danger-bg px-3 py-2 text-xs text-danger-fg">
+            {error}
+          </p>
+        ) : null}
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-sm font-medium text-foreground">
@@ -571,7 +604,7 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
             </p>
             <p className="mt-0.5 text-xs text-muted">
               {mode === "edit"
-                ? "Altere o tipo de vínculo ou a observação."
+                ? "Altere o tipo de vínculo ou a fundamentação."
                 : "Tipo de destino pré-selecionado. Busque e escolha o registro."}
             </p>
           </div>
@@ -607,10 +640,12 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
               id="destino_tipo"
               value={destinoTipo}
               onChange={(e) => {
-                setDestinoTipo(e.target.value as EntidadeTipo);
+                const next = e.target.value as EntidadeTipo;
+                setDestinoTipo(next);
                 setSelecionada(null);
                 setBusca("");
                 setOpcoes([]);
+                setAbertos((prev) => new Set(prev).add(next));
               }}
               disabled={pending}
             >
@@ -725,20 +760,28 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
         </div>
 
         <div>
-          <Label htmlFor={`obs_vinculo_${mode}`}>Observação (opcional)</Label>
+          <Label htmlFor={`fundamentacao_vinculo_${mode}`}>
+            Fundamentação
+          </Label>
           <Textarea
-            id={`obs_vinculo_${mode}`}
-            rows={2}
-            value={observacao}
-            onChange={(e) => setObservacao(e.target.value)}
+            id={`fundamentacao_vinculo_${mode}`}
+            rows={3}
+            value={fundamentacao}
+            onChange={(e) => setFundamentacao(e.target.value)}
+            placeholder="Descreva a fundamentação deste vínculo"
             disabled={pending}
+            required
           />
         </div>
 
         <div className="flex justify-end">
           <Button
             type="submit"
-            disabled={pending || (mode === "create" && !selecionada)}
+            disabled={
+              pending ||
+              !fundamentacao.trim() ||
+              (mode === "create" && !selecionada)
+            }
           >
             {pending
               ? "Salvando…"
@@ -763,8 +806,6 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
         </p>
       ) : null}
 
-      {formOpen && formMode === "create" ? renderVinculoForm("create") : null}
-
       {loading ? (
         <p className="py-4 text-center text-sm text-muted">
           Carregando vínculos…
@@ -774,6 +815,8 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
           {ENTIDADE_TIPOS.map((tipo) => {
             const items = cardsPorTipo.get(tipo) ?? [];
             const aberto = abertos.has(tipo);
+            const mostrandoFormCriacao =
+              formOpen && formMode === "create" && destinoTipo === tipo;
             return (
               <section
                 key={tipo}
@@ -815,7 +858,9 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
                       </Button>
                     </div>
 
-                    {items.length === 0 ? (
+                    {mostrandoFormCriacao ? renderVinculoForm("create") : null}
+
+                    {items.length === 0 && !mostrandoFormCriacao ? (
                       <p className="py-1 text-xs text-muted">
                         Nenhum vínculo cadastrado
                       </p>

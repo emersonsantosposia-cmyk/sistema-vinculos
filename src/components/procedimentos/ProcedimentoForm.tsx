@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Button,
   Input,
@@ -10,9 +10,17 @@ import {
   Textarea,
 } from "@/components/ui/Form";
 import {
+  canChooseUnidade,
+  defaultUnidadeForPerfil,
+  UNIDADES,
+  type PerfilUsuario,
+  type Unidade,
+} from "@/lib/perfis";
+import {
   createProcedimento,
   updateProcedimento,
 } from "@/lib/supabase/procedimentos";
+import { createClient } from "@/lib/supabase/client";
 import {
   PROCEDIMENTO_TIPOS,
   type Procedimento,
@@ -34,21 +42,58 @@ export function ProcedimentoForm({ initial }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
+  const [perfilReady, setPerfilReady] = useState(false);
 
+  const lockedUnidade = perfil ? !canChooseUnidade(perfil) : false;
+  const [unidade, setUnidade] = useState<Unidade | "">(
+    defaultUnidadeForPerfil(null, initial?.unidade),
+  );
   const [tipo, setTipo] = useState<ProcedimentoTipo | "">(initial?.tipo ?? "");
   const [nome, setNome] = useState(initial?.nome ?? "");
   const [resumo, setResumo] = useState(initial?.resumo ?? "");
   const [data, setData] = useState(toDateInputValue(initial?.data));
   const [linkCronos, setLinkCronos] = useState(initial?.link_cronos ?? "");
 
+  useEffect(() => {
+    const supabase = createClient();
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setPerfilReady(true);
+        return;
+      }
+      const { data } = await supabase
+        .from("perfis_usuario")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+      const p = (data as PerfilUsuario | null) ?? null;
+      setPerfil(p);
+      setUnidade((prev) => {
+        if (initial?.unidade) return defaultUnidadeForPerfil(p, initial.unidade);
+        if (prev) return prev;
+        return defaultUnidadeForPerfil(p);
+      });
+      setPerfilReady(true);
+    })();
+  }, [initial?.unidade]);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     startTransition(async () => {
       setError(null);
+      if (!unidade) {
+        setError("Selecione a unidade.");
+        return;
+      }
       setStatus(isEdit ? "Atualizando procedimento…" : "Salvando procedimento…");
 
       const payload = {
+        unidade,
         tipo: tipo || null,
         nome,
         resumo,
@@ -88,6 +133,28 @@ export function ProcedimentoForm({ initial }: Props) {
           Dados do procedimento
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label htmlFor="unidade">Unidade</Label>
+            <Select
+              id="unidade"
+              value={unidade}
+              onChange={(e) => setUnidade(e.target.value as Unidade | "")}
+              disabled={pending || !perfilReady || lockedUnidade}
+              required
+            >
+              <option value="">Selecione</option>
+              {UNIDADES.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </Select>
+            {lockedUnidade ? (
+              <p className="mt-1 text-[11px] text-muted">
+                Unidade fixada conforme sua lotação.
+              </p>
+            ) : null}
+          </div>
           <div>
             <Label htmlFor="tipo">Tipo</Label>
             <Select
@@ -162,7 +229,7 @@ export function ProcedimentoForm({ initial }: Props) {
         >
           Cancelar
         </Button>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || !perfilReady}>
           {pending
             ? isEdit
               ? "Salvando alterações…"

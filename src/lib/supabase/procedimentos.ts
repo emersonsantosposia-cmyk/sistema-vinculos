@@ -15,6 +15,7 @@ export type ProcedimentoInput = {
   resumo?: string | null;
   data?: string | null;
   link_cronos?: string | null;
+  unidade?: string | null;
 };
 
 export async function createProcedimento(
@@ -22,6 +23,11 @@ export async function createProcedimento(
 ): Promise<{ data: Procedimento | null; error: string | null }> {
   const auth = await requireAuthUser();
   if (!auth.user) return { data: null, error: auth.error };
+
+  const unidade = input.unidade?.trim();
+  if (!unidade) {
+    return { data: null, error: "Informe a unidade do procedimento." };
+  }
 
   const supabase = createClient();
   const { data, error } = await supabase
@@ -32,6 +38,7 @@ export async function createProcedimento(
       resumo: emptyToNull(input.resumo),
       data: emptyToNull(input.data),
       link_cronos: normalizeUrl(input.link_cronos),
+      unidade,
       usuario_cadastro: auth.user.id,
       data_cadastro: new Date().toISOString(),
     })
@@ -59,6 +66,13 @@ export async function updateProcedimento(
   if (input.data !== undefined) payload.data = emptyToNull(input.data);
   if (input.link_cronos !== undefined) {
     payload.link_cronos = normalizeUrl(input.link_cronos);
+  }
+  if (input.unidade !== undefined) {
+    const unidade = input.unidade?.trim();
+    if (!unidade) {
+      return { data: null, error: "Informe a unidade do procedimento." };
+    }
+    payload.unidade = unidade;
   }
 
   const { data, error } = await supabase
@@ -136,15 +150,36 @@ export async function createProcedimentosBatch(
 
   const supabase = createClient();
   const now = new Date().toISOString();
-  const rows = inputs.map((input) => ({
-    tipo: input.tipo || null,
-    nome: emptyToNull(input.nome),
-    resumo: emptyToNull(input.resumo),
-    data: emptyToNull(input.data),
-    link_cronos: normalizeUrl(input.link_cronos),
-    usuario_cadastro: auth.user!.id,
-    data_cadastro: now,
-  }));
+  const rows: Array<{
+    tipo: ProcedimentoTipo | null;
+    nome: string | null;
+    resumo: string | null;
+    data: string | null;
+    link_cronos: string | null;
+    unidade: string;
+    usuario_cadastro: string;
+    data_cadastro: string;
+  }> = [];
+
+  for (const input of inputs) {
+    const unidade = input.unidade?.trim();
+    if (!unidade) {
+      return {
+        created: 0,
+        error: "Informe a unidade do procedimento.",
+      };
+    }
+    rows.push({
+      tipo: input.tipo || null,
+      nome: emptyToNull(input.nome),
+      resumo: emptyToNull(input.resumo),
+      data: emptyToNull(input.data),
+      link_cronos: normalizeUrl(input.link_cronos),
+      unidade,
+      usuario_cadastro: auth.user.id,
+      data_cadastro: now,
+    });
+  }
 
   const { data, error } = await supabase
     .from("procedimentos")

@@ -109,6 +109,7 @@ export type Procedimento = {
   resumo: string | null;
   data: string | null;
   link_cronos: string | null;
+  unidade: string;
   usuario_cadastro: string | null;
   data_cadastro: string;
 };
@@ -119,6 +120,7 @@ export type Caso = {
   nome: string | null;
   data_abertura: string | null;
   link_cronos: string | null;
+  unidade: string;
   usuario_cadastro: string | null;
   data_cadastro: string;
 };
