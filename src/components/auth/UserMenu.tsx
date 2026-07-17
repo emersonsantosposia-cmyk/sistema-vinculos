@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { AboutSystemModal } from "@/components/auth/AboutSystemModal";
 import { Button, Input, Label } from "@/components/ui/Form";
 import {
   formatPerfilAcesso,
@@ -177,6 +178,7 @@ export function UserMenu() {
   const [email, setEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -297,6 +299,17 @@ export function UserMenu() {
             <button
               type="button"
               role="menuitem"
+              className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-panel-hover"
+              onClick={() => {
+                setMenuOpen(false);
+                setAboutOpen(true);
+              }}
+            >
+              Sobre o sistema
+            </button>
+            <button
+              type="button"
+              role="menuitem"
               className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-panel-hover disabled:opacity-50"
               disabled={pending || !email}
               onClick={handleLogout}
@@ -312,6 +325,10 @@ export function UserMenu() {
           email={email}
           onClose={() => setPasswordOpen(false)}
         />
+      ) : null}
+
+      {aboutOpen ? (
+        <AboutSystemModal onClose={() => setAboutOpen(false)} />
       ) : null}
     </>
   );

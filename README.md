@@ -1,6 +1,10 @@
 # Rede Lince
 
-Sistema interno de registro de dados e vínculos entre entidades (pessoas, empresas, endereços, veículos, procedimentos, casos e comunicações).
+Sistema interno de registro de dados e vínculos entre entidades (pessoas, empresas, endereços, veículos, procedimentos, casos, comunicações e orcrims).
+
+**Versão atual:** o campo `version` em [`package.json`](./package.json) é a fonte oficial da versão do sistema (semver: `MAJOR.MINOR.PATCH`). O histórico de mudanças está em [`CHANGELOG.md`](./CHANGELOG.md).
+
+No build, `next.config.ts` injeta automaticamente `NEXT_PUBLIC_APP_VERSION` (e metadados de deploy do Vercel, quando existirem). A versão aparece no rodapé da aplicação (`Rede Lince vX.Y.Z`) e no menu do usuário → **Sobre o sistema**.
 
 ## Getting Started
 
@@ -9,6 +13,40 @@ npm run dev
 ```
 
 Abra [http://localhost:3000](http://localhost:3000) no navegador.
+
+## Versionamento e deploy
+
+Sempre que terminar uma funcionalidade significativa e for fazer deploy, siga esta ordem:
+
+1. **Atualize o `CHANGELOG.md`**  
+   Inclua a nova seção `## [X.Y.Z] - AAAA-MM-DD` com o que entrou em **Adicionado**, **Alterado** e/ou **Corrigido**.
+
+2. **Rode o script de nova versão**  
+   ```bash
+   npm run version:bump
+   ```
+   O script pergunta o tipo de mudança (`major`, `minor` ou `patch`), atualiza `package.json` e lembra de revisar o changelog.  
+   Também é possível passar o tipo direto:
+   ```bash
+   npm run version:bump -- patch
+   npm run version:bump -- minor
+   npm run version:bump -- major
+   ```
+
+3. **Commit das mudanças de versão**  
+   ```bash
+   git add package.json CHANGELOG.md
+   git commit -m "Release vX.Y.Z"
+   ```
+
+4. **Crie a tag Git e envie** (antes ou depois do push normal do código)  
+   ```bash
+   git tag vX.Y.Z
+   git push
+   git push --tags
+   ```
+
+Assim dá para identificar exatamente o que está em produção (versão no `package.json` + tag `vX.Y.Z` no repositório).
 
 ## Seed de dados fictícios (somente local)
 

@@ -1,6 +1,6 @@
 {
   "name": "rede-lince",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,8 @@
     "lint": "eslint",
     "cleanup:data": "tsx --env-file=.env.local scripts/speed-cleanup.ts",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
-    "seed:cleanup": "tsx --env-file=.env.local scripts/seed-cleanup.ts"
+    "seed:cleanup": "tsx --env-file=.env.local scripts/seed-cleanup.ts",
+    "version:bump": "node scripts/nova-versao.js"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",

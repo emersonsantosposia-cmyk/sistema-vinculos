@@ -1,4 +1,5 @@
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { AppFooter } from "@/components/layout/AppFooter";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -42,6 +43,7 @@ export function DashboardShell({
         >
           {children}
         </main>
+        <AppFooter />
       </div>
     </div>
   );

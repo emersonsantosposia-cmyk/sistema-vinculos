@@ -1,5 +1,6 @@
 import { LoginForm } from "@/components/auth/LoginForm";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { formatAppVersionLabel } from "@/lib/app-version";
 
 export default function LoginPage() {
   return (
@@ -12,6 +13,9 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-sm">
         <LoginForm />
       </div>
+      <p className="absolute right-0 bottom-4 left-0 z-10 text-center text-[11px] tracking-wide text-muted">
+        {formatAppVersionLabel()}
+      </p>
     </div>
   );
 }
