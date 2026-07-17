@@ -4,6 +4,7 @@ import { EntityDeleteButton } from "@/components/shared/EntityDeleteButton";
 import { deleteComunicacao } from "@/lib/supabase/comunicacoes";
 import { deleteEmpresa } from "@/lib/supabase/empresas";
 import { deleteEndereco } from "@/lib/supabase/enderecos";
+import { deleteOrcrim } from "@/lib/supabase/orcrims";
 import { deleteVeiculo } from "@/lib/supabase/veiculos";
 import { deleteProcedimento } from "@/lib/supabase/procedimentos";
 import { deleteCaso } from "@/lib/supabase/casos";
@@ -64,6 +65,16 @@ export function ComunicacaoDeleteButton({ id }: { id: string }) {
       confirmMessage="Excluir esta comunicação?"
       redirectTo="/comunicacoes"
       onDelete={() => deleteComunicacao(id)}
+    />
+  );
+}
+
+export function OrcrimDeleteButton({ id }: { id: string }) {
+  return (
+    <EntityDeleteButton
+      confirmMessage="Excluir esta orcrim?"
+      redirectTo="/orcrims"
+      onDelete={() => deleteOrcrim(id)}
     />
   );
 }

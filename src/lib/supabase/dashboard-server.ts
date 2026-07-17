@@ -34,6 +34,7 @@ type RpcPeriodRow = {
   procedimentos: number | string;
   casos: number | string;
   comunicacoes: number | string;
+  orcrims?: number | string;
 };
 
 type RpcCountsRow = {
@@ -44,6 +45,7 @@ type RpcCountsRow = {
   procedimentos: number | string;
   casos: number | string;
   comunicacoes: number | string;
+  orcrims?: number | string;
   vinculos: number | string;
   pessoas_presas: number | string;
   comunicacoes_ativas: number | string;
@@ -80,6 +82,7 @@ function mapRpcSeries(
     procedimentos: toNum(row.procedimentos),
     casos: toNum(row.casos),
     comunicacoes: toNum(row.comunicacoes),
+    orcrims: toNum(row.orcrims),
   }));
 }
 
@@ -203,6 +206,7 @@ export async function getDashboardCounts(): Promise<{
         procedimentos: toNum(row.procedimentos),
         casos: toNum(row.casos),
         comunicacoes: toNum(row.comunicacoes),
+        orcrims: toNum(row.orcrims),
       };
 
       const entities = DASHBOARD_ENTITIES.map((entity) => ({

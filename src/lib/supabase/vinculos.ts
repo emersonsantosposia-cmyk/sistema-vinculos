@@ -206,6 +206,28 @@ export async function searchEntidades(
           error: null,
         };
       }
+      case "orcrim": {
+        let query = supabase
+          .from("orcrims")
+          .select("id, nome, sigla, estado_origem")
+          .order("nome", { ascending: true })
+          .limit(limit);
+        if (term) {
+          query = query.or(`nome.ilike.%${term}%,sigla.ilike.%${term}%`);
+        }
+        const { data, error } = await query;
+        if (error) throw error;
+        return {
+          data: (data ?? []).map((row) => ({
+            id: row.id,
+            titulo: pickTitle(row.nome),
+            subtitulo: [row.sigla, row.estado_origem]
+              .filter(Boolean)
+              .join(" · "),
+          })),
+          error: null,
+        };
+      }
       default:
         return { data: [], error: "Tipo de entidade inválido." };
     }
@@ -334,6 +356,21 @@ export async function getEntidadeResumo(
           labelComunicacaoTipo(data.tipo),
           data.operadora_provedor,
         ]
+          .filter(Boolean)
+          .join(" · "),
+      };
+    }
+    case "orcrim": {
+      const { data } = await supabase
+        .from("orcrims")
+        .select("id, nome, sigla, estado_origem")
+        .eq("id", id)
+        .maybeSingle();
+      if (!data) return null;
+      return {
+        id: data.id,
+        titulo: pickTitle(data.nome),
+        subtitulo: [data.sigla, data.estado_origem]
           .filter(Boolean)
           .join(" · "),
       };

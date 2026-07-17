@@ -49,6 +49,14 @@ function resolveTipoSelectValue(tipo: string | null | undefined): {
   return { select: "__custom", custom: tipo };
 }
 
+/** Primeira letra maiúscula; restante em minúsculas. */
+function formatTipoVinculoLabel(tipo: string | null | undefined): string {
+  const raw = tipo?.trim();
+  if (!raw) return "Sem tipo";
+  const lower = raw.toLocaleLowerCase("pt-BR");
+  return lower.charAt(0).toLocaleUpperCase("pt-BR") + lower.slice(1);
+}
+
 function VinculoCardBox({
   card,
   pending,
@@ -71,7 +79,7 @@ function VinculoCardBox({
     !isRestrito &&
     (card.outroTipo === "veiculo" || card.outroTipo === "endereco") &&
     Boolean(card.subtitulo);
-  const tipoLabel = card.tipo_vinculo?.trim() || "Sem tipo";
+  const tipoLabel = formatTipoVinculoLabel(card.tipo_vinculo);
   const entidadeHref = `${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`;
   const entidadeTipoLabel = ENTIDADE_LABELS[card.outroTipo];
 
@@ -109,7 +117,7 @@ function VinculoCardBox({
   const cardContent = isRestrito ? (
     <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
       <div className="min-w-0 flex-1 overflow-hidden">
-        <p className="truncate text-[10px] font-semibold tracking-[0.12em] text-gold uppercase">
+        <p className="truncate text-[11px] font-medium normal-case text-gold">
           {tipoLabel}
         </p>
         <p className="mt-0.5 truncate text-[11px] text-muted">
@@ -124,7 +132,7 @@ function VinculoCardBox({
     <div className="flex flex-1 flex-col items-center gap-3 text-center">
       <button
         type="button"
-        className="w-full text-[10px] font-semibold tracking-[0.12em] text-gold uppercase break-words hover:text-gold-bright hover:underline"
+        className="w-full text-[11px] font-medium normal-case text-gold break-words hover:text-gold-bright hover:underline"
         onClick={() => onDetalhe(card)}
         title="Ver detalhes do vínculo"
       >
@@ -156,7 +164,7 @@ function VinculoCardBox({
       <div className="min-w-0 flex-1 overflow-hidden">
         <button
           type="button"
-          className="block w-full truncate text-left text-[10px] font-semibold tracking-[0.12em] text-gold uppercase hover:text-gold-bright hover:underline"
+          className="block w-full truncate text-left text-[11px] font-medium normal-case text-gold hover:text-gold-bright hover:underline"
           onClick={() => onDetalhe(card)}
           title="Ver detalhes do vínculo"
         >
@@ -269,7 +277,9 @@ function VinculoDetalheModal({
             <p className="mt-1 text-sm text-foreground">{card.titulo}</p>
             <p className="mt-0.5 text-xs text-muted">
               {ENTIDADE_LABELS[card.outroTipo]}
-              {card.tipo_vinculo ? ` · ${card.tipo_vinculo}` : ""}
+              {card.tipo_vinculo
+                ? ` · ${formatTipoVinculoLabel(card.tipo_vinculo)}`
+                : ""}
             </p>
           </div>
           <Button type="button" variant="ghost" onClick={onClose}>
@@ -349,7 +359,6 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [abertos, setAbertos] = useState<Set<EntidadeTipo>>(new Set());
-  const abertosInitRef = useRef(false);
 
   const cardsPorTipo = useMemo(() => {
     const map = new Map<EntidadeTipo, VinculoCard[]>();
@@ -389,18 +398,10 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
     if (listError) setError(listError);
     setCards(data);
     setLoading(false);
-
-    if (!abertosInitRef.current) {
-      abertosInitRef.current = true;
-      const withItems = new Set<EntidadeTipo>();
-      for (const c of data) withItems.add(c.outroTipo);
-      if (withItems.size === 0) withItems.add(ENTIDADE_TIPOS[0]);
-      setAbertos(withItems);
-    }
   }, [entidadeTipo, entidadeId]);
 
   useEffect(() => {
-    abertosInitRef.current = false;
+    setAbertos(new Set());
     void load();
   }, [load]);
 

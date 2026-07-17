@@ -8,17 +8,19 @@ export const ENTIDADE_LABELS: Record<EntidadeTipo, string> = {
   procedimento: "Procedimento",
   caso: "Caso",
   comunicacao: "Comunicação",
+  orcrim: "Orcrim",
 };
 
-/** Títulos das subseções de vínculos (ex.: "Pessoas vinculadas"). */
+/** Títulos das subseções de vínculos (ex.: "Pessoas"). */
 export const ENTIDADE_VINCULOS_TITULOS: Record<EntidadeTipo, string> = {
-  pessoa: "Pessoas vinculadas",
-  empresa: "Empresas vinculadas",
-  endereco: "Endereços vinculados",
-  veiculo: "Veículos vinculados",
-  procedimento: "Procedimentos vinculados",
-  caso: "Casos vinculados",
-  comunicacao: "Comunicações vinculadas",
+  pessoa: "Pessoas",
+  empresa: "Empresas",
+  endereco: "Endereços",
+  veiculo: "Veículos",
+  procedimento: "Procedimentos",
+  caso: "Casos",
+  comunicacao: "Comunicações",
+  orcrim: "Orcrims",
 };
 
 /** Texto do botão "+ Adicionar vínculo com …". */
@@ -30,6 +32,7 @@ export const ENTIDADE_VINCULOS_ADD: Record<EntidadeTipo, string> = {
   procedimento: "procedimento",
   caso: "caso",
   comunicacao: "comunicação",
+  orcrim: "orcrim",
 };
 
 export const ENTIDADE_HREFS: Record<EntidadeTipo, string> = {
@@ -40,6 +43,7 @@ export const ENTIDADE_HREFS: Record<EntidadeTipo, string> = {
   procedimento: "/procedimentos",
   caso: "/casos",
   comunicacao: "/comunicacoes",
+  orcrim: "/orcrims",
 };
 
 export const TIPOS_VINCULO_COMUNS = [
@@ -52,6 +56,8 @@ export const TIPOS_VINCULO_COMUNS = [
   "trabalha em",
   "frequentador de",
   "sócio de",
+  "integrante",
+  "simpatizante",
   "outros",
 ] as const;
 

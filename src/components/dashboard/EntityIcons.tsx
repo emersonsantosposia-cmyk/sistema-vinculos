@@ -114,12 +114,26 @@ export function CasoIcon(props: IconProps) {
   });
 }
 
+export function OrcrimIcon(props: IconProps) {
+  return base({
+    ...props,
+    children: (
+      <>
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 7.5v5l3 1.75" />
+        <path d="M8.5 16.5h7" />
+      </>
+    ),
+  });
+}
+
 const ICONS: Record<DashboardEntityKey, (props: IconProps) => ReactElement> = {
   pessoas: PessoaIcon,
   enderecos: EnderecoIcon,
   comunicacoes: ComunicacaoIcon,
   veiculos: VeiculoIcon,
   empresas: EmpresaIcon,
+  orcrims: OrcrimIcon,
   procedimentos: ProcedimentoIcon,
   casos: CasoIcon,
 };

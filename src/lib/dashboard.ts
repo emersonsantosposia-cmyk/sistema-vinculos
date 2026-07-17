@@ -35,6 +35,13 @@ export const DASHBOARD_ENTITIES = [
     color: "#c9a227",
   },
   {
+    key: "orcrims",
+    table: "orcrims",
+    label: "Orcrims",
+    href: "/orcrims",
+    color: "#9a8f5c",
+  },
+  {
     key: "procedimentos",
     table: "procedimentos",
     label: "Procedimentos",
@@ -73,6 +80,7 @@ export type DashboardSeriesPoint = {
   procedimentos?: number;
   casos?: number;
   comunicacoes?: number;
+  orcrims?: number;
 };
 
 export type DashboardCounts = {

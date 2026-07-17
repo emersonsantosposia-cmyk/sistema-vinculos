@@ -38,7 +38,10 @@ export function Sidebar() {
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-fg">
+    <aside
+      className="notranslate flex w-56 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-fg"
+      translate="no"
+    >
       <div className="border-b border-border px-3 py-3">
         <div className="overflow-hidden rounded border border-border bg-black">
           <img
@@ -64,7 +67,7 @@ export function Sidebar() {
             return (
               <span
                 key={item.href}
-                className="cursor-not-allowed rounded px-3 py-2 text-sm text-muted"
+                className="cursor-not-allowed rounded px-3 py-2 text-sm whitespace-nowrap text-muted"
                 title="Em breve"
               >
                 {item.label}
@@ -76,7 +79,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`rounded px-3 py-2 text-sm transition-colors ${
+              className={`rounded px-3 py-2 text-sm whitespace-nowrap transition-colors ${
                 active
                   ? "bg-panel-hover font-medium text-gold shadow-[inset_0_0_0_1px_var(--cor-borda-destaque)]"
                   : "text-muted-strong hover:bg-panel hover:text-gold-bright"

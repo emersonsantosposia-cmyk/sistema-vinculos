@@ -104,6 +104,10 @@ export const UFS = [
 
 export type UF = (typeof UFS)[number];
 
+export function isUF(value: string): value is UF {
+  return (UFS as readonly string[]).includes(value);
+}
+
 export function formatEnderecoResumo(endereco: {
   logradouro?: string | null;
   numero?: string | null;

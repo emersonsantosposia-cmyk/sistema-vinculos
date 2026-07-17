@@ -11,12 +11,13 @@ export type PessoaTipo = (typeof PESSOA_TIPOS)[number]["value"];
 
 export const ENTIDADE_TIPOS = [
   "pessoa",
-  "empresa",
   "endereco",
+  "comunicacao",
   "veiculo",
+  "empresa",
   "procedimento",
   "caso",
-  "comunicacao",
+  "orcrim",
 ] as const;
 
 export type EntidadeTipo = (typeof ENTIDADE_TIPOS)[number];
@@ -162,6 +163,16 @@ export type Comunicacao = {
   status: ComunicacaoStatus;
   fonte: string | null;
   observacao_geral: string | null;
+  usuario_cadastro: string | null;
+  data_cadastro: string;
+};
+
+export type Orcrim = {
+  id: string;
+  nome: string;
+  sigla: string | null;
+  estado_origem: string | null;
+  descricao: string | null;
   usuario_cadastro: string | null;
   data_cadastro: string;
 };

@@ -14,7 +14,8 @@ export type BuscaEntidadeTipo =
   | "endereco"
   | "veiculo"
   | "caso"
-  | "comunicacao";
+  | "comunicacao"
+  | "orcrim";
 
 export type BuscaResultado = {
   tipo: BuscaEntidadeTipo;
@@ -31,6 +32,7 @@ export const BUSCA_TIPO_LABEL: Record<BuscaEntidadeTipo, string> = {
   veiculo: "Veículo",
   caso: "Caso",
   comunicacao: "Comunicação",
+  orcrim: "Orcrim",
 };
 
 function sanitizeTerm(q: string): string {
@@ -47,7 +49,7 @@ function pickTitle(...parts: Array<string | null | undefined>): string {
 }
 
 /**
- * Busca global em pessoas, empresas, endereços, veículos, casos e comunicações.
+ * Busca global em pessoas, empresas, endereços, veículos, casos, comunicações e orcrims.
  * Aceita cliente browser ou server do Supabase.
  */
 export async function buscaGlobalWithClient(
@@ -63,7 +65,7 @@ export async function buscaGlobalWithClient(
   const digits = digitsOnly(term);
   const placa = normalizePlaca(term);
 
-  const [pessoas, empresas, enderecos, veiculos, casos, comunicacoes] =
+  const [pessoas, empresas, enderecos, veiculos, casos, comunicacoes, orcrims] =
     await Promise.all([
     supabase
       .from("pessoas")
@@ -111,6 +113,12 @@ export async function buscaGlobalWithClient(
       .or(`valor.ilike.%${term}%,operadora_provedor.ilike.%${term}%`)
       .order("data_cadastro", { ascending: false })
       .limit(limitPerType),
+    supabase
+      .from("orcrims")
+      .select("id, nome, sigla, estado_origem")
+      .or(`nome.ilike.%${term}%,sigla.ilike.%${term}%`)
+      .order("nome", { ascending: true })
+      .limit(limitPerType),
   ]);
 
   const firstError =
@@ -119,7 +127,8 @@ export async function buscaGlobalWithClient(
     enderecos.error ||
     ("error" in veiculos ? veiculos.error : null) ||
     casos.error ||
-    comunicacoes.error;
+    comunicacoes.error ||
+    orcrims.error;
 
   if (firstError) {
     return {
@@ -199,6 +208,16 @@ export async function buscaGlobalWithClient(
         .filter(Boolean)
         .join(" · ") || null,
       href: `/comunicacoes/${row.id}`,
+    });
+  }
+
+  for (const row of orcrims.data ?? []) {
+    results.push({
+      tipo: "orcrim",
+      id: row.id,
+      titulo: pickTitle(row.nome),
+      subtitulo: [row.sigla, row.estado_origem].filter(Boolean).join(" · ") || null,
+      href: `/orcrims/${row.id}`,
     });
   }
 
