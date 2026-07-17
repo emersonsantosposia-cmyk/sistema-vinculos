@@ -58,6 +58,70 @@ export async function createObservacao(input: {
   return { data: data as Observacao, error: null };
 }
 
+export async function updateObservacao(
+  id: string,
+  mensagem: string,
+): Promise<{ data: Observacao | null; error: string | null }> {
+  const auth = await requireAuthUser();
+  if (!auth.user) return { data: null, error: auth.error };
+
+  const texto = mensagem.trim();
+  if (!texto) {
+    return { data: null, error: "A observação não pode ficar vazia." };
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("observacoes")
+    .update({ mensagem: texto })
+    .eq("id", id)
+    .eq("usuario", auth.user.id)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    return {
+      data: null,
+      error: friendlyError(error.message, "Erro ao atualizar observação."),
+    };
+  }
+  if (!data) {
+    return {
+      data: null,
+      error: "Só o autor pode editar esta observação.",
+    };
+  }
+
+  return { data: data as Observacao, error: null };
+}
+
+export async function deleteObservacao(
+  id: string,
+): Promise<{ error: string | null }> {
+  const auth = await requireAuthUser();
+  if (!auth.user) return { error: auth.error };
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("observacoes")
+    .delete()
+    .eq("id", id)
+    .eq("usuario", auth.user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    return {
+      error: friendlyError(error.message, "Erro ao excluir observação."),
+    };
+  }
+  if (!data) {
+    return { error: "Só o autor pode excluir esta observação." };
+  }
+
+  return { error: null };
+}
+
 export async function resolveUserDisplayNames(
   userIds: string[],
 ): Promise<Record<string, string>> {

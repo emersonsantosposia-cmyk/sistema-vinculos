@@ -43,24 +43,13 @@
   outline: none;
 }
 
-/* Transição suave após o layout automático (dagre). */
+/* Transição suave após o layout radial. */
 .diagrama-vinculos-shell.layout-animating .react-flow__node {
   transition: transform 0.35s ease;
 }
 
 .diagrama-vinculos-shell .react-flow__edge-path {
   transition: d 0.35s ease;
-}
-
-.diagrama-vinculos-shell .diagrama-vinculos-minimap {
-  background: var(--cor-diagrama-legenda-bg);
-  border: 1px solid var(--cor-borda);
-  border-radius: 0.5rem;
-  overflow: hidden;
-}
-
-.diagrama-vinculos-shell .diagrama-vinculos-minimap svg {
-  background: transparent;
 }
 
 /* Fade-out ao recolher ramos. */

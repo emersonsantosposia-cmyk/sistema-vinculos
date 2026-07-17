@@ -49,7 +49,8 @@ function CarregarMaisNodeComponent({ data }: NodeProps<CarregarMaisFlowNode>) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!h-2 !w-2 !border !border-[var(--cor-borda)] !bg-[var(--cor-fundo-secundaria)]"
+        className="!pointer-events-none !h-2 !w-2 !border-0 !bg-transparent !opacity-0"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
       />
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-1">

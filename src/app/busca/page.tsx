@@ -18,8 +18,11 @@ const TIPO_ORDER: BuscaEntidadeTipo[] = [
   "empresa",
   "veiculo",
   "endereco",
+  "procedimento",
   "caso",
   "comunicacao",
+  "orcrim",
+  "usuario",
 ];
 
 function groupByTipo(results: BuscaResultado[]) {
@@ -40,7 +43,8 @@ async function BuscaContent({ q }: { q?: string }) {
     return (
       <p className="text-sm text-muted">
         Digite pelo menos 2 caracteres na busca do topo para pesquisar pessoas,
-        empresas, veículos, endereços, casos e comunicações.
+        empresas, veículos, endereços, procedimentos, casos, comunicações,
+        orcrims e usuários.
       </p>
     );
   }
@@ -55,7 +59,7 @@ async function BuscaContent({ q }: { q?: string }) {
 
       <p className="text-sm text-muted">
         {total === 0
-          ? `Nenhum resultado para “${term}”.`
+          ? `Nenhum resultado encontrado para “${term}”.`
           : `${total} resultado${total === 1 ? "" : "s"} para “${term}”.`}
       </p>
 
@@ -68,28 +72,38 @@ async function BuscaContent({ q }: { q?: string }) {
               {BUSCA_TIPO_LABEL[tipo]} ({items.length})
             </h3>
             <ul className="divide-y divide-border rounded border border-border bg-panel">
-              {items.map((item) => (
-                <li key={`${item.tipo}-${item.id}`}>
-                  <Link
-                    href={item.href}
-                    className="flex items-start justify-between gap-3 px-3 py-2.5 hover:bg-panel-hover"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {item.titulo}
-                      </p>
-                      {item.subtitulo ? (
-                        <p className="truncate text-xs text-muted">
-                          {item.subtitulo}
-                        </p>
-                      ) : null}
-                    </div>
-                    <span className="shrink-0 text-xs text-muted">
-                      Abrir →
-                    </span>
-                  </Link>
-                </li>
-              ))}
+              {items.map((item) => {
+                const aproximada = item.tipoCorrespondencia === "aproximada";
+                return (
+                  <li key={`${item.tipo}-${item.id}`}>
+                    <Link
+                      href={item.href}
+                      className="flex items-start justify-between gap-3 px-3 py-2.5 hover:bg-panel-hover"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {item.titulo}
+                          </p>
+                          {aproximada ? (
+                            <span className="shrink-0 rounded border border-warning-border bg-warning-bg px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-warning-fg uppercase">
+                              correspondência aproximada
+                            </span>
+                          ) : null}
+                        </div>
+                        {item.campoCorrespondente ? (
+                          <p className="mt-0.5 truncate text-xs text-muted">
+                            Campo: {item.campoCorrespondente}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span className="shrink-0 text-xs text-muted">
+                        Abrir →
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         );

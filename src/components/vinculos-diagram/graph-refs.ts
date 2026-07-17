@@ -46,7 +46,7 @@ function buildEdge(
     id: `vinculo__${vinculoId}`,
     source: sourceId,
     target: targetId,
-    type: "default",
+    type: "straight",
     label: formatTipoVinculoLabel(tipoVinculo),
     data: { refSources: [expansionId] },
     labelStyle: {
@@ -73,7 +73,7 @@ function buildCarregarMaisEdge(parentId: string): DiagramEdge {
     id: `edge-more__${parentId}`,
     source: parentId,
     target: moreId,
-    type: "default",
+    type: "straight",
     data: { refSources: [parentId] },
     style: {
       stroke: "var(--cor-diagrama-edge-more)",

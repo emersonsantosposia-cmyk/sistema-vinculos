@@ -11,7 +11,6 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   ReactFlow,
   ReactFlowProvider,
   applyNodeChanges,
@@ -48,8 +47,7 @@ import {
   DIAGRAMA_PAGE_SIZE,
   layoutDiagramaNodes,
 } from "@/components/vinculos-diagram/layout";
-import { useTheme } from "next-themes";
-import { ENTIDADE_COLORS, entidadeNodeId, resolveCssColor } from "@/lib/entidade-visual";
+import { entidadeNodeId } from "@/lib/entidade-visual";
 import {
   buscarVinculosDaEntidade,
   getEntidadeResumo,
@@ -63,8 +61,6 @@ type Props = {
   autoExpandRoot?: boolean;
   fullScreen?: boolean;
   resetToken?: number;
-  showLegend?: boolean;
-  showMiniMap?: boolean;
 };
 
 const COLLAPSE_FADE_MS = 280;
@@ -82,48 +78,12 @@ function FitViewOnChange({ version }: { version: number }) {
   useEffect(() => {
     if (version === 0) return;
     const id = window.setTimeout(() => {
-      void fitView({ padding: 0.35, duration: 380, maxZoom: 1.05 });
+      void fitView({ padding: 0.28, duration: 380, maxZoom: 1.1 });
     }, 40);
     return () => window.clearTimeout(id);
   }, [version, fitView]);
 
   return null;
-}
-
-function DiagramaLegenda() {
-  const items: Array<{ tipo: EntidadeTipo; label: string }> = [
-    { tipo: "pessoa", label: "Pessoa" },
-    { tipo: "empresa", label: "Empresa" },
-    { tipo: "endereco", label: "Endereço" },
-    { tipo: "veiculo", label: "Veículo" },
-    { tipo: "procedimento", label: "Procedimento" },
-    { tipo: "caso", label: "Caso" },
-    { tipo: "comunicacao", label: "Comunicação" },
-    { tipo: "orcrim", label: "Orcrim" },
-  ];
-
-  return (
-    <div className="diagrama-vinculos-legenda absolute right-3 bottom-3 z-10 rounded-lg border border-[var(--cor-borda)] bg-[color:var(--cor-diagrama-legenda-bg)] p-2 shadow-[var(--cor-sombra-dropdown)] backdrop-blur">
-      <p className="mb-1.5 text-[10px] font-medium tracking-wide text-muted uppercase">
-        Legenda
-      </p>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-        {items.map(({ tipo, label }) => (
-          <div
-            key={tipo}
-            className="flex items-center gap-1.5 text-[11px] text-muted"
-          >
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: ENTIDADE_COLORS[tipo] }}
-              aria-hidden
-            />
-            <span>{label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 function DiagramaVinculosInner({
@@ -132,10 +92,7 @@ function DiagramaVinculosInner({
   autoExpandRoot = false,
   fullScreen = false,
   resetToken = 0,
-  showLegend = false,
-  showMiniMap = false,
 }: Props) {
-  const { resolvedTheme } = useTheme();
   const rootId = entidadeNodeId(entidadeTipo, entidadeId);
   const [nodes, setNodes] = useState<DiagramNode[]>([]);
   const [edges, setEdges] = useState<DiagramEdge[]>([]);
@@ -160,14 +117,19 @@ function DiagramaVinculosInner({
 
   const applyLayout = useCallback(
     (nextNodes: DiagramNode[], nextEdges: DiagramEdge[]) => {
-      const laidOut = layoutDiagramaNodes(nextNodes, nextEdges);
+      const edgesStraight = nextEdges.map((edge) =>
+        edge.type === "straight" ? edge : { ...edge, type: "straight" as const },
+      );
+      const laidOut = layoutDiagramaNodes(nextNodes, edgesStraight, {
+        preferredHubId: rootId,
+      });
       setAnimating(true);
       setNodes(laidOut);
-      setEdges(nextEdges);
+      setEdges(edgesStraight);
       setLayoutVersion((v) => v + 1);
       window.setTimeout(() => setAnimating(false), 400);
     },
-    [],
+    [rootId],
   );
 
   useEffect(() => {
@@ -666,31 +628,6 @@ function DiagramaVinculosInner({
               showInteractive={false}
               className="diagrama-vinculos-controls"
             />
-            {showMiniMap ? (
-              <MiniMap
-                key={resolvedTheme ?? "dark"}
-                pannable
-                zoomable
-                nodeColor={(node) => {
-                  if (node.type !== "entidade") {
-                    return resolveCssColor(
-                      "var(--cor-destaque-dourado)",
-                      "#d4af37",
-                    );
-                  }
-                  const data = node.data as EntidadeNodeData;
-                  return data.restrito
-                    ? resolveCssColor("var(--cor-restrito)", "#6b7280")
-                    : resolveCssColor(
-                        ENTIDADE_COLORS[data.entidadeTipo],
-                        "#d4af37",
-                      );
-                }}
-                maskColor="var(--cor-diagrama-minimap-mask)"
-                className="diagrama-vinculos-minimap"
-              />
-            ) : null}
-            {showLegend ? <DiagramaLegenda /> : null}
           </ReactFlow>
         </div>
         <EntidadeResumoPanel

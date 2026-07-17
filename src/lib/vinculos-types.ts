@@ -51,14 +51,12 @@ export const TIPOS_VINCULO_COMUNS = [
   "reside em",
   "associado a",
   "familiar de",
-  "testemunha de",
   "citado(a)",
   "trabalha em",
-  "frequentador de",
   "sócio de",
   "integrante",
   "simpatizante",
-  "outros",
+  "alvo",
 ] as const;
 
 export type EntidadeOpcao = {

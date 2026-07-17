@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { DiagramaVinculos } from "@/components/vinculos-diagram/DiagramaVinculos";
 import type { EntidadeTipo } from "@/lib/types";
 
@@ -74,6 +75,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
             </div>
 
             <div className="flex items-center gap-2">
+              <ThemeToggle compact />
               <button
                 type="button"
                 onClick={() => setResetToken((value) => value + 1)}
@@ -99,8 +101,6 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
               autoExpandRoot
               fullScreen
               resetToken={resetToken}
-              showLegend
-              showMiniMap
             />
           </main>
         </div>

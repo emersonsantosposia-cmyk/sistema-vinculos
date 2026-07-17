@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   useTransition,
@@ -13,11 +14,43 @@ import {
 import {
   BUSCA_TIPO_LABEL,
   buscaGlobal,
+  type BuscaEntidadeTipo,
   type BuscaResultado,
 } from "@/lib/supabase/busca";
 
-const DEBOUNCE_MS = 280;
+const DEBOUNCE_MS = 300;
 const MIN_CHARS = 2;
+
+const TIPO_ORDER: BuscaEntidadeTipo[] = [
+  "pessoa",
+  "empresa",
+  "veiculo",
+  "endereco",
+  "procedimento",
+  "caso",
+  "comunicacao",
+  "orcrim",
+  "usuario",
+];
+
+function groupByTipo(results: BuscaResultado[]) {
+  const map = new Map<BuscaEntidadeTipo, BuscaResultado[]>();
+  for (const tipo of TIPO_ORDER) map.set(tipo, []);
+  for (const item of results) {
+    const list = map.get(item.tipo) ?? [];
+    list.push(item);
+    map.set(item.tipo, list);
+  }
+  return map;
+}
+
+function flatResults(grouped: Map<BuscaEntidadeTipo, BuscaResultado[]>) {
+  const flat: BuscaResultado[] = [];
+  for (const tipo of TIPO_ORDER) {
+    flat.push(...(grouped.get(tipo) ?? []));
+  }
+  return flat;
+}
 
 export function GlobalSearch() {
   const router = useRouter();
@@ -30,11 +63,15 @@ export function GlobalSearch() {
   const [pending, startTransition] = useTransition();
   const [activeIndex, setActiveIndex] = useState(-1);
 
+  const grouped = useMemo(() => groupByTipo(results), [results]);
+  const flat = useMemo(() => flatResults(grouped), [grouped]);
+
   const runSearch = useCallback((value: string) => {
     const trimmed = value.trim();
     if (trimmed.length < MIN_CHARS) {
       setResults([]);
       setError(null);
+      setActiveIndex(-1);
       return;
     }
 
@@ -76,29 +113,31 @@ export function GlobalSearch() {
 
     if (event.key === "Enter") {
       event.preventDefault();
-      if (open && activeIndex >= 0 && results[activeIndex]) {
+      if (open && activeIndex >= 0 && flat[activeIndex]) {
         setOpen(false);
-        router.push(results[activeIndex].href);
+        router.push(flat[activeIndex].href);
         return;
       }
       goToResultsPage();
       return;
     }
 
-    if (!open || results.length === 0) return;
+    if (!open || flat.length === 0) return;
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActiveIndex((i) => (i + 1) % results.length);
+      setActiveIndex((i) => (i + 1) % flat.length);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveIndex((i) => (i <= 0 ? results.length - 1 : i - 1));
+      setActiveIndex((i) => (i <= 0 ? flat.length - 1 : i - 1));
     }
   }
 
-  const showDropdown = open && query.trim().length >= MIN_CHARS;
-  const empty =
-    !pending && !error && results.length === 0 && query.trim().length >= MIN_CHARS;
+  const term = query.trim();
+  const showDropdown = open && term.length >= MIN_CHARS;
+  const empty = !pending && !error && results.length === 0 && term.length >= MIN_CHARS;
+
+  let optionIndex = -1;
 
   return (
     <div ref={rootRef} className="relative min-w-0 max-w-xl flex-1">
@@ -129,7 +168,7 @@ export function GlobalSearch() {
             activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined
           }
           autoComplete="off"
-          placeholder="Buscar pessoa, CPF, empresa, CNPJ, placa, endereço, caso…"
+          placeholder="Busca global"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -145,7 +184,7 @@ export function GlobalSearch() {
         <div
           id={listId}
           role="listbox"
-          className="absolute right-0 left-0 z-40 mt-1 max-h-80 overflow-auto rounded border border-border bg-panel shadow-[var(--cor-sombra-dropdown)]"
+          className="absolute right-0 left-0 z-40 mt-1 max-h-96 overflow-auto rounded border border-border bg-panel shadow-[var(--cor-sombra-dropdown)]"
         >
           {pending && results.length === 0 ? (
             <p className="px-3 py-2.5 text-xs text-muted">Buscando…</p>
@@ -157,40 +196,71 @@ export function GlobalSearch() {
 
           {empty ? (
             <p className="px-3 py-2.5 text-xs text-muted">
-              Nenhum resultado para “{query.trim()}”.
+              Nenhum resultado encontrado para &ldquo;{term}&rdquo;.
             </p>
           ) : null}
 
-          {results.map((item, index) => (
-            <Link
-              key={`${item.tipo}-${item.id}`}
-              id={`${listId}-option-${index}`}
-              role="option"
-              aria-selected={index === activeIndex}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              onMouseEnter={() => setActiveIndex(index)}
-              className={`block border-b border-border px-3 py-2 last:border-b-0 ${
-                index === activeIndex
-                  ? "bg-panel-hover"
-                  : "hover:bg-panel-soft"
-              }`}
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-sm font-medium text-foreground">
-                  {item.titulo}
-                </span>
-                <span className="shrink-0 rounded border border-border bg-panel-soft px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted-strong uppercase">
-                  {BUSCA_TIPO_LABEL[item.tipo]}
-                </span>
-              </div>
-              {item.subtitulo ? (
-                <p className="mt-0.5 truncate text-xs text-muted">
-                  {item.subtitulo}
-                </p>
-              ) : null}
-            </Link>
-          ))}
+          {TIPO_ORDER.map((tipo) => {
+            const items = grouped.get(tipo) ?? [];
+            if (items.length === 0) return null;
+
+            return (
+              <section key={tipo} className="border-b border-border last:border-b-0">
+                <h3 className="sticky top-0 z-[1] bg-panel-soft px-3 py-1.5 text-[10px] font-semibold tracking-[0.14em] text-muted-strong uppercase">
+                  {BUSCA_TIPO_LABEL[tipo]}
+                  <span className="ml-1 font-normal text-muted">
+                    ({items.length})
+                  </span>
+                </h3>
+                <ul>
+                  {items.map((item) => {
+                    optionIndex += 1;
+                    const index = optionIndex;
+                    const aproximada = item.tipoCorrespondencia === "aproximada";
+
+                    return (
+                      <li key={`${item.tipo}-${item.id}`}>
+                        <Link
+                          id={`${listId}-option-${index}`}
+                          role="option"
+                          aria-selected={index === activeIndex}
+                          href={item.href}
+                          onClick={() => setOpen(false)}
+                          onMouseEnter={() => setActiveIndex(index)}
+                          className={`block px-3 py-2 ${
+                            index === activeIndex
+                              ? "bg-panel-hover"
+                              : "hover:bg-panel-soft"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {item.titulo}
+                              </p>
+                              {item.campoCorrespondente ? (
+                                <p className="mt-0.5 truncate text-[11px] text-muted">
+                                  Campo: {item.campoCorrespondente}
+                                </p>
+                              ) : null}
+                            </div>
+                            {aproximada ? (
+                              <span
+                                className="shrink-0 rounded border border-warning-border bg-warning-bg px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-warning-fg uppercase"
+                                title="Correspondência por similaridade (trigrama) — confira se o registro é o desejado"
+                              >
+                                aproximada
+                              </span>
+                            ) : null}
+                          </div>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })}
 
           <button
             type="button"

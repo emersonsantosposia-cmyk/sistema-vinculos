@@ -32,25 +32,26 @@ export function DashboardView({
 
       <div className="relative space-y-6 p-5 sm:p-6">
         <header className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--cor-fundo-primaria)] shadow-[var(--cor-sombra-modal)]">
-          <div className="relative">
+          {/* Altura ~60% da original (582 → 349), largura integral */}
+          <div className="relative aspect-[1024/349] w-full overflow-hidden bg-[color:var(--cor-fundo-secundaria)]">
             <img
               src="/rede-lince-institucional.png"
               alt="Rede Lince — Sistema de Contrainteligência da Polícia Penal Federal (PPF)"
               width={1024}
               height={582}
-              className="block h-auto w-full object-cover object-center"
+              className="absolute inset-0 h-full w-full object-cover object-center"
             />
             <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[color:var(--cor-fundo-overlay)] to-transparent"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[color:var(--cor-fundo-overlay)] to-transparent"
               aria-hidden
             />
           </div>
 
-          <div className="flex flex-wrap items-stretch justify-between gap-3 border-t border-[color:var(--dash-border)] bg-[color:var(--dash-header)] px-4 py-3 sm:px-5">
-            <p className="self-center text-[10px] font-medium tracking-[0.22em] text-[color:var(--dash-muted)] uppercase sm:text-[11px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[color:var(--dash-border)] bg-[color:var(--dash-header)] px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
+            <p className="self-center text-[9px] font-medium tracking-[0.18em] text-[color:var(--dash-muted)] uppercase sm:text-[10px] sm:tracking-[0.2em]">
               Painel operacional · Rede Lince / PPF
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-2.5">
               <SummaryChip label="Registros" value={counts.totalRegistros} />
               <SummaryChip label="Vínculos" value={counts.totalVinculos} />
             </div>
@@ -107,10 +108,10 @@ export function DashboardFallback() {
       <div className="pointer-events-none absolute inset-0 dash-bg-layer" aria-hidden />
       <div className="relative space-y-6 p-5 sm:p-6">
         <div className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--cor-fundo-primaria)]">
-          <div className="aspect-[1024/320] w-full animate-pulse bg-[color:var(--cor-fundo-secundaria)] sm:aspect-[1024/280]" />
-          <div className="flex justify-end gap-3 border-t border-[color:var(--dash-border)] px-4 py-3">
-            <div className="h-14 w-28 animate-pulse rounded bg-[color:var(--dash-panel)]" />
-            <div className="h-14 w-28 animate-pulse rounded bg-[color:var(--dash-panel)]" />
+          <div className="aspect-[1024/349] w-full animate-pulse bg-[color:var(--cor-fundo-secundaria)]" />
+          <div className="flex justify-end gap-2 border-t border-[color:var(--dash-border)] px-3 py-2">
+            <div className="h-10 w-24 animate-pulse rounded bg-[color:var(--dash-panel)]" />
+            <div className="h-10 w-24 animate-pulse rounded bg-[color:var(--dash-panel)]" />
           </div>
         </div>
         <EntityKpiCardsSkeleton />
@@ -141,11 +142,11 @@ export function DashboardWithSuspense() {
 
 function SummaryChip({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-[7.5rem] rounded border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] px-3 py-2 sm:min-w-[8.5rem] sm:px-4 sm:py-2.5">
-      <p className="font-bold text-xl tracking-tight text-[color:var(--dash-gold)] tabular-nums sm:text-2xl">
+    <div className="min-w-[6.25rem] rounded border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] px-2.5 py-1.5 sm:min-w-[7rem] sm:px-3 sm:py-2">
+      <p className="font-bold text-base tracking-tight text-[color:var(--dash-gold)] tabular-nums sm:text-lg">
         {value.toLocaleString("pt-BR")}
       </p>
-      <p className="mt-0.5 text-[10px] tracking-[0.2em] text-[color:var(--dash-muted)] uppercase">
+      <p className="mt-0.5 text-[9px] tracking-[0.16em] text-[color:var(--dash-muted)] uppercase sm:text-[10px]">
         {label}
       </p>
     </div>

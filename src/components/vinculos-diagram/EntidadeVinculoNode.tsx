@@ -106,7 +106,7 @@ function EntidadeVinculoNodeComponent({
     : expanded
       ? "border-[var(--cor-borda-destaque)] shadow-[0_0_0_1px_var(--cor-borda-destaque)] cursor-pointer"
       : isRoot
-        ? "border-[var(--cor-borda-destaque)] shadow-[0_0_12px_var(--cor-borda-destaque)] cursor-pointer"
+        ? "border-2 border-[var(--cor-destaque-dourado)] shadow-[0_0_18px_color-mix(in_srgb,var(--cor-destaque-dourado)_55%,transparent)] cursor-pointer"
         : "border-[var(--cor-borda)] hover:border-[var(--cor-borda-destaque)] cursor-pointer";
 
   return (
@@ -123,12 +123,14 @@ function EntidadeVinculoNodeComponent({
       <Handle
         type="target"
         position={Position.Top}
-        className="!h-2 !w-2 !border !border-[var(--cor-borda)] !bg-[var(--cor-fundo-secundaria)]"
+        className="!pointer-events-none !h-2 !w-2 !border-0 !bg-transparent !opacity-0"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!h-2 !w-2 !border !border-[var(--cor-borda)] !bg-[var(--cor-fundo-secundaria)]"
+        className="!pointer-events-none !h-2 !w-2 !border-0 !bg-transparent !opacity-0"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
       />
 
       {loading ? (
