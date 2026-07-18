@@ -4,6 +4,8 @@ import {
   DIAGRAMA_ESTADO_VERSION,
   isDiagramaEstadoSalvo,
   type DiagramaEstadoSalvo,
+  type DiagramaEstadoSalvoEdge,
+  type DiagramaEstadoSalvoNode,
   type DiagramaVisualizacaoSalva,
 } from "@/lib/diagrama-visualizacoes";
 import { requireAuthUser } from "@/lib/supabase/auth";
