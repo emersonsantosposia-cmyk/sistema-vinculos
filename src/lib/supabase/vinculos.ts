@@ -140,9 +140,9 @@ export async function searchEntidades(
           error: null,
         };
       }
-      case "procedimento": {
+      case "documento": {
         let query = supabase
-          .from("procedimentos")
+          .from("documentos")
           .select("id, nome, tipo, data")
           .order("data_cadastro", { ascending: false })
           .limit(limit);
@@ -317,9 +317,9 @@ export async function getEntidadeResumo(
         foto_url: data.foto_url,
       };
     }
-    case "procedimento": {
+    case "documento": {
       const { data } = await supabase
-        .from("procedimentos")
+        .from("documentos")
         .select("id, nome, tipo")
         .eq("id", id)
         .maybeSingle();
@@ -442,7 +442,7 @@ export async function listVinculosDaEntidade(
 
     const resumo = await getEntidadeResumo(outroTipo, outroId);
     const restrito =
-      !resumo && (outroTipo === "procedimento" || outroTipo === "caso");
+      !resumo && (outroTipo === "documento" || outroTipo === "caso");
 
     cards.push({
       id: row.id,
@@ -456,8 +456,8 @@ export async function listVinculosDaEntidade(
       outroTipo,
       outroId,
       titulo: restrito
-        ? outroTipo === "procedimento"
-          ? "Procedimento restrito"
+        ? outroTipo === "documento"
+          ? "Documento restrito"
           : "Caso restrito"
         : (resumo?.titulo ?? "Entidade não encontrada"),
       subtitulo: restrito ? null : (resumo?.subtitulo ?? null),

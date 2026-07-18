@@ -6,7 +6,7 @@ import { deleteEmpresa } from "@/lib/supabase/empresas";
 import { deleteEndereco } from "@/lib/supabase/enderecos";
 import { deleteOrcrim } from "@/lib/supabase/orcrims";
 import { deleteVeiculo } from "@/lib/supabase/veiculos";
-import { deleteProcedimento } from "@/lib/supabase/procedimentos";
+import { deleteDocumento } from "@/lib/supabase/documentos";
 import { deleteCaso } from "@/lib/supabase/casos";
 
 export function EmpresaDeleteButton({ id }: { id: string }) {
@@ -39,12 +39,12 @@ export function VeiculoDeleteButton({ id }: { id: string }) {
   );
 }
 
-export function ProcedimentoDeleteButton({ id }: { id: string }) {
+export function DocumentoDeleteButton({ id }: { id: string }) {
   return (
     <EntityDeleteButton
-      confirmMessage="Excluir este procedimento?"
-      redirectTo="/procedimentos"
-      onDelete={() => deleteProcedimento(id)}
+      confirmMessage="Excluir este documento?"
+      redirectTo="/documentos"
+      onDelete={() => deleteDocumento(id)}
     />
   );
 }

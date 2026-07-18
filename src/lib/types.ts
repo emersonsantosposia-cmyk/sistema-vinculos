@@ -4,7 +4,11 @@ export const PESSOA_TIPOS = [
   { value: "preso", label: "Preso" },
   { value: "advogado", label: "Advogado" },
   { value: "visitante", label: "Visitante" },
-  { value: "outros", label: "Outros" },
+  {
+    value: "agente_publico_outros_orgaos",
+    label: "Agente público de outros órgãos",
+  },
+  { value: "agente_privado", label: "Agente privado" },
 ] as const;
 
 export type PessoaTipo = (typeof PESSOA_TIPOS)[number]["value"];
@@ -15,7 +19,7 @@ export const ENTIDADE_TIPOS = [
   "comunicacao",
   "veiculo",
   "empresa",
-  "procedimento",
+  "documento",
   "caso",
   "orcrim",
 ] as const;
@@ -26,6 +30,7 @@ export type Pessoa = {
   id: string;
   tipo: PessoaTipo;
   nome: string;
+  alcunha: string | null;
   cpf: string | null;
   data_nascimento: string | null;
   nome_mae: string | null;
@@ -94,18 +99,18 @@ export type Veiculo = {
   data_cadastro: string;
 };
 
-export const PROCEDIMENTO_TIPOS = [
+export const DOCUMENTO_TIPOS = [
   { value: "RCI", label: "RCI" },
-  { value: "RELINT", label: "RELINT" },
-  { value: "DADOS", label: "DADOS" },
+  { value: "INFO", label: "INFO" },
+  { value: "RDCI", label: "RDCI" },
   { value: "OUTROS", label: "OUTROS" },
 ] as const;
 
-export type ProcedimentoTipo = (typeof PROCEDIMENTO_TIPOS)[number]["value"];
+export type DocumentoTipo = (typeof DOCUMENTO_TIPOS)[number]["value"];
 
-export type Procedimento = {
+export type Documento = {
   id: string;
-  tipo: ProcedimentoTipo | null;
+  tipo: DocumentoTipo | null;
   nome: string | null;
   resumo: string | null;
   data: string | null;
@@ -115,11 +120,20 @@ export type Procedimento = {
   data_cadastro: string;
 };
 
+export const CASO_STATUS = [
+  { value: "em_andamento", label: "Em andamento" },
+  { value: "encerrado", label: "Encerrado" },
+] as const;
+
+export type CasoStatus = (typeof CASO_STATUS)[number]["value"];
+
 export type Caso = {
   id: string;
   numero: string | null;
   nome: string | null;
   data_abertura: string | null;
+  status: CasoStatus;
+  data_encerramento: string | null;
   link_cronos: string | null;
   unidade: string;
   usuario_cadastro: string | null;

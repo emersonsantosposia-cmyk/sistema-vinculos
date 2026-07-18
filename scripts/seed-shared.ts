@@ -6,7 +6,7 @@ export const ENTIDADE_TIPOS = [
   "empresa",
   "endereco",
   "veiculo",
-  "procedimento",
+  "documento",
   "caso",
   "comunicacao",
 ] as const;
@@ -19,7 +19,7 @@ export const IDENTIFIER_BY_TABLE = {
   empresas: "nome_fantasia",
   enderecos: "nome",
   veiculos: "placa",
-  procedimentos: "nome",
+  documentos: "nome",
   casos: "nome",
   comunicacoes: "valor",
 } as const;

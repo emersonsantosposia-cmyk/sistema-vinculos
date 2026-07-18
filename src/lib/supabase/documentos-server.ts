@@ -1,21 +1,21 @@
-import { isProcedimentoTipo } from "@/lib/format";
+import { isDocumentoTipo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
 import { isUnidade } from "@/lib/perfis";
-import type { Procedimento } from "@/lib/types";
+import type { Documento } from "@/lib/types";
 
-export async function listProcedimentos(filters: {
+export async function listDocumentos(filters: {
   q?: string;
   tipo?: string;
   unidade?: string;
-}): Promise<{ data: Procedimento[]; error: string | null }> {
+}): Promise<{ data: Documento[]; error: string | null }> {
   const supabase = await createClient();
   let query = supabase
-    .from("procedimentos")
+    .from("documentos")
     .select("*")
     .order("data_cadastro", { ascending: false });
 
-  if (filters.tipo && isProcedimentoTipo(filters.tipo)) {
+  if (filters.tipo && isDocumentoTipo(filters.tipo)) {
     query = query.eq("tipo", filters.tipo);
   }
 
@@ -34,18 +34,18 @@ export async function listProcedimentos(filters: {
   if (error) {
     return {
       data: [],
-      error: friendlyError(error.message, "Erro ao listar procedimentos."),
+      error: friendlyError(error.message, "Erro ao listar documentos."),
     };
   }
-  return { data: (data ?? []) as Procedimento[], error: null };
+  return { data: (data ?? []) as Documento[], error: null };
 }
 
-export async function getProcedimentoById(
+export async function getDocumentoById(
   id: string,
-): Promise<{ data: Procedimento | null; error: string | null }> {
+): Promise<{ data: Documento | null; error: string | null }> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("procedimentos")
+    .from("documentos")
     .select("*")
     .eq("id", id)
     .maybeSingle();
@@ -53,8 +53,8 @@ export async function getProcedimentoById(
   if (error) {
     return {
       data: null,
-      error: friendlyError(error.message, "Erro ao buscar procedimento."),
+      error: friendlyError(error.message, "Erro ao buscar documento."),
     };
   }
-  return { data: (data as Procedimento | null) ?? null, error: null };
+  return { data: (data as Documento | null) ?? null, error: null };
 }

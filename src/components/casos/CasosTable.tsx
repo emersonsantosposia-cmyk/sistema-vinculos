@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Input, Select } from "@/components/ui/Form";
-import { formatDate } from "@/lib/format";
+import { formatDate, labelCasoStatus } from "@/lib/format";
 import { UNIDADES } from "@/lib/perfis";
 import type { Caso } from "@/lib/types";
 
@@ -102,12 +102,13 @@ export function CasosTable({ casos }: Props) {
 
   return (
     <div className="overflow-x-auto rounded border border-border bg-panel">
-      <table className="w-full min-w-[780px] border-collapse text-left text-sm">
+      <table className="w-full min-w-[860px] border-collapse text-left text-sm">
         <thead>
           <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
             <th className="px-3 py-2.5 font-semibold">Número</th>
             <th className="px-3 py-2.5 font-semibold">Nome</th>
             <th className="px-3 py-2.5 font-semibold">Unidade</th>
+            <th className="px-3 py-2.5 font-semibold">Status</th>
             <th className="px-3 py-2.5 font-semibold">Abertura</th>
             <th className="px-3 py-2.5 font-semibold">Cadastro</th>
           </tr>
@@ -129,6 +130,9 @@ export function CasosTable({ casos }: Props) {
               <td className="px-3 py-2 text-muted-strong">{caso.nome || "—"}</td>
               <td className="px-3 py-2 text-muted-strong">
                 {caso.unidade || "—"}
+              </td>
+              <td className="px-3 py-2 text-muted-strong">
+                {labelCasoStatus(caso.status)}
               </td>
               <td className="px-3 py-2 text-muted-strong">
                 {caso.data_abertura

@@ -3,14 +3,17 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
+  useTransition,
   type MouseEvent,
 } from "react";
 import {
   Background,
   BackgroundVariant,
   Controls,
+  Panel,
   ReactFlow,
   ReactFlowProvider,
   applyNodeChanges,
@@ -25,6 +28,7 @@ import {
   CarregarMaisNode,
   type CarregarMaisNodeData,
 } from "@/components/vinculos-diagram/CarregarMaisNode";
+import { DiagramaNodeActionsProvider } from "@/components/vinculos-diagram/DiagramaNodeActions";
 import {
   EntidadeResumoPanel,
   type EntidadeResumoSelecionada,
@@ -33,6 +37,13 @@ import {
   EntidadeVinculoNode,
   type EntidadeNodeData,
 } from "@/components/vinculos-diagram/EntidadeVinculoNode";
+import {
+  computeEntidadeDegrees,
+  degreeToScale,
+  findShortestPath,
+  getDirectNeighbors,
+  type ShortestPathResult,
+} from "@/components/vinculos-diagram/graph-analytics";
 import {
   applyVinculosBatch,
   carregarMaisId,
@@ -47,6 +58,16 @@ import {
   DIAGRAMA_PAGE_SIZE,
   layoutDiagramaNodes,
 } from "@/components/vinculos-diagram/layout";
+import { formatDateTime } from "@/lib/format";
+import {
+  deleteDiagramaVisualizacao,
+  listDiagramaVisualizacoes,
+  restoreDiagramaEstado,
+  saveDiagramaVisualizacao,
+  serializeDiagramaEstado,
+  type DiagramaRestoreResult,
+} from "@/lib/supabase/diagrama-visualizacoes";
+import type { DiagramaVisualizacaoSalva } from "@/lib/diagrama-visualizacoes";
 import { entidadeNodeId } from "@/lib/entidade-visual";
 import {
   buscarVinculosDaEntidade,
@@ -55,21 +76,45 @@ import {
 import type { EntidadeTipo } from "@/lib/types";
 import type { VinculoDiagramItem } from "@/lib/vinculos-types";
 
+export type ExpandDepth = 1 | 2 | 3;
+
 type Props = {
   entidadeTipo: EntidadeTipo;
   entidadeId: string;
-  autoExpandRoot?: boolean;
+  /** Expande a raiz automaticamente até este nível (1–3). */
+  initialExpandDepth?: ExpandDepth;
   fullScreen?: boolean;
   resetToken?: number;
 };
 
 const COLLAPSE_FADE_MS = 280;
-/** Distingue clique simples de duplo clique. */
-const CLICK_DEBOUNCE_MS = 280;
+/**
+ * Atraso do clique simples: deve ser ≥ intervalo típico de duplo clique do SO
+ * (~400–500 ms). Se for menor, o expand dispara entre o 1º e o 2º clique e
+ * o layout/re-render engole o dismiss.
+ */
+const SINGLE_CLICK_DELAY_MS = 420;
+
+const PATH_EDGE_STYLE = {
+  stroke: "var(--cor-destaque-dourado)",
+  strokeWidth: 3,
+};
+
+const DIM_EDGE_STYLE = {
+  stroke: "var(--cor-diagrama-edge)",
+  strokeWidth: 1.5,
+  opacity: 0.25,
+};
 
 const nodeTypes: NodeTypes = {
   entidade: EntidadeVinculoNode,
   carregarMais: CarregarMaisNode,
+};
+
+type ContextMenuState = {
+  x: number;
+  y: number;
+  nodeId: string;
 };
 
 function FitViewOnChange({ version }: { version: number }) {
@@ -89,7 +134,7 @@ function FitViewOnChange({ version }: { version: number }) {
 function DiagramaVinculosInner({
   entidadeTipo,
   entidadeId,
-  autoExpandRoot = false,
+  initialExpandDepth = 1,
   fullScreen = false,
   resetToken = 0,
 }: Props) {
@@ -105,31 +150,82 @@ function DiagramaVinculosInner({
   const loadedCountRef = useRef(new Map<string, number>());
   const collapsingRef = useRef(false);
   const clickTimerRef = useRef<number | null>(null);
-  const clickCountRef = useRef(0);
+  /** Nós pinados pelo usuário (arraste) — fx/fy permanentes até reorganizar. */
+  const pinnedRef = useRef(new Set<string>());
+  const depthBootstrappedRef = useRef<string | null>(null);
 
   const [initError, setInitError] = useState<string | null>(null);
   const [loadingRoot, setLoadingRoot] = useState(true);
+  const [bootstrapping, setBootstrapping] = useState(false);
   const [layoutVersion, setLayoutVersion] = useState(0);
   const [animating, setAnimating] = useState(false);
   const [selecionada, setSelecionada] =
     useState<EntidadeResumoSelecionada | null>(null);
-  const autoExpandedRootRef = useRef<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [expandingCascade, setExpandingCascade] = useState(false);
+  const expandingCascadeRef = useRef(false);
+
+  /** Modo foco (spotlight). */
+  const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+  /** Seleção para caminho: Ctrl/Cmd+clique (máx. 2). */
+  const [pathEndpointA, setPathEndpointA] = useState<string | null>(null);
+  const [pathEndpointB, setPathEndpointB] = useState<string | null>(null);
+  const pathEndpointsRef = useRef<{ a: string | null; b: string | null }>({
+    a: null,
+    b: null,
+  });
+  pathEndpointsRef.current = { a: pathEndpointA, b: pathEndpointB };
+  /** Evita toggle duplo quando Ctrl+clique dispara contextmenu + click. */
+  const pathContextSelectRef = useRef<{ id: string; at: number } | null>(
+    null,
+  );
+  const [highlightedPath, setHighlightedPath] =
+    useState<ShortestPathResult | null>(null);
+  const [pathMessage, setPathMessage] = useState<string | null>(null);
+
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveNome, setSaveNome] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [openListOpen, setOpenListOpen] = useState(false);
+  const [savedList, setSavedList] = useState<DiagramaVisualizacaoSalva[]>([]);
+  const [listError, setListError] = useState<string | null>(null);
+  const [listLoading, setListLoading] = useState(false);
+  const [ioPending, startIoTransition] = useTransition();
+  const [ioStatus, setIoStatus] = useState<string | null>(null);
 
   const applyLayout = useCallback(
     (
       nextNodes: DiagramNode[],
       nextEdges: DiagramEdge[],
-      options?: { preserveExisting?: boolean; fitView?: boolean },
+      options?: {
+        preserveExisting?: boolean;
+        reorganizeAll?: boolean;
+        fitView?: boolean;
+      },
     ) => {
-      const preserveExisting = options?.preserveExisting ?? true;
-      const shouldFitView = options?.fitView ?? !preserveExisting;
+      const reorganizeAll = options?.reorganizeAll === true;
+      const preserveExisting =
+        options?.preserveExisting ?? (!reorganizeAll && true);
+      const shouldFitView =
+        options?.fitView ?? (reorganizeAll || !preserveExisting);
 
       const previousIds = new Set(nodesRef.current.map((n) => n.id));
       const lockedPositions = new Map<string, { x: number; y: number }>();
-      if (preserveExisting) {
+
+      if (!reorganizeAll && preserveExisting) {
         for (const node of nextNodes) {
-          if (previousIds.has(node.id)) {
+          if (previousIds.has(node.id) || pinnedRef.current.has(node.id)) {
             lockedPositions.set(node.id, {
+              x: node.position.x,
+              y: node.position.y,
+            });
+          }
+        }
+        // Pins explícitos (mesmo se recriados com posição zerada).
+        for (const id of pinnedRef.current) {
+          const node = nextNodes.find((n) => n.id === id);
+          if (node && !lockedPositions.has(id)) {
+            lockedPositions.set(id, {
               x: node.position.x,
               y: node.position.y,
             });
@@ -137,20 +233,30 @@ function DiagramaVinculosInner({
         }
       }
 
+      if (reorganizeAll) {
+        pinnedRef.current.clear();
+      }
+
       const edgesStraight = nextEdges.map((edge) =>
         edge.type === "straight" ? edge : { ...edge, type: "straight" as const },
       );
       const laidOut = layoutDiagramaNodes(nextNodes, edgesStraight, {
         preferredHubId: rootId,
-        lockedPositions: preserveExisting ? lockedPositions : undefined,
+        lockedPositions:
+          !reorganizeAll && preserveExisting ? lockedPositions : undefined,
+        reorganizeAll,
       });
+      // Atualiza refs na hora — a expansão em cascata lê nodesRef/edgesRef
+      // no mesmo tick, antes do re-render do React.
+      nodesRef.current = laidOut;
+      edgesRef.current = edgesStraight;
       setAnimating(true);
       setNodes(laidOut);
       setEdges(edgesStraight);
       if (shouldFitView) {
         setLayoutVersion((v) => v + 1);
       }
-      window.setTimeout(() => setAnimating(false), 400);
+      window.setTimeout(() => setAnimating(false), 360);
     },
     [rootId],
   );
@@ -160,18 +266,29 @@ function DiagramaVinculosInner({
 
     async function loadRoot() {
       setLoadingRoot(true);
+      setBootstrapping(false);
       setInitError(null);
       setSelecionada(null);
+      setContextMenu(null);
       vinculosCacheRef.current.clear();
       loadedCountRef.current.clear();
       collapsingRef.current = false;
-      autoExpandedRootRef.current = null;
+      pinnedRef.current.clear();
+      depthBootstrappedRef.current = null;
+      setFocusNodeId(null);
+      pathEndpointsRef.current = { a: null, b: null };
+      setPathEndpointA(null);
+      setPathEndpointB(null);
+      setHighlightedPath(null);
+      setPathMessage(null);
 
       const resumo = await getEntidadeResumo(entidadeTipo, entidadeId);
       if (cancelled) return;
 
       if (!resumo) {
         setInitError("Não foi possível carregar os dados desta entidade.");
+        nodesRef.current = [];
+        edgesRef.current = [];
         setNodes([]);
         setEdges([]);
         setLoadingRoot(false);
@@ -197,6 +314,8 @@ function DiagramaVinculosInner({
         },
       };
 
+      nodesRef.current = [rootNode];
+      edgesRef.current = [];
       setNodes([rootNode]);
       setEdges([]);
       setLayoutVersion((v) => v + 1);
@@ -239,7 +358,14 @@ function DiagramaVinculosInner({
 
     loadedCountRef.current.clear();
     collapsingRef.current = false;
-    autoExpandedRootRef.current = rootId;
+    pinnedRef.current.clear();
+    depthBootstrappedRef.current = null;
+    setFocusNodeId(null);
+    pathEndpointsRef.current = { a: null, b: null };
+    setPathEndpointA(null);
+    setPathEndpointB(null);
+    setHighlightedPath(null);
+    setPathMessage(null);
     const resetRoot: Node<EntidadeNodeData, "entidade"> = {
       ...root,
       position: { x: 0, y: 0 },
@@ -263,7 +389,8 @@ function DiagramaVinculosInner({
       parentId: string,
       allItems: VinculoDiagramItem[],
       fromOffset: number,
-    ) => {
+      layoutOpts?: { fitView?: boolean },
+    ): string[] => {
       const slice = allItems.slice(
         fromOffset,
         fromOffset + DIAGRAMA_PAGE_SIZE,
@@ -271,6 +398,8 @@ function DiagramaVinculosInner({
       const nextOffset = fromOffset + slice.length;
       loadedCountRef.current.set(parentId, nextOffset);
       const remaining = Math.max(0, allItems.length - nextOffset);
+
+      const previousIds = new Set(nodesRef.current.map((n) => n.id));
 
       const currentNodes = nodesRef.current.map((n) =>
         n.id === parentId && isEntidadeNode(n)
@@ -292,12 +421,130 @@ function DiagramaVinculosInner({
         edgesRef.current,
         remaining,
       );
-      applyLayout(nextNodes, nextEdges);
+      applyLayout(nextNodes, nextEdges, {
+        preserveExisting: true,
+        fitView: layoutOpts?.fitView,
+      });
 
-      const parent = nextNodes.find((n) => n.id === parentId);
+      const parent = nodesRef.current.find((n) => n.id === parentId);
       if (parent) syncSelecionadaFromNode(parent);
+
+      // Filhos descobertos neste passo (para a fronteira do próximo nível).
+      // Usa o grafo já sincronizado em nodesRef após applyLayout.
+      return nodesRef.current
+        .filter(
+          (n) =>
+            isEntidadeNode(n) &&
+            n.id !== parentId &&
+            !previousIds.has(n.id),
+        )
+        .map((n) => n.id);
     },
     [applyLayout, syncSelecionadaFromNode],
+  );
+
+  const fetchVinculos = useCallback(async (nodeId: string) => {
+    const current = nodesRef.current.find((n) => n.id === nodeId);
+    if (!current || !isEntidadeNode(current)) return null;
+    const { entidadeTipo: tipo, entidadeId: id, restrito } = current.data;
+    if (restrito) return null;
+
+    let all = vinculosCacheRef.current.get(nodeId);
+    if (!all) {
+      const { data, error } = await buscarVinculosDaEntidade(tipo, id);
+      if (error) return null;
+      all = data;
+      vinculosCacheRef.current.set(nodeId, all);
+    }
+    return all;
+  }, []);
+
+  /** Expande sem toggle (não recolhe se já expandido). */
+  const expandNodeOnly = useCallback(
+    async (
+      nodeId: string,
+      layoutOpts?: { fitView?: boolean },
+    ): Promise<string[]> => {
+      const current = nodesRef.current.find((n) => n.id === nodeId);
+      if (!current || !isEntidadeNode(current)) return [];
+      if (current.data.restrito || collapsingRef.current) return [];
+      if (current.data.expanded) {
+        // Já expandido: filhos entidade já estão na tela.
+        return nodesRef.current
+          .filter(
+            (n) =>
+              isEntidadeNode(n) &&
+              n.id !== nodeId &&
+              edgesRef.current.some(
+                (e) =>
+                  (e.source === nodeId || e.target === nodeId) &&
+                  (e.source === n.id || e.target === n.id),
+              ),
+          )
+          .map((n) => n.id);
+      }
+
+      const loadingNodes = nodesRef.current.map((n) =>
+        n.id === nodeId && isEntidadeNode(n)
+          ? { ...n, data: { ...n.data, loading: true } }
+          : n,
+      );
+      nodesRef.current = loadingNodes;
+      setNodes(loadingNodes);
+
+      const all = await fetchVinculos(nodeId);
+      if (!all) {
+        const cleared = nodesRef.current.map((n) =>
+          n.id === nodeId && isEntidadeNode(n)
+            ? { ...n, data: { ...n.data, loading: false } }
+            : n,
+        );
+        nodesRef.current = cleared;
+        setNodes(cleared);
+        return [];
+      }
+
+      return expandWithItems(nodeId, all, 0, layoutOpts);
+    },
+    [expandWithItems, fetchVinculos],
+  );
+
+  /**
+   * Expande em cascata: nível 1 = diretos, 2 = vínculos dos vínculos, etc.
+   * Acumula a fronteira em variável local (não depende do state React entre níveis).
+   */
+  const expandCascade = useCallback(
+    async (startNodeId: string, depth: ExpandDepth, fitAtEnd = true) => {
+      if (collapsingRef.current || expandingCascadeRef.current) return;
+      expandingCascadeRef.current = true;
+      setExpandingCascade(true);
+      setContextMenu(null);
+
+      try {
+        let frontier = [startNodeId];
+        for (let level = 0; level < depth; level++) {
+          const nextFrontier: string[] = [];
+          const isLast = level === depth - 1;
+          for (let i = 0; i < frontier.length; i++) {
+            const nodeId = frontier[i]!;
+            const children = await expandNodeOnly(nodeId, {
+              fitView: fitAtEnd && isLast && i === frontier.length - 1,
+            });
+            nextFrontier.push(...children);
+          }
+          frontier = [...new Set(nextFrontier)];
+          if (frontier.length === 0) break;
+        }
+
+        if (fitAtEnd) {
+          setLayoutVersion((v) => v + 1);
+        }
+      } finally {
+        expandingCascadeRef.current = false;
+        setExpandingCascade(false);
+      }
+    },
+    [expandNodeOnly],
   );
 
   const collapseNode = useCallback(
@@ -312,9 +559,9 @@ function DiagramaVinculosInner({
         rootId,
       );
 
-      // Limpa contadores de paginação dos ramos liberados.
       for (const id of result.removedNodeIds) {
         loadedCountRef.current.delete(id);
+        pinnedRef.current.delete(id);
       }
       loadedCountRef.current.delete(nodeId);
 
@@ -328,7 +575,6 @@ function DiagramaVinculosInner({
           result.removedNodeIds,
           result.removedEdgeIds,
         );
-        // Marca o nó clicado como não expandido já durante o fade.
         const fadingNodes = fading.nodes.map((n) =>
           n.id === nodeId && isEntidadeNode(n)
             ? {
@@ -371,7 +617,6 @@ function DiagramaVinculosInner({
     }, 420);
   }, [rootId]);
 
-  /** Duplo clique: colapsa ramo (se houver) e remove o nó da tela. */
   const dismissNode = useCallback(
     async (nodeId: string) => {
       if (collapsingRef.current) return;
@@ -397,9 +642,9 @@ function DiagramaVinculosInner({
 
       for (const id of result.removedNodeIds) {
         loadedCountRef.current.delete(id);
+        pinnedRef.current.delete(id);
       }
       loadedCountRef.current.delete(nodeId);
-      // Não apaga o cache do pai: reexpandir pode trazer o nó de volta.
 
       if (
         result.removedNodeIds.length > 0 ||
@@ -433,56 +678,41 @@ function DiagramaVinculosInner({
     async (nodeId: string) => {
       const current = nodesRef.current.find((n) => n.id === nodeId);
       if (!current || !isEntidadeNode(current)) return;
-
-      const { entidadeTipo: tipo, entidadeId: id, restrito, loading } =
-        current.data;
-      if (restrito || loading || collapsingRef.current) return;
+      if (current.data.restrito || current.data.loading || collapsingRef.current)
+        return;
 
       if (current.data.expanded) {
         await collapseNode(nodeId);
         return;
       }
 
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId && isEntidadeNode(n)
-            ? { ...n, data: { ...n.data, loading: true } }
-            : n,
-        ),
-      );
-
-      let all = vinculosCacheRef.current.get(nodeId);
-      if (!all) {
-        const { data, error } = await buscarVinculosDaEntidade(tipo, id);
-        if (error) {
-          setNodes((nds) =>
-            nds.map((n) =>
-              n.id === nodeId && isEntidadeNode(n)
-                ? { ...n, data: { ...n.data, loading: false } }
-                : n,
-            ),
-          );
-          return;
-        }
-        all = data;
-        vinculosCacheRef.current.set(nodeId, all);
-      }
-
-      expandWithItems(nodeId, all, 0);
+      await expandNodeOnly(nodeId);
     },
-    [collapseNode, expandWithItems],
+    [collapseNode, expandNodeOnly],
   );
 
+  // Abertura por níveis (bootstrap único).
   useEffect(() => {
-    if (!autoExpandRoot || loadingRoot) return;
-    if (autoExpandedRootRef.current === rootId) return;
+    if (loadingRoot) return;
+    const key = `${rootId}:${initialExpandDepth}:${resetToken}`;
+    if (depthBootstrappedRef.current === key) return;
 
     const root = nodesRef.current.find((n) => n.id === rootId);
-    if (!root || !isEntidadeNode(root) || root.data.expanded) return;
+    if (!root || !isEntidadeNode(root)) return;
 
-    autoExpandedRootRef.current = rootId;
-    void expandNode(rootId);
-  }, [autoExpandRoot, expandNode, loadingRoot, rootId]);
+    depthBootstrappedRef.current = key;
+    setBootstrapping(true);
+    void (async () => {
+      await expandCascade(rootId, initialExpandDepth, true);
+      setBootstrapping(false);
+    })();
+  }, [
+    expandCascade,
+    initialExpandDepth,
+    loadingRoot,
+    resetToken,
+    rootId,
+  ]);
 
   useEffect(() => {
     if (resetToken === 0) return;
@@ -530,20 +760,373 @@ function DiagramaVinculosInner({
     [expandWithItems],
   );
 
+  const reorganize = useCallback(() => {
+    setContextMenu(null);
+    applyLayout(nodesRef.current, edgesRef.current, {
+      reorganizeAll: true,
+      fitView: true,
+    });
+  }, [applyLayout]);
+
   const clearPendingClick = useCallback(() => {
     if (clickTimerRef.current != null) {
       window.clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
     }
-    clickCountRef.current = 0;
   }, []);
 
   useEffect(() => {
     return () => clearPendingClick();
   }, [clearPendingClick]);
 
+  const clearFocus = useCallback(() => {
+    setFocusNodeId(null);
+  }, []);
+
+  const clearPathSelection = useCallback(() => {
+    pathEndpointsRef.current = { a: null, b: null };
+    setPathEndpointA(null);
+    setPathEndpointB(null);
+    setHighlightedPath(null);
+    setPathMessage(null);
+  }, []);
+
+  const applyFocus = useCallback((nodeId: string) => {
+    setFocusNodeId(nodeId);
+    setContextMenu(null);
+  }, []);
+
+  /**
+   * Alterna seleção para caminho (máx. 2). Terceiro nó substitui o mais antigo.
+   * Não expande/recolhe.
+   */
+  const togglePathEndpoint = useCallback(
+    (nodeId: string) => {
+      clearPendingClick();
+      setHighlightedPath(null);
+      setPathMessage(null);
+
+      const { a, b } = pathEndpointsRef.current;
+
+      if (a === nodeId) {
+        pathEndpointsRef.current = { a: b, b: null };
+        setPathEndpointA(b);
+        setPathEndpointB(null);
+        return;
+      }
+      if (b === nodeId) {
+        pathEndpointsRef.current = { a, b: null };
+        setPathEndpointB(null);
+        return;
+      }
+      if (!a) {
+        pathEndpointsRef.current = { a: nodeId, b: null };
+        setPathEndpointA(nodeId);
+        return;
+      }
+      if (!b) {
+        pathEndpointsRef.current = { a, b: nodeId };
+        setPathEndpointB(nodeId);
+        return;
+      }
+      // Já há 2: descarta o mais antigo (A), B vira A, novo vira B.
+      pathEndpointsRef.current = { a: b, b: nodeId };
+      setPathEndpointA(b);
+      setPathEndpointB(nodeId);
+    },
+    [clearPendingClick],
+  );
+
+  const isPathModifier = useCallback((event: {
+    ctrlKey: boolean;
+    metaKey: boolean;
+    nativeEvent?: { ctrlKey: boolean; metaKey: boolean };
+  }) => {
+    const native = event.nativeEvent;
+    return Boolean(
+      event.ctrlKey ||
+        event.metaKey ||
+        native?.ctrlKey ||
+        native?.metaKey,
+    );
+  }, []);
+
+  const highlightPathBetweenSelected = useCallback(() => {
+    if (!pathEndpointA || !pathEndpointB) {
+      setPathMessage(
+        "Selecione exatamente dois nós com Ctrl+clique (Cmd no Mac) para destacar o caminho.",
+      );
+      setHighlightedPath(null);
+      return;
+    }
+    const result = findShortestPath(
+      pathEndpointA,
+      pathEndpointB,
+      nodesRef.current,
+      edgesRef.current,
+    );
+    if (!result) {
+      setHighlightedPath(null);
+      setPathMessage(
+        "Nenhum caminho encontrado entre os nós selecionados com os dados atualmente exibidos — tente expandir mais nós.",
+      );
+      return;
+    }
+    setHighlightedPath(result);
+    setPathMessage(
+      result.edgeIds.length === 0
+        ? "Os dois pontos são o mesmo nó."
+        : `Caminho com ${result.nodeIds.length} nós e ${result.edgeIds.length} vínculo(s).`,
+    );
+  }, [pathEndpointA, pathEndpointB]);
+
+  const { displayNodes, displayEdges } = useMemo(() => {
+    const degrees = computeEntidadeDegrees(nodes, edges);
+    let maxDegree = 0;
+    for (const d of degrees.values()) {
+      if (d > maxDegree) maxDegree = d;
+    }
+
+    const focusNeighbors = focusNodeId
+      ? getDirectNeighbors(focusNodeId, edges)
+      : null;
+    const pathNodeSet = highlightedPath
+      ? new Set(highlightedPath.nodeIds)
+      : null;
+    const pathEdgeSet = highlightedPath
+      ? new Set(highlightedPath.edgeIds)
+      : null;
+
+    const nextNodes: DiagramNode[] = nodes.map((node) => {
+      if (!isEntidadeNode(node)) {
+        const dimmed =
+          focusNodeId != null &&
+          node.id !== focusNodeId &&
+          !(focusNeighbors?.has(node.id) ?? false);
+        return {
+          ...node,
+          style: {
+            ...node.style,
+            opacity: dimmed ? 0.25 : 1,
+          },
+        };
+      }
+
+      const degree = degrees.get(node.id) ?? 0;
+      const scale = degreeToScale(degree, maxDegree);
+      const inFocusSpotlight =
+        !focusNodeId ||
+        node.id === focusNodeId ||
+        (focusNeighbors?.has(node.id) ?? false);
+      const onPath = pathNodeSet?.has(node.id) ?? false;
+      const endpoint: "a" | "b" | null =
+        node.id === pathEndpointA
+          ? "a"
+          : node.id === pathEndpointB
+            ? "b"
+            : null;
+
+      return {
+        ...node,
+        style: {
+          ...node.style,
+          width: "fit-content",
+          height: "fit-content",
+          opacity: focusNodeId != null && !inFocusSpotlight ? 0.25 : 1,
+          zIndex: onPath || endpoint || node.id === focusNodeId ? 12 : 1,
+        },
+        data: {
+          ...node.data,
+          degreeScale: scale,
+          dimmed: false,
+          pathHighlight: onPath,
+          pathEndpoint: endpoint,
+        },
+      };
+    });
+
+    const nextEdges: DiagramEdge[] = edges.map((edge) => {
+      const onPath = pathEdgeSet?.has(edge.id) ?? false;
+      const touchesFocus =
+        focusNodeId != null &&
+        (edge.source === focusNodeId || edge.target === focusNodeId);
+      const dimmedByFocus = focusNodeId != null && !touchesFocus && !onPath;
+
+      if (onPath) {
+        return {
+          ...edge,
+          animated: true,
+          style: {
+            ...edge.style,
+            ...PATH_EDGE_STYLE,
+            opacity: 1,
+          },
+          labelStyle: {
+            ...edge.labelStyle,
+            fill: "var(--cor-destaque-dourado)",
+            fontWeight: 700,
+          },
+        };
+      }
+
+      if (dimmedByFocus) {
+        return {
+          ...edge,
+          animated: false,
+          style: {
+            ...edge.style,
+            ...DIM_EDGE_STYLE,
+          },
+        };
+      }
+
+      return {
+        ...edge,
+        animated: false,
+        style: {
+          ...edge.style,
+          stroke: "var(--cor-diagrama-edge)",
+          strokeWidth: 1.5,
+          opacity: 1,
+        },
+      };
+    });
+
+    return { displayNodes: nextNodes, displayEdges: nextEdges };
+  }, [
+    nodes,
+    edges,
+    focusNodeId,
+    highlightedPath,
+    pathEndpointA,
+    pathEndpointB,
+  ]);
+
+  const applyRestoredEstado = useCallback(
+    (result: DiagramaRestoreResult) => {
+      pinnedRef.current = new Set(result.pinnedNodeIds);
+      vinculosCacheRef.current = result.vinculosCache;
+      loadedCountRef.current = result.loadedCounts;
+      collapsingRef.current = false;
+      depthBootstrappedRef.current = `${rootId}:${initialExpandDepth}:${resetToken}`;
+      setFocusNodeId(null);
+      pathEndpointsRef.current = { a: null, b: null };
+      setPathEndpointA(null);
+      setPathEndpointB(null);
+      setHighlightedPath(null);
+      setPathMessage(null);
+      setContextMenu(null);
+      setNodes(result.nodes);
+      setEdges(result.edges);
+      setLayoutVersion((v) => v + 1);
+
+      const root = result.nodes.find((n) => n.id === rootId);
+      if (root && isEntidadeNode(root)) {
+        syncSelecionadaFromNode(root);
+      }
+    },
+    [initialExpandDepth, resetToken, rootId, syncSelecionadaFromNode],
+  );
+
+  const handleSaveVisualizacao = useCallback(() => {
+    const nome = saveNome.trim();
+    if (!nome) {
+      setSaveError("Informe um nome para a visualização.");
+      return;
+    }
+    startIoTransition(async () => {
+      setSaveError(null);
+      setIoStatus("Salvando…");
+      const estado = serializeDiagramaEstado({
+        entidadeTipo,
+        entidadeId,
+        nodes: nodesRef.current,
+        edges: edgesRef.current,
+        pinnedNodeIds: [...pinnedRef.current],
+      });
+      const { error } = await saveDiagramaVisualizacao({
+        nome,
+        entidadeTipo,
+        entidadeId,
+        estado,
+      });
+      setIoStatus(null);
+      if (error) {
+        setSaveError(error);
+        return;
+      }
+      setSaveOpen(false);
+      setSaveNome("");
+      setIoStatus("Visualização salva.");
+      window.setTimeout(() => setIoStatus(null), 2500);
+    });
+  }, [entidadeId, entidadeTipo, saveNome]);
+
+  const handleOpenList = useCallback(() => {
+    setOpenListOpen(true);
+    setListError(null);
+    setListLoading(true);
+    startIoTransition(async () => {
+      const { data, error } = await listDiagramaVisualizacoes({
+        entidadeTipo,
+        entidadeId,
+      });
+      setListLoading(false);
+      if (error) {
+        setListError(error);
+        setSavedList([]);
+        return;
+      }
+      setSavedList(data);
+    });
+  }, [entidadeId, entidadeTipo]);
+
+  const handleLoadVisualizacao = useCallback(
+    (row: DiagramaVisualizacaoSalva) => {
+      startIoTransition(async () => {
+        setListError(null);
+        setIoStatus("Carregando visualização…");
+        const { data, error } = await restoreDiagramaEstado(row.estado_json);
+        setIoStatus(null);
+        if (error || !data) {
+          setListError(error ?? "Não foi possível carregar a visualização.");
+          return;
+        }
+        applyRestoredEstado(data);
+        setOpenListOpen(false);
+        setIoStatus("Visualização carregada.");
+        window.setTimeout(() => setIoStatus(null), 2500);
+      });
+    },
+    [applyRestoredEstado],
+  );
+
+  const handleDeleteVisualizacao = useCallback((id: string) => {
+    startIoTransition(async () => {
+      const { error } = await deleteDiagramaVisualizacao(id);
+      if (error) {
+        setListError(error);
+        return;
+      }
+      setSavedList((prev) => prev.filter((r) => r.id !== id));
+    });
+  }, []);
+
   const onNodeClick = useCallback(
-    (_event: MouseEvent, node: DiagramNode) => {
+    (event: MouseEvent, node: DiagramNode) => {
+      setContextMenu(null);
+
+      const target = event.target as HTMLElement | null;
+      // Ícone × — remoção explícita, sem debounce.
+      if (target?.closest("[data-dismiss-node]")) {
+        clearPendingClick();
+        if (!isEntidadeNode(node)) return;
+        if (node.data.removing || node.data.restrito || node.data.isRoot) return;
+        syncSelecionadaFromNode(node);
+        void dismissNode(node.id);
+        return;
+      }
+
       if (node.type === "carregarMais") {
         clearPendingClick();
         const data = node.data as CarregarMaisNodeData;
@@ -555,53 +1138,163 @@ function DiagramaVinculosInner({
       if (!isEntidadeNode(node)) return;
       if (node.data.removing) return;
 
-      // Resumo imediato; expansão/recolhimento aguarda o debounce.
+      // Ctrl/Cmd+clique: só seleção de caminho — nunca expandir/recolher.
+      if (isPathModifier(event)) {
+        event.preventDefault();
+        event.stopPropagation();
+        clearPendingClick();
+        syncSelecionadaFromNode(node);
+        if (!node.data.restrito) {
+          const now = Date.now();
+          const last = pathContextSelectRef.current;
+          if (!last || last.id !== node.id || now - last.at > 400) {
+            pathContextSelectRef.current = { id: node.id, at: now };
+            togglePathEndpoint(node.id);
+          }
+        }
+        return;
+      }
+
       syncSelecionadaFromNode(node);
       if (node.data.restrito) {
         clearPendingClick();
         return;
       }
 
-      clickCountRef.current += 1;
-      if (clickTimerRef.current != null) {
-        window.clearTimeout(clickTimerRef.current);
+      // Alt+clique → modo foco (não expande).
+      if (event.altKey) {
+        clearPendingClick();
+        applyFocus(node.id);
+        return;
       }
 
+      // Ignora o 2º click do gesto de duplo clique (detail >= 2).
+      if (event.detail !== 1) {
+        return;
+      }
+
+      clearPendingClick();
       const nodeId = node.id;
       clickTimerRef.current = window.setTimeout(() => {
-        const clicks = clickCountRef.current;
         clickTimerRef.current = null;
-        clickCountRef.current = 0;
-        if (clicks === 1) {
-          void expandNode(nodeId);
-        }
-      }, CLICK_DEBOUNCE_MS);
+        void expandNode(nodeId);
+      }, SINGLE_CLICK_DELAY_MS);
     },
-    [clearPendingClick, expandNode, loadMore, syncSelecionadaFromNode],
+    [
+      applyFocus,
+      clearPendingClick,
+      dismissNode,
+      expandNode,
+      isPathModifier,
+      loadMore,
+      syncSelecionadaFromNode,
+      togglePathEndpoint,
+    ],
   );
 
   const onNodeDoubleClick = useCallback(
-    (_event: MouseEvent, node: DiagramNode) => {
+    (event: MouseEvent, node: DiagramNode) => {
+      event.preventDefault();
       clearPendingClick();
+      setContextMenu(null);
+
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-dismiss-node]")) return;
 
       if (node.type === "carregarMais") return;
       if (!isEntidadeNode(node)) return;
       if (node.data.removing || node.data.restrito) return;
+      if (isPathModifier(event)) return;
 
       syncSelecionadaFromNode(node);
       void dismissNode(node.id);
     },
-    [clearPendingClick, dismissNode, syncSelecionadaFromNode],
+    [
+      clearPendingClick,
+      dismissNode,
+      isPathModifier,
+      syncSelecionadaFromNode,
+    ],
+  );
+
+  const onNodeContextMenu = useCallback(
+    (event: MouseEvent, node: DiagramNode) => {
+      // Ctrl+clique no Mac dispara contextmenu; trata como seleção de caminho.
+      if (isPathModifier(event)) {
+        event.preventDefault();
+        clearPendingClick();
+        setContextMenu(null);
+        if (
+          isEntidadeNode(node) &&
+          !node.data.restrito &&
+          !node.data.removing
+        ) {
+          syncSelecionadaFromNode(node);
+          // Evita toggle duplo se o click também disparar em seguida.
+          const now = Date.now();
+          const last = pathContextSelectRef.current;
+          if (!last || last.id !== node.id || now - last.at > 400) {
+            pathContextSelectRef.current = { id: node.id, at: now };
+            togglePathEndpoint(node.id);
+          }
+        }
+        return;
+      }
+
+      event.preventDefault();
+      clearPendingClick();
+      if (!isEntidadeNode(node) || node.data.restrito || node.data.removing) {
+        setContextMenu(null);
+        return;
+      }
+      syncSelecionadaFromNode(node);
+      setContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        nodeId: node.id,
+      });
+    },
+    [
+      clearPendingClick,
+      isPathModifier,
+      syncSelecionadaFromNode,
+      togglePathEndpoint,
+    ],
+  );
+
+  const requestDismiss = useCallback(
+    (nodeId: string) => {
+      clearPendingClick();
+      setContextMenu(null);
+      void dismissNode(nodeId);
+    },
+    [clearPendingClick, dismissNode],
+  );
+
+  const onNodeDragStop = useCallback(
+    (_event: globalThis.MouseEvent | globalThis.TouchEvent, node: DiagramNode) => {
+      pinnedRef.current.add(node.id);
+    },
+    [],
   );
 
   const onNodesChange = useCallback((changes: NodeChange<DiagramNode>[]) => {
     setNodes((nds) => applyNodeChanges(changes, nds));
   }, []);
 
-  if (loadingRoot) {
+  const onPaneClick = useCallback(() => {
+    setContextMenu(null);
+    clearFocus();
+  }, [clearFocus]);
+
+  if (loadingRoot || bootstrapping) {
     return (
       <div className="diagrama-vinculos-shell flex h-[min(52vh,480px)] min-h-[320px] items-center justify-center rounded-lg border border-[var(--cor-borda)] bg-[var(--cor-fundo-secundaria)]">
-        <p className="text-sm text-muted">Carregando diagrama…</p>
+        <p className="text-sm text-muted">
+          {bootstrapping
+            ? `Expandindo até ${initialExpandDepth} nível${initialExpandDepth > 1 ? "is" : ""}…`
+            : "Carregando diagrama…"}
+        </p>
       </div>
     );
   }
@@ -615,28 +1308,50 @@ function DiagramaVinculosInner({
   }
 
   return (
-    <div className={fullScreen ? "flex h-full flex-col gap-2" : "space-y-2"}>
+    <DiagramaNodeActionsProvider dismissNode={requestDismiss}>
+      <div className={fullScreen ? "flex h-full flex-col gap-2" : "space-y-2"}>
       <p className="text-xs text-muted">
-        Clique para expandir/recolher. Duplo clique remove o nó da tela (exceto
-        a origem). Arraste os nós para reposicionar — a posição é mantida ao
-        abrir outras ramificações.
+        Clique: expandir/recolher. Alt+clique: foco. Ctrl+clique (Cmd no Mac):
+        marcar até 2 nós para o caminho. Duplo clique ou ×: remover. Botão
+        direito: mais ações.
       </p>
+      {pathMessage ? (
+        <p
+          className={`rounded border px-3 py-2 text-xs ${
+            highlightedPath
+              ? "border-[var(--cor-borda-destaque)] bg-[color:var(--cor-alerta-fundo)] text-muted-strong"
+              : "border-danger-border bg-danger-bg text-danger-fg"
+          }`}
+          role="status"
+        >
+          {pathMessage}
+        </p>
+      ) : null}
+      {ioStatus ? (
+        <p className="text-xs text-muted" role="status">
+          {ioStatus}
+        </p>
+      ) : null}
       <div
         className={`diagrama-vinculos-shell flex ${fullScreen ? "h-full min-h-0" : "h-[min(56vh,520px)] min-h-[340px]"} flex-col overflow-hidden rounded-lg border border-[var(--cor-borda)] sm:flex-row ${animating ? "layout-animating" : ""}`}
       >
         <div className="relative min-h-[280px] min-w-0 flex-1">
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={displayNodes}
+            edges={displayEdges}
             nodeTypes={nodeTypes}
             onNodeClick={onNodeClick}
             onNodeDoubleClick={onNodeDoubleClick}
+            onNodeContextMenu={onNodeContextMenu}
+            onNodeDragStop={onNodeDragStop}
             onNodesChange={onNodesChange}
+            onPaneClick={onPaneClick}
             fitView
             fitViewOptions={{ padding: 0.4, maxZoom: 1.05 }}
             minZoom={0.2}
             maxZoom={1.6}
             nodesDraggable
+            nodeDragThreshold={5}
             nodesConnectable={false}
             elementsSelectable
             proOptions={{ hideAttribution: true }}
@@ -652,14 +1367,277 @@ function DiagramaVinculosInner({
               showInteractive={false}
               className="diagrama-vinculos-controls"
             />
+            <Panel position="top-right" className="!m-2 flex max-w-[16rem] flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setSaveError(null);
+                  setSaveNome("");
+                  setSaveOpen(true);
+                }}
+                disabled={ioPending || nodes.length === 0}
+                className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50"
+              >
+                Salvar visualização
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenList}
+                disabled={ioPending}
+                className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50"
+              >
+                Abrir visualização salva
+              </button>
+              <button
+                type="button"
+                onClick={reorganize}
+                disabled={expandingCascade || nodes.length < 2}
+                className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50"
+              >
+                Reorganizar automaticamente
+              </button>
+              {focusNodeId ? (
+                <button
+                  type="button"
+                  onClick={clearFocus}
+                  className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)]"
+                >
+                  Remover foco
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={highlightPathBetweenSelected}
+                disabled={!pathEndpointA || !pathEndpointB}
+                className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50"
+              >
+                Destacar caminho entre selecionados
+              </button>
+              {pathEndpointA || pathEndpointB || highlightedPath ? (
+                <button
+                  type="button"
+                  onClick={clearPathSelection}
+                  className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)]"
+                >
+                  Limpar caminho
+                </button>
+              ) : null}
+              {(pathEndpointA || pathEndpointB) && (
+                <p className="px-0.5 text-[10px] leading-snug text-muted">
+                  {pathEndpointA && pathEndpointB
+                    ? "2 nós selecionados — caminho pronto"
+                    : pathEndpointA
+                      ? "1 nó selecionado — Ctrl+clique em outro"
+                      : "Selecione 2 nós com Ctrl+clique"}
+                </p>
+              )}
+            </Panel>
           </ReactFlow>
+
+          {contextMenu ? (
+            <div
+              className="fixed z-[60] min-w-[14rem] rounded-md border border-border bg-panel py-1 shadow-lg"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              role="menu"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
+                onClick={() => applyFocus(contextMenu.nodeId)}
+              >
+                Focar neste nó
+              </button>
+              <p className="px-3 py-1.5 text-[10px] font-medium tracking-wide text-muted uppercase">
+                Expandir a partir daqui
+              </p>
+              {([1, 2, 3] as const).map((depth) => (
+                <button
+                  key={depth}
+                  type="button"
+                  role="menuitem"
+                  disabled={expandingCascade}
+                  className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)] disabled:opacity-50"
+                  onClick={() => {
+                    void expandCascade(contextMenu.nodeId, depth, true);
+                  }}
+                >
+                  Expandir {depth} nível{depth > 1 ? "is" : ""}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
         <EntidadeResumoPanel
           entidade={selecionada}
           onClose={() => setSelecionada(null)}
         />
       </div>
+
+      {saveOpen ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[color:var(--cor-fundo-overlay)] p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="salvar-viz-titulo"
+          onClick={() => !ioPending && setSaveOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm space-y-3 rounded-md border border-border bg-panel p-4 shadow-[var(--cor-sombra-modal)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="salvar-viz-titulo"
+              className="text-sm font-bold tracking-[0.12em] text-gold uppercase"
+            >
+              Salvar visualização
+            </h2>
+            <p className="text-xs text-muted">
+              Guarde o estado atual do diagrama (nós, posições e pins) para
+              retomar depois ou compartilhar com outro analista.
+            </p>
+            <div>
+              <label
+                htmlFor="salvar-viz-nome"
+                className="mb-1 block text-xs font-medium tracking-wide text-muted-strong uppercase"
+              >
+                Nome
+              </label>
+              <input
+                id="salvar-viz-nome"
+                type="text"
+                value={saveNome}
+                onChange={(e) => setSaveNome(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveVisualizacao();
+                }}
+                placeholder='Ex.: Rede em torno do Caso Operação Lança'
+                autoFocus
+                disabled={ioPending}
+                className="h-8 w-full rounded border border-field-border bg-field px-2.5 text-sm text-foreground outline-none placeholder:text-muted focus:border-gold"
+              />
+            </div>
+            {saveError ? (
+              <p className="text-xs text-danger-fg">{saveError}</p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={ioPending}
+                onClick={() => setSaveOpen(false)}
+                className="rounded border border-[var(--cor-borda)] px-3 py-1.5 text-xs font-medium text-muted-strong uppercase"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={ioPending}
+                onClick={handleSaveVisualizacao}
+                className="rounded border border-[var(--cor-borda-destaque)] bg-[var(--cor-card-fundo)] px-3 py-1.5 text-xs font-medium tracking-wide text-[var(--cor-destaque-dourado)] uppercase"
+              >
+                {ioPending ? "Salvando…" : "Salvar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {openListOpen ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[color:var(--cor-fundo-overlay)] p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="abrir-viz-titulo"
+          onClick={() => !ioPending && setOpenListOpen(false)}
+        >
+          <div
+            className="flex max-h-[min(80vh,32rem)] w-full max-w-lg flex-col rounded-md border border-border bg-panel shadow-[var(--cor-sombra-modal)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-border px-4 py-3">
+              <h2
+                id="abrir-viz-titulo"
+                className="text-sm font-bold tracking-[0.12em] text-gold uppercase"
+              >
+                Visualizações salvas
+              </h2>
+              <p className="mt-0.5 text-xs text-muted">
+                Desta entidade. Qualquer analista pode abrir; só o autor ou um
+                administrador pode excluir.
+              </p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+              {listLoading ? (
+                <p className="px-2 py-6 text-center text-sm text-muted">
+                  Carregando…
+                </p>
+              ) : listError ? (
+                <p className="px-2 py-4 text-center text-sm text-danger-fg">
+                  {listError}
+                </p>
+              ) : savedList.length === 0 ? (
+                <p className="px-2 py-6 text-center text-sm text-muted">
+                  Nenhuma visualização salva para esta entidade.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {savedList.map((row) => (
+                    <li
+                      key={row.id}
+                      className="flex items-start gap-2 rounded px-2 py-2 hover:bg-[color:var(--cor-card-fundo-hover)]"
+                    >
+                      <button
+                        type="button"
+                        disabled={ioPending}
+                        onClick={() => handleLoadVisualizacao(row)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {row.nome}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] text-muted">
+                          {row.usuario_nome ?? "Usuário"}
+                          {" · "}
+                          {formatDateTime(row.data_cadastro)}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={ioPending}
+                        title="Excluir (autor ou administrador)"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Excluir a visualização “${row.nome}”?`,
+                            )
+                          ) {
+                            handleDeleteVisualizacao(row.id);
+                          }
+                        }}
+                        className="shrink-0 rounded px-2 py-1 text-[11px] text-muted hover:text-danger-fg"
+                      >
+                        Excluir
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="flex justify-end border-t border-border px-4 py-2.5">
+              <button
+                type="button"
+                disabled={ioPending}
+                onClick={() => setOpenListOpen(false)}
+                className="rounded border border-[var(--cor-borda)] px-3 py-1.5 text-xs font-medium text-muted-strong uppercase"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
+    </DiagramaNodeActionsProvider>
   );
 }
 

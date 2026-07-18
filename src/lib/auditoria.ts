@@ -15,7 +15,7 @@ export const AUDITORIA_TABELAS = [
   { value: "veiculos", label: "Veículos" },
   { value: "comunicacoes", label: "Comunicações" },
   { value: "orcrims", label: "Orcrims" },
-  { value: "procedimentos", label: "Procedimentos" },
+  { value: "documentos", label: "Documentos" },
   { value: "casos", label: "Casos" },
   { value: "observacoes", label: "Observações" },
   { value: "vinculos", label: "Vínculos" },

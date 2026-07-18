@@ -5,7 +5,7 @@ export const ENTIDADE_LABELS: Record<EntidadeTipo, string> = {
   empresa: "Empresa",
   endereco: "Endereço",
   veiculo: "Veículo",
-  procedimento: "Procedimento",
+  documento: "Documento",
   caso: "Caso",
   comunicacao: "Comunicação",
   orcrim: "Orcrim",
@@ -17,7 +17,7 @@ export const ENTIDADE_VINCULOS_TITULOS: Record<EntidadeTipo, string> = {
   empresa: "Empresas",
   endereco: "Endereços",
   veiculo: "Veículos",
-  procedimento: "Procedimentos",
+  documento: "Documentos",
   caso: "Casos",
   comunicacao: "Comunicações",
   orcrim: "Orcrims",
@@ -29,7 +29,7 @@ export const ENTIDADE_VINCULOS_ADD: Record<EntidadeTipo, string> = {
   empresa: "empresa",
   endereco: "endereço",
   veiculo: "veículo",
-  procedimento: "procedimento",
+  documento: "documento",
   caso: "caso",
   comunicacao: "comunicação",
   orcrim: "orcrim",
@@ -40,7 +40,7 @@ export const ENTIDADE_HREFS: Record<EntidadeTipo, string> = {
   empresa: "/empresas",
   endereco: "/enderecos",
   veiculo: "/veiculos",
-  procedimento: "/procedimentos",
+  documento: "/documentos",
   caso: "/casos",
   comunicacao: "/comunicacoes",
   orcrim: "/orcrims",
@@ -93,7 +93,7 @@ export type VinculoCard = {
   outroId: string;
   titulo: string;
   subtitulo?: string | null;
-  /** Sem permissão de ver o procedimento/caso (RLS). */
+  /** Sem permissão de ver o documento/caso (RLS). */
   restrito?: boolean;
   /** Path no bucket fotos-pessoas (apenas quando outroTipo === "pessoa"). */
   foto_perfil_path?: string | null;

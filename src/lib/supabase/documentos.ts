@@ -7,10 +7,10 @@ import {
   friendlyError,
   normalizeUrl,
 } from "@/lib/supabase/errors";
-import type { Procedimento, ProcedimentoTipo } from "@/lib/types";
+import type { Documento, DocumentoTipo } from "@/lib/types";
 
-export type ProcedimentoInput = {
-  tipo?: ProcedimentoTipo | null;
+export type DocumentoInput = {
+  tipo?: DocumentoTipo | null;
   nome?: string | null;
   resumo?: string | null;
   data?: string | null;
@@ -18,20 +18,20 @@ export type ProcedimentoInput = {
   unidade?: string | null;
 };
 
-export async function createProcedimento(
-  input: ProcedimentoInput,
-): Promise<{ data: Procedimento | null; error: string | null }> {
+export async function createDocumento(
+  input: DocumentoInput,
+): Promise<{ data: Documento | null; error: string | null }> {
   const auth = await requireAuthUser();
   if (!auth.user) return { data: null, error: auth.error };
 
   const unidade = input.unidade?.trim();
   if (!unidade) {
-    return { data: null, error: "Informe a unidade do procedimento." };
+    return { data: null, error: "Informe a unidade do documento." };
   }
 
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("procedimentos")
+    .from("documentos")
     .insert({
       tipo: input.tipo || null,
       nome: emptyToNull(input.nome),
@@ -48,16 +48,16 @@ export async function createProcedimento(
   if (error) {
     return {
       data: null,
-      error: friendlyError(error.message, "Erro ao criar procedimento."),
+      error: friendlyError(error.message, "Erro ao criar documento."),
     };
   }
-  return { data: data as Procedimento, error: null };
+  return { data: data as Documento, error: null };
 }
 
-export async function updateProcedimento(
+export async function updateDocumento(
   id: string,
-  input: Partial<ProcedimentoInput>,
-): Promise<{ data: Procedimento | null; error: string | null }> {
+  input: Partial<DocumentoInput>,
+): Promise<{ data: Documento | null; error: string | null }> {
   const supabase = createClient();
   const payload: Record<string, unknown> = {};
   if (input.tipo !== undefined) payload.tipo = input.tipo || null;
@@ -70,13 +70,13 @@ export async function updateProcedimento(
   if (input.unidade !== undefined) {
     const unidade = input.unidade?.trim();
     if (!unidade) {
-      return { data: null, error: "Informe a unidade do procedimento." };
+      return { data: null, error: "Informe a unidade do documento." };
     }
     payload.unidade = unidade;
   }
 
   const { data, error } = await supabase
-    .from("procedimentos")
+    .from("documentos")
     .update(payload)
     .eq("id", id)
     .select("*")
@@ -85,27 +85,27 @@ export async function updateProcedimento(
   if (error) {
     return {
       data: null,
-      error: friendlyError(error.message, "Erro ao atualizar procedimento."),
+      error: friendlyError(error.message, "Erro ao atualizar documento."),
     };
   }
-  return { data: data as Procedimento, error: null };
+  return { data: data as Documento, error: null };
 }
 
-export async function deleteProcedimento(
+export async function deleteDocumento(
   id: string,
 ): Promise<{ error: string | null }> {
   const supabase = createClient();
-  const { error } = await supabase.from("procedimentos").delete().eq("id", id);
+  const { error } = await supabase.from("documentos").delete().eq("id", id);
   if (error) {
     return {
-      error: friendlyError(error.message, "Erro ao excluir procedimento."),
+      error: friendlyError(error.message, "Erro ao excluir documento."),
     };
   }
   return { error: null };
 }
 
 /** Retorna o conjunto de nomes que já existem na tabela (match exato). */
-export async function findExistingProcedimentoNomes(
+export async function findExistingDocumentoNomes(
   nomes: string[],
 ): Promise<{ nomes: Set<string>; error: string | null }> {
   const unique = [...new Set(nomes.filter(Boolean))];
@@ -118,7 +118,7 @@ export async function findExistingProcedimentoNomes(
   for (let i = 0; i < unique.length; i += chunkSize) {
     const chunk = unique.slice(i, i + chunkSize);
     const { data, error } = await supabase
-      .from("procedimentos")
+      .from("documentos")
       .select("nome")
       .in("nome", chunk);
 
@@ -139,9 +139,9 @@ export async function findExistingProcedimentoNomes(
   return { nomes: existing, error: null };
 }
 
-/** Insere vários procedimentos de uma vez (mesmo usuário e data_cadastro). */
-export async function createProcedimentosBatch(
-  inputs: ProcedimentoInput[],
+/** Insere vários documentos de uma vez (mesmo usuário e data_cadastro). */
+export async function createDocumentosBatch(
+  inputs: DocumentoInput[],
 ): Promise<{ created: number; error: string | null }> {
   if (inputs.length === 0) return { created: 0, error: null };
 
@@ -151,7 +151,7 @@ export async function createProcedimentosBatch(
   const supabase = createClient();
   const now = new Date().toISOString();
   const rows: Array<{
-    tipo: ProcedimentoTipo | null;
+    tipo: DocumentoTipo | null;
     nome: string | null;
     resumo: string | null;
     data: string | null;
@@ -166,7 +166,7 @@ export async function createProcedimentosBatch(
     if (!unidade) {
       return {
         created: 0,
-        error: "Informe a unidade do procedimento.",
+        error: "Informe a unidade do documento.",
       };
     }
     rows.push({
@@ -182,14 +182,14 @@ export async function createProcedimentosBatch(
   }
 
   const { data, error } = await supabase
-    .from("procedimentos")
+    .from("documentos")
     .insert(rows)
     .select("id");
 
   if (error) {
     return {
       created: 0,
-      error: friendlyError(error.message, "Erro ao importar procedimentos."),
+      error: friendlyError(error.message, "Erro ao importar documentos."),
     };
   }
   return { created: data?.length ?? 0, error: null };

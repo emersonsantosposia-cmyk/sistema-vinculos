@@ -1,36 +1,29 @@
 "use server";
 
-import type { DashboardPeriodMode } from "@/lib/dashboard";
+import type { DashboardTimeFilter } from "@/lib/dashboard";
 import {
-  getInsercoesPorPeriodo,
-  getProcCasosPorUnidade,
+  getCasosPorStatus,
+  getDocCasosPorUnidade,
+  getDocPorTipoUnidade,
+  getTotaisEntidades,
 } from "@/lib/supabase/dashboard-server";
 
-export async function fetchInsercoesPorPeriodoAction(
-  agrupamento: DashboardPeriodMode,
-) {
-  return getInsercoesPorPeriodo(agrupamento);
+export async function fetchTotaisEntidadesAction(filter: DashboardTimeFilter) {
+  return getTotaisEntidades(filter);
 }
 
-export async function fetchProcCasosPorUnidadeAction(
-  agrupamento: DashboardPeriodMode,
+export async function fetchDocCasosPorUnidadeAction(
+  filter: DashboardTimeFilter,
 ) {
-  return getProcCasosPorUnidade(agrupamento);
+  return getDocCasosPorUnidade(filter);
 }
 
-/** Recarrega série de inserções e totais por unidade no mesmo período. */
-export async function fetchDashboardPeriodAction(
-  agrupamento: DashboardPeriodMode,
+export async function fetchDocPorTipoUnidadeAction(
+  filter: DashboardTimeFilter,
 ) {
-  const [series, porUnidade] = await Promise.all([
-    getInsercoesPorPeriodo(agrupamento),
-    getProcCasosPorUnidade(agrupamento),
-  ]);
+  return getDocPorTipoUnidade(filter);
+}
 
-  return {
-    series: series.data,
-    seriesError: series.error,
-    porUnidade: porUnidade.data,
-    porUnidadeError: porUnidade.error,
-  };
+export async function fetchCasosPorStatusAction(filter: DashboardTimeFilter) {
+  return getCasosPorStatus(filter);
 }

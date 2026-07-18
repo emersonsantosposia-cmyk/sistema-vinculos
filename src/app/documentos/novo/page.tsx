@@ -1,21 +1,21 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ProcedimentoForm } from "@/components/procedimentos/ProcedimentoForm";
+import { DocumentoForm } from "@/components/documentos/DocumentoForm";
 
-export default function NovoProcedimentoPage() {
+export default function NovoDocumentoPage() {
   return (
     <DashboardShell
-      title="Novo Procedimento"
+      title="Novo Documento"
       actions={
         <Link
-          href="/procedimentos"
+          href="/documentos"
           className="btn-acao-secundario"
         >
           Voltar
         </Link>
       }
     >
-      <ProcedimentoForm />
+      <DocumentoForm />
     </DashboardShell>
   );
 }

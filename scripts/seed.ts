@@ -34,10 +34,11 @@ const PESSOA_TIPOS = [
   "preso",
   "advogado",
   "visitante",
-  "outros",
+  "agente_publico_outros_orgaos",
+  "agente_privado",
 ] as const;
 
-const PROCEDIMENTO_TIPOS = ["RCI", "RELINT", "DADOS", "OUTROS"] as const;
+const DOCUMENTO_TIPOS = ["RCI", "INFO", "RDCI", "OUTROS"] as const;
 
 const COMUNICACAO_TIPOS = [
   "imsi",
@@ -80,7 +81,7 @@ const CORES = [
 const OBS_MSGS = [
   "Verificado contato recente com outro interno",
   "Endereço confirmado em diligência de rotina",
-  "Informação cruzada com procedimento correlato",
+  "Informação cruzada com documento correlato",
   "Número de comunicação ativo nos últimos 30 dias",
   "Veículo avistado nas proximidades do local monitorado",
   "Documento anexado ao dossiê no Cronos",
@@ -93,7 +94,7 @@ type EntityBundle = {
   empresa: string[];
   endereco: string[];
   veiculo: string[];
-  procedimento: string[];
+  documento: string[];
   caso: string[];
   comunicacao: string[];
 };
@@ -314,6 +315,9 @@ async function seedPessoas(
     return {
       tipo,
       nome: withPrefix(faker.person.fullName()),
+      alcunha: faker.helpers.maybe(() => withPrefix(faker.person.lastName()), {
+        probability: 0.45,
+      }) ?? null,
       cpf: fakeCpf(),
       data_nascimento: dateOnly(
         faker.date.birthdate({ min: 18, max: 75, mode: "age" }),
@@ -452,21 +456,21 @@ async function seedVeiculos(
   return (await insertRows(supabase, "veiculos", rows)).map((r) => r.id);
 }
 
-async function seedProcedimentos(
+async function seedDocumentos(
   supabase: SupabaseClient,
   usuarioId: string,
 ): Promise<string[]> {
   const unidades = ["CGIN", "PFCAT", "PFCG", "PFMOS", "PFPV", "PFBRA"] as const;
   const rows = Array.from({ length: COUNT }, (_, i) => ({
-    tipo: PROCEDIMENTO_TIPOS[i % PROCEDIMENTO_TIPOS.length]!,
-    nome: withPrefix(`${PROCEDIMENTO_TIPOS[i % PROCEDIMENTO_TIPOS.length]} ${faker.lorem.words(3)}`),
+    tipo: DOCUMENTO_TIPOS[i % DOCUMENTO_TIPOS.length]!,
+    nome: withPrefix(`${DOCUMENTO_TIPOS[i % DOCUMENTO_TIPOS.length]} ${faker.lorem.words(3)}`),
     resumo: faker.lorem.paragraph(),
     data: dateOnly(faker.date.past({ years: 3 })),
-    link_cronos: `https://cronos.exemplo.local/proc/${faker.string.uuid()}`,
+    link_cronos: `https://cronos.exemplo.local/doc/${faker.string.uuid()}`,
     unidade: unidades[i % unidades.length]!,
     usuario_cadastro: usuarioId,
   }));
-  return (await insertRows(supabase, "procedimentos", rows)).map((r) => r.id);
+  return (await insertRows(supabase, "documentos", rows)).map((r) => r.id);
 }
 
 async function seedCasos(
@@ -606,8 +610,8 @@ async function main() {
   const veiculos = await seedVeiculos(supabase, usuario.id);
   console.log(`veiculos: ${veiculos.length}`);
 
-  const procedimentos = await seedProcedimentos(supabase, usuario.id);
-  console.log(`procedimentos: ${procedimentos.length}`);
+  const documentos = await seedDocumentos(supabase, usuario.id);
+  console.log(`documentos: ${documentos.length}`);
 
   const casos = await seedCasos(supabase, usuario.id);
   console.log(`casos: ${casos.length}`);
@@ -620,7 +624,7 @@ async function main() {
     empresa: empresas,
     endereco: enderecos,
     veiculo: veiculos,
-    procedimento: procedimentos,
+    documento: documentos,
     caso: casos,
     comunicacao: comunicacoes,
   };
@@ -642,7 +646,7 @@ Resumo do seed
   empresas:       ${empresas.length}
   enderecos:      ${enderecos.length}
   veiculos:       ${veiculos.length}
-  procedimentos:  ${procedimentos.length}
+  documentos:  ${documentos.length}
   casos:          ${casos.length}
   comunicacoes:   ${comunicacoes.length}
   redes sociais:  ${pessoas.redes}

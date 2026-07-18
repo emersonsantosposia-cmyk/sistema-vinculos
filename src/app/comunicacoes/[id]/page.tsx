@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { ComunicacaoDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
@@ -8,7 +9,6 @@ import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import {
   comunicacaoMostraOperadora,
-  formatDate,
   labelComunicacaoStatus,
   labelComunicacaoTipo,
   labelComunicacaoValor,
@@ -53,7 +53,7 @@ export default async function ComunicacaoDetailPage({ params }: Props) {
 
   return (
     <DashboardShell
-      title={comunicacao.valor}
+      title="Comunicação"
       actions={
         <div className="flex items-center gap-2">
           <Link
@@ -95,16 +95,16 @@ export default async function ComunicacaoDetailPage({ params }: Props) {
                 />
               ) : null}
               <Field label="Fonte" value={comunicacao.fonte || "—"} />
-              <Field
-                label="Data de cadastro"
-                value={formatDate(comunicacao.data_cadastro)}
-              />
               <div className="sm:col-span-2">
                 <Field
                   label="Observação geral"
                   value={comunicacao.observacao_geral || "—"}
                 />
               </div>
+              <CadastroMeta
+                dataCadastro={comunicacao.data_cadastro}
+                usuarioCadastroId={comunicacao.usuario_cadastro}
+              />
             </dl>
           </Panel>
           <VinculosDiagramPanel

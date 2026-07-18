@@ -4,11 +4,12 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
 import { PessoaDeleteButton } from "@/components/pessoas/PessoaDeleteButton";
 import { PessoaFotosGaleria } from "@/components/pessoas/PessoaFotosGaleria";
+import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
-import { formatCpf, formatDate, formatNascimentoComIdade, labelPessoaTipo } from "@/lib/format";
+import { formatCpf, formatNascimentoComIdade, formatNomeCurto, labelPessoaTipo } from "@/lib/format";
 import { getPessoaById } from "@/lib/supabase/pessoas-server";
 
 type Props = {
@@ -82,19 +83,20 @@ export default async function PessoaDetailPage({ params }: Props) {
         <div className="space-y-4">
           <Panel title="Dados cadastrais">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="flex flex-col items-center gap-2 sm:items-start">
+              <div className="flex flex-col items-center gap-2">
                 <PessoaAvatar
                   path={foto_perfil_path}
                   nome={pessoa.nome}
                   size="lg"
                   expandable
                 />
-                <p className="text-[11px] font-medium tracking-wide text-muted uppercase">
-                  Foto de perfil
+                <p className="max-w-[10rem] text-center text-xs font-medium text-foreground">
+                  {formatNomeCurto(pessoa.nome)}
                 </p>
               </div>
               <dl className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
                 <Field label="Nome" value={pessoa.nome} />
+                <Field label="Alcunha" value={pessoa.alcunha || "—"} />
                 <Field label="Tipo" value={labelPessoaTipo(pessoa.tipo)} />
                 <Field label="CPF" value={formatCpf(pessoa.cpf)} />
                 <Field
@@ -102,12 +104,12 @@ export default async function PessoaDetailPage({ params }: Props) {
                   value={formatNascimentoComIdade(pessoa.data_nascimento)}
                 />
                 <Field label="Profissão" value={pessoa.profissao || "—"} />
-                <Field
-                  label="Data de cadastro"
-                  value={formatDate(pessoa.data_cadastro)}
-                />
                 <Field label="Nome da mãe" value={pessoa.nome_mae || "—"} />
                 <Field label="Nome do pai" value={pessoa.nome_pai || "—"} />
+                <CadastroMeta
+                  dataCadastro={pessoa.data_cadastro}
+                  usuarioCadastroId={pessoa.usuario_cadastro}
+                />
               </dl>
             </div>
           </Panel>

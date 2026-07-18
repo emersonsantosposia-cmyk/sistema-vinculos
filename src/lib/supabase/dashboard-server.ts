@@ -1,48 +1,26 @@
 import {
   DASHBOARD_ENTITIES,
+  DOCUMENTO_TIPO_CHART_KEYS,
+  timeFilterToRange,
+  type DashboardCasoStatusPoint,
   type DashboardCounts,
   type DashboardEntityKey,
-  type DashboardPeriodMode,
-  type DashboardSeriesPoint,
+  type DashboardEntityTotalPoint,
+  type DashboardDocTipoUnidadePoint,
+  type DashboardTimeFilter,
   type DashboardUnidadePoint,
+  type DocumentoTipoChartKey,
 } from "@/lib/dashboard";
 import { UNIDADES } from "@/lib/perfis";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
-
-const MONTH_LABELS = [
-  "Jan",
-  "Fev",
-  "Mar",
-  "Abr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Set",
-  "Out",
-  "Nov",
-  "Dez",
-];
-
-type RpcPeriodRow = {
-  periodo: string;
-  pessoas: number | string;
-  empresas: number | string;
-  enderecos: number | string;
-  veiculos: number | string;
-  procedimentos: number | string;
-  casos: number | string;
-  comunicacoes: number | string;
-  orcrims?: number | string;
-};
 
 type RpcCountsRow = {
   pessoas: number | string;
   empresas: number | string;
   enderecos: number | string;
   veiculos: number | string;
-  procedimentos: number | string;
+  documentos: number | string;
   casos: number | string;
   comunicacoes: number | string;
   orcrims?: number | string;
@@ -51,16 +29,40 @@ type RpcCountsRow = {
   comunicacoes_ativas: number | string;
 };
 
+type RpcTotaisRow = {
+  pessoas: number | string;
+  empresas: number | string;
+  enderecos: number | string;
+  veiculos: number | string;
+  documentos: number | string;
+  casos: number | string;
+  comunicacoes: number | string;
+  orcrims?: number | string;
+};
+
+type RpcUnidadeRow = {
+  unidade: string;
+  documentos: number | string;
+  casos: number | string;
+};
+
+type RpcTipoUnidadeRow = {
+  unidade: string;
+  rci: number | string;
+  info: number | string;
+  rdci: number | string;
+  outros: number | string;
+};
+
+type RpcCasoStatusRow = {
+  unidade: string;
+  em_andamento: number | string;
+  encerrado: number | string;
+};
+
 function toNum(value: number | string | null | undefined): number {
   if (value == null) return 0;
   return typeof value === "number" ? value : Number(value) || 0;
-}
-
-function formatPeriodLabel(periodo: string, mode: DashboardPeriodMode): string {
-  if (mode === "ano") return periodo;
-  const [y, m] = periodo.split("-");
-  const idx = Number(m) - 1;
-  return `${MONTH_LABELS[idx] ?? m}/${(y ?? "").slice(2)}`;
 }
 
 function pct(part: number, total: number): number | null {
@@ -68,31 +70,40 @@ function pct(part: number, total: number): number | null {
   return Math.round((part / total) * 1000) / 10;
 }
 
-function mapRpcSeries(
-  rows: RpcPeriodRow[],
-  mode: DashboardPeriodMode,
-): DashboardSeriesPoint[] {
-  return rows.map((row) => ({
-    periodo: row.periodo,
-    label: formatPeriodLabel(row.periodo, mode),
-    pessoas: toNum(row.pessoas),
-    empresas: toNum(row.empresas),
-    enderecos: toNum(row.enderecos),
-    veiculos: toNum(row.veiculos),
-    procedimentos: toNum(row.procedimentos),
-    casos: toNum(row.casos),
-    comunicacoes: toNum(row.comunicacoes),
-    orcrims: toNum(row.orcrims),
-  }));
+function isMissingRpc(message: string): boolean {
+  return /function|does not exist|schema cache|PGRST202/i.test(message);
+}
+
+function filterToRpcArgs(filter: DashboardTimeFilter): {
+  p_ano: number | null;
+  p_mes: number | null;
+} {
+  if (filter.scope === "tudo") return { p_ano: null, p_mes: null };
+  if (filter.scope === "ano") return { p_ano: filter.year, p_mes: null };
+  return { p_ano: filter.year, p_mes: filter.month };
+}
+
+function applyDateRange<
+  T extends {
+    gte: (column: string, value: string) => T;
+    lt: (column: string, value: string) => T;
+  },
+>(query: T, from: string | null, to: string | null): T {
+  let q = query;
+  if (from) q = q.gte("data_cadastro", from);
+  if (to) q = q.lt("data_cadastro", to);
+  return q;
 }
 
 async function countExact(
   supabase: Awaited<ReturnType<typeof createClient>>,
   table: string,
   filters?: { column: string; value: string },
+  range?: { from: string | null; to: string | null },
 ): Promise<{ count: number; error: string | null }> {
   let query = supabase.from(table).select("*", { count: "exact", head: true });
   if (filters) query = query.eq(filters.column, filters.value);
+  if (range) query = applyDateRange(query, range.from, range.to);
   const { count, error } = await query;
   if (error) {
     return {
@@ -103,83 +114,140 @@ async function countExact(
   return { count: count ?? 0, error: null };
 }
 
-/** Fallback quando a RPC ainda não foi aplicada no projeto Supabase. */
-async function fetchSeriesFallback(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  mode: DashboardPeriodMode,
-): Promise<{ data: DashboardSeriesPoint[]; error: string | null }> {
-  const pageSize = 1000;
-  const dateResults = await Promise.all(
-    DASHBOARD_ENTITIES.map(async (entity) => {
-      const dates: string[] = [];
-      let from = 0;
-      for (;;) {
-        const { data, error } = await supabase
-          .from(entity.table)
-          .select("data_cadastro")
-          .order("data_cadastro", { ascending: true })
-          .range(from, from + pageSize - 1);
+function emptyUnidadeSeries(): DashboardUnidadePoint[] {
+  return UNIDADES.map((unidade) => ({
+    unidade,
+    documentos: 0,
+    casos: 0,
+  }));
+}
 
-        if (error) {
-          return {
-            key: entity.key,
-            dates: [] as string[],
-            error: friendlyError(
-              error.message,
-              `Erro ao ler datas de ${entity.table}.`,
-            ),
-          };
-        }
-        if (!data?.length) break;
-        for (const row of data) dates.push(row.data_cadastro as string);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-      return { key: entity.key, dates, error: null as string | null };
-    }),
+function emptyTipoUnidadeSeries(): DashboardDocTipoUnidadePoint[] {
+  return UNIDADES.map((unidade) => ({
+    unidade,
+    RCI: 0,
+    INFO: 0,
+    RDCI: 0,
+    OUTROS: 0,
+  }));
+}
+
+function emptyCasoStatusSeries(): DashboardCasoStatusPoint[] {
+  return UNIDADES.map((unidade) => ({
+    unidade,
+    em_andamento: 0,
+    encerrado: 0,
+  }));
+}
+
+function mergeUnidadeRows(rows: RpcUnidadeRow[]): DashboardUnidadePoint[] {
+  const byUnidade = new Map(
+    rows.map((row) => [
+      row.unidade,
+      {
+        unidade: row.unidade,
+        documentos: toNum(row.documentos),
+        casos: toNum(row.casos),
+      } satisfies DashboardUnidadePoint,
+    ]),
   );
 
-  const firstError = dateResults.find((r) => r.error)?.error ?? null;
-  if (firstError) {
-    return { data: [], error: firstError };
-  }
-
-  const byTable = Object.fromEntries(
-    dateResults.map((r) => [r.key, r.dates]),
-  ) as Record<DashboardEntityKey, string[]>;
-
-  const bucket = new Map<string, DashboardSeriesPoint>();
-
-  for (const entity of DASHBOARD_ENTITIES) {
-    for (const iso of byTable[entity.key] ?? []) {
-      const d = new Date(iso);
-      const periodo =
-        mode === "ano"
-          ? String(d.getFullYear())
-          : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-
-      let point = bucket.get(periodo);
-      if (!point) {
-        point = {
-          periodo,
-          label: formatPeriodLabel(periodo, mode),
-        };
-        bucket.set(periodo, point);
+  return UNIDADES.map((unidade) => {
+    const hit = byUnidade.get(unidade);
+    return (
+      hit ?? {
+        unidade,
+        documentos: 0,
+        casos: 0,
       }
-      point[entity.key] = (point[entity.key] ?? 0) + 1;
-    }
-  }
+    );
+  });
+}
 
-  return {
-    data: Array.from(bucket.values()).sort((a, b) =>
-      a.periodo.localeCompare(b.periodo),
-    ),
-    error: null,
+function mergeTipoUnidadeRows(
+  rows: RpcTipoUnidadeRow[],
+): DashboardDocTipoUnidadePoint[] {
+  const byUnidade = new Map(
+    rows.map((row) => [
+      row.unidade,
+      {
+        unidade: row.unidade,
+        RCI: toNum(row.rci),
+        INFO: toNum(row.info),
+        RDCI: toNum(row.rdci),
+        OUTROS: toNum(row.outros),
+      } satisfies DashboardDocTipoUnidadePoint,
+    ]),
+  );
+
+  return UNIDADES.map(
+    (unidade) =>
+      byUnidade.get(unidade) ?? {
+        unidade,
+        RCI: 0,
+        INFO: 0,
+        RDCI: 0,
+        OUTROS: 0,
+      },
+  );
+}
+
+function mergeCasoStatusRows(
+  rows: RpcCasoStatusRow[],
+): DashboardCasoStatusPoint[] {
+  const byUnidade = new Map(
+    rows.map((row) => [
+      row.unidade,
+      {
+        unidade: row.unidade,
+        em_andamento: toNum(row.em_andamento),
+        encerrado: toNum(row.encerrado),
+      } satisfies DashboardCasoStatusPoint,
+    ]),
+  );
+
+  return UNIDADES.map(
+    (unidade) =>
+      byUnidade.get(unidade) ?? {
+        unidade,
+        em_andamento: 0,
+        encerrado: 0,
+      },
+  );
+}
+
+function normalizeDocTipo(raw: string | null | undefined): DocumentoTipoChartKey {
+  const value = (raw ?? "OUTROS").toUpperCase();
+  if (value === "RELINT") return "INFO";
+  if (value === "DADOS") return "RDCI";
+  if ((DOCUMENTO_TIPO_CHART_KEYS as readonly string[]).includes(value)) {
+    return value as DocumentoTipoChartKey;
+  }
+  return "OUTROS";
+}
+
+function mapTotaisRow(row: RpcTotaisRow): DashboardEntityTotalPoint[] {
+  const totals: Record<DashboardEntityKey, number> = {
+    pessoas: toNum(row.pessoas),
+    empresas: toNum(row.empresas),
+    enderecos: toNum(row.enderecos),
+    veiculos: toNum(row.veiculos),
+    documentos: toNum(row.documentos),
+    casos: toNum(row.casos),
+    comunicacoes: toNum(row.comunicacoes),
+    orcrims: toNum(row.orcrims),
   };
+
+  return DASHBOARD_ENTITIES.map((entity) => ({
+    key: entity.key,
+    name: entity.label,
+    total: totals[entity.key],
+    fill: entity.color,
+  }));
 }
 
 /**
- * Contagens totais das 7 entidades (+ vínculos e gauges), em paralelo.
+ * Contagens totais das entidades (+ vínculos e gauges), em paralelo.
  * Prefere a RPC `contagem_entidades_dashboard`; faz fallback com head count.
  */
 export async function getDashboardCounts(): Promise<{
@@ -203,7 +271,7 @@ export async function getDashboardCounts(): Promise<{
         empresas: toNum(row.empresas),
         enderecos: toNum(row.enderecos),
         veiculos: toNum(row.veiculos),
-        procedimentos: toNum(row.procedimentos),
+        documentos: toNum(row.documentos),
         casos: toNum(row.casos),
         comunicacoes: toNum(row.comunicacoes),
         orcrims: toNum(row.orcrims),
@@ -296,32 +364,50 @@ export async function getDashboardCounts(): Promise<{
   };
 }
 
-/**
- * Inserções agrupadas por mês ou ano (shape Recharts).
- * Prefere a RPC `contagem_por_periodo(p_agrupamento)`.
- */
-export async function getInsercoesPorPeriodo(
-  agrupamento: DashboardPeriodMode,
-): Promise<{ data: DashboardSeriesPoint[]; error: string | null }> {
-  const supabase = await createClient();
+async function fetchTotaisEntidadesFallback(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  filter: DashboardTimeFilter,
+): Promise<{ data: DashboardEntityTotalPoint[]; error: string | null }> {
+  const range = timeFilterToRange(filter);
+  const results = await Promise.all(
+    DASHBOARD_ENTITIES.map(async (entity) => {
+      const result = await countExact(supabase, entity.table, undefined, range);
+      return { entity, ...result };
+    }),
+  );
 
-  const { data, error } = await supabase.rpc("contagem_por_periodo", {
-    p_agrupamento: agrupamento,
-  });
+  const firstError = results.find((r) => r.error)?.error ?? null;
+  if (firstError) return { data: [], error: firstError };
+
+  return {
+    data: results.map(({ entity, count }) => ({
+      key: entity.key,
+      name: entity.label,
+      total: count,
+      fill: entity.color,
+    })),
+    error: null,
+  };
+}
+
+/** Totais acumulados por entidade no filtro de tempo (gráfico 1). */
+export async function getTotaisEntidades(
+  filter: DashboardTimeFilter,
+): Promise<{ data: DashboardEntityTotalPoint[]; error: string | null }> {
+  const supabase = await createClient();
+  const args = filterToRpcArgs(filter);
+
+  const { data, error } = await supabase.rpc("dashboard_totais_entidades", args);
 
   if (!error && data) {
-    return {
-      data: mapRpcSeries((data as RpcPeriodRow[]) ?? [], agrupamento),
-      error: null,
-    };
+    const row = (
+      Array.isArray(data) ? data[0] : data
+    ) as RpcTotaisRow | null;
+    if (row) return { data: mapTotaisRow(row), error: null };
   }
 
-  // Função ainda não migrada / indisponível → agregação no app
-  if (
-    error &&
-    /function|does not exist|schema cache|PGRST202/i.test(error.message)
-  ) {
-    return fetchSeriesFallback(supabase, agrupamento);
+  if (error && isMissingRpc(error.message)) {
+    return fetchTotaisEntidadesFallback(supabase, filter);
   }
 
   if (error) {
@@ -329,7 +415,7 @@ export async function getInsercoesPorPeriodo(
       data: [],
       error: friendlyError(
         error.message,
-        "Erro ao carregar inserções por período.",
+        "Erro ao carregar totais por entidade.",
       ),
     };
   }
@@ -337,72 +423,27 @@ export async function getInsercoesPorPeriodo(
   return { data: [], error: null };
 }
 
-type RpcUnidadeRow = {
-  unidade: string;
-  procedimentos: number | string;
-  casos: number | string;
-};
-
-function emptyUnidadeSeries(): DashboardUnidadePoint[] {
-  return UNIDADES.map((unidade) => ({
-    unidade,
-    procedimentos: 0,
-    casos: 0,
-  }));
-}
-
-function inCurrentPeriod(iso: string, mode: DashboardPeriodMode): boolean {
-  const d = new Date(iso);
-  const now = new Date();
-  if (mode === "ano") return d.getFullYear() === now.getFullYear();
-  return (
-    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-  );
-}
-
-function mergeUnidadeRows(rows: RpcUnidadeRow[]): DashboardUnidadePoint[] {
-  const byUnidade = new Map(
-    rows.map((row) => [
-      row.unidade,
-      {
-        unidade: row.unidade,
-        procedimentos: toNum(row.procedimentos),
-        casos: toNum(row.casos),
-      } satisfies DashboardUnidadePoint,
-    ]),
-  );
-
-  return UNIDADES.map((unidade) => {
-    const hit = byUnidade.get(unidade);
-    return (
-      hit ?? {
-        unidade,
-        procedimentos: 0,
-        casos: 0,
-      }
-    );
-  });
-}
-
-/** Fallback quando a RPC ainda não foi aplicada no projeto Supabase. */
 async function fetchUnidadeFallback(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  mode: DashboardPeriodMode,
+  filter: DashboardTimeFilter,
 ): Promise<{ data: DashboardUnidadePoint[]; error: string | null }> {
+  const range = timeFilterToRange(filter);
   const pageSize = 1000;
 
   async function loadTable(
-    table: "procedimentos" | "casos",
+    table: "documentos" | "casos",
   ): Promise<{ counts: Map<string, number>; error: string | null }> {
     const counts = new Map<string, number>();
     let from = 0;
     for (;;) {
-      const { data, error } = await supabase
+      let query = supabase
         .from(table)
         .select("unidade, data_cadastro")
         .order("data_cadastro", { ascending: true })
         .range(from, from + pageSize - 1);
+      query = applyDateRange(query, range.from, range.to);
 
+      const { data, error } = await query;
       if (error) {
         return {
           counts,
@@ -414,8 +455,6 @@ async function fetchUnidadeFallback(
       }
       if (!data?.length) break;
       for (const row of data) {
-        const iso = row.data_cadastro as string;
-        if (!inCurrentPeriod(iso, mode)) continue;
         const unidade = (row.unidade as string) ?? "";
         if (!unidade) continue;
         counts.set(unidade, (counts.get(unidade) ?? 0) + 1);
@@ -426,39 +465,35 @@ async function fetchUnidadeFallback(
     return { counts, error: null };
   }
 
-  const [proc, cas] = await Promise.all([
-    loadTable("procedimentos"),
+  const [docs, cas] = await Promise.all([
+    loadTable("documentos"),
     loadTable("casos"),
   ]);
 
-  const firstError = proc.error ?? cas.error;
-  if (firstError) {
-    return { data: [], error: firstError };
-  }
+  const firstError = docs.error ?? cas.error;
+  if (firstError) return { data: [], error: firstError };
 
   return {
     data: UNIDADES.map((unidade) => ({
       unidade,
-      procedimentos: proc.counts.get(unidade) ?? 0,
+      documentos: docs.counts.get(unidade) ?? 0,
       casos: cas.counts.get(unidade) ?? 0,
     })),
     error: null,
   };
 }
 
-/**
- * Procedimentos e casos por unidade no mês ou ano civil corrente.
- * Prefere a RPC `contagem_proc_casos_por_unidade(p_agrupamento)`.
- * Sem filtro extra de permissão — RLS já limita as linhas visíveis.
- */
-export async function getProcCasosPorUnidade(
-  agrupamento: DashboardPeriodMode,
+/** Documentos e casos por unidade no filtro de tempo (gráficos 2 e 4). */
+export async function getDocCasosPorUnidade(
+  filter: DashboardTimeFilter,
 ): Promise<{ data: DashboardUnidadePoint[]; error: string | null }> {
   const supabase = await createClient();
+  const args = filterToRpcArgs(filter);
 
-  const { data, error } = await supabase.rpc("contagem_proc_casos_por_unidade", {
-    p_agrupamento: agrupamento,
-  });
+  const { data, error } = await supabase.rpc(
+    "dashboard_proc_casos_por_unidade",
+    args,
+  );
 
   if (!error && data) {
     return {
@@ -467,11 +502,8 @@ export async function getProcCasosPorUnidade(
     };
   }
 
-  if (
-    error &&
-    /function|does not exist|schema cache|PGRST202/i.test(error.message)
-  ) {
-    return fetchUnidadeFallback(supabase, agrupamento);
+  if (error && isMissingRpc(error.message)) {
+    return fetchUnidadeFallback(supabase, filter);
   }
 
   if (error) {
@@ -479,10 +511,227 @@ export async function getProcCasosPorUnidade(
       data: emptyUnidadeSeries(),
       error: friendlyError(
         error.message,
-        "Erro ao carregar procedimentos e casos por unidade.",
+        "Erro ao carregar documentos e casos por unidade.",
       ),
     };
   }
 
   return { data: emptyUnidadeSeries(), error: null };
+}
+
+async function fetchDocTipoUnidadeFallback(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  filter: DashboardTimeFilter,
+): Promise<{ data: DashboardDocTipoUnidadePoint[]; error: string | null }> {
+  const range = timeFilterToRange(filter);
+  const pageSize = 1000;
+  const counts = new Map<string, DashboardDocTipoUnidadePoint>();
+  for (const unidade of UNIDADES) {
+    counts.set(unidade, {
+      unidade,
+      RCI: 0,
+      INFO: 0,
+      RDCI: 0,
+      OUTROS: 0,
+    });
+  }
+
+  let from = 0;
+  for (;;) {
+    let query = supabase
+      .from("documentos")
+      .select("unidade, tipo, data_cadastro")
+      .order("data_cadastro", { ascending: true })
+      .range(from, from + pageSize - 1);
+    query = applyDateRange(query, range.from, range.to);
+
+    const { data, error } = await query;
+    if (error) {
+      return {
+        data: [],
+        error: friendlyError(
+          error.message,
+          "Erro ao ler documentos por tipo e unidade.",
+        ),
+      };
+    }
+    if (!data?.length) break;
+
+    for (const row of data) {
+      const unidade = (row.unidade as string) ?? "";
+      if (!unidade) continue;
+      let point = counts.get(unidade);
+      if (!point) {
+        point = {
+          unidade,
+          RCI: 0,
+          INFO: 0,
+          RDCI: 0,
+          OUTROS: 0,
+        };
+        counts.set(unidade, point);
+      }
+      const tipo = normalizeDocTipo(row.tipo as string | null);
+      point[tipo] += 1;
+    }
+
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return {
+    data: UNIDADES.map(
+      (unidade) =>
+        counts.get(unidade) ?? {
+          unidade,
+          RCI: 0,
+          INFO: 0,
+          RDCI: 0,
+          OUTROS: 0,
+        },
+    ),
+    error: null,
+  };
+}
+
+/** Documentos por tipo e unidade no filtro de tempo (gráfico 3). */
+export async function getDocPorTipoUnidade(
+  filter: DashboardTimeFilter,
+): Promise<{ data: DashboardDocTipoUnidadePoint[]; error: string | null }> {
+  const supabase = await createClient();
+  const args = filterToRpcArgs(filter);
+
+  const { data, error } = await supabase.rpc(
+    "dashboard_proc_por_tipo_unidade",
+    args,
+  );
+
+  if (!error && data) {
+    return {
+      data: mergeTipoUnidadeRows((data as RpcTipoUnidadeRow[]) ?? []),
+      error: null,
+    };
+  }
+
+  if (error && isMissingRpc(error.message)) {
+    return fetchDocTipoUnidadeFallback(supabase, filter);
+  }
+
+  if (error) {
+    return {
+      data: emptyTipoUnidadeSeries(),
+      error: friendlyError(
+        error.message,
+        "Erro ao carregar documentos por tipo e unidade.",
+      ),
+    };
+  }
+
+  return { data: emptyTipoUnidadeSeries(), error: null };
+}
+
+async function fetchCasoStatusFallback(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  filter: DashboardTimeFilter,
+): Promise<{ data: DashboardCasoStatusPoint[]; error: string | null }> {
+  const range = timeFilterToRange(filter);
+  const pageSize = 1000;
+  const counts = new Map<string, DashboardCasoStatusPoint>();
+  for (const unidade of UNIDADES) {
+    counts.set(unidade, {
+      unidade,
+      em_andamento: 0,
+      encerrado: 0,
+    });
+  }
+
+  let from = 0;
+  for (;;) {
+    let query = supabase
+      .from("casos")
+      .select("unidade, status, data_cadastro")
+      .order("data_cadastro", { ascending: true })
+      .range(from, from + pageSize - 1);
+    query = applyDateRange(query, range.from, range.to);
+
+    const { data, error } = await query;
+    if (error) {
+      return {
+        data: [],
+        error: friendlyError(
+          error.message,
+          "Erro ao ler casos por status e unidade.",
+        ),
+      };
+    }
+    if (!data?.length) break;
+
+    for (const row of data) {
+      const unidade = (row.unidade as string) ?? "";
+      if (!unidade) continue;
+      let point = counts.get(unidade);
+      if (!point) {
+        point = {
+          unidade,
+          em_andamento: 0,
+          encerrado: 0,
+        };
+        counts.set(unidade, point);
+      }
+      const status = (row.status as string) ?? "em_andamento";
+      if (status === "encerrado") point.encerrado += 1;
+      else point.em_andamento += 1;
+    }
+
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return {
+    data: UNIDADES.map(
+      (unidade) =>
+        counts.get(unidade) ?? {
+          unidade,
+          em_andamento: 0,
+          encerrado: 0,
+        },
+    ),
+    error: null,
+  };
+}
+
+/** Casos por status e unidade no filtro de tempo. */
+export async function getCasosPorStatus(
+  filter: DashboardTimeFilter,
+): Promise<{ data: DashboardCasoStatusPoint[]; error: string | null }> {
+  const supabase = await createClient();
+  const args = filterToRpcArgs(filter);
+
+  const { data, error } = await supabase.rpc(
+    "dashboard_casos_por_status",
+    args,
+  );
+
+  if (!error && data) {
+    return {
+      data: mergeCasoStatusRows((data as RpcCasoStatusRow[]) ?? []),
+      error: null,
+    };
+  }
+
+  if (error && isMissingRpc(error.message)) {
+    return fetchCasoStatusFallback(supabase, filter);
+  }
+
+  if (error) {
+    return {
+      data: emptyCasoStatusSeries(),
+      error: friendlyError(
+        error.message,
+        "Erro ao carregar casos por status.",
+      ),
+    };
+  }
+
+  return { data: emptyCasoStatusSeries(), error: null };
 }

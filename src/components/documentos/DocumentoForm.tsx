@@ -17,14 +17,14 @@ import {
   type Unidade,
 } from "@/lib/perfis";
 import {
-  createProcedimento,
-  updateProcedimento,
-} from "@/lib/supabase/procedimentos";
+  createDocumento,
+  updateDocumento,
+} from "@/lib/supabase/documentos";
 import { createClient } from "@/lib/supabase/client";
 import {
-  PROCEDIMENTO_TIPOS,
-  type Procedimento,
-  type ProcedimentoTipo,
+  DOCUMENTO_TIPOS,
+  type Documento,
+  type DocumentoTipo,
 } from "@/lib/types";
 
 function toDateInputValue(value: string | null | undefined): string {
@@ -33,10 +33,10 @@ function toDateInputValue(value: string | null | undefined): string {
 }
 
 type Props = {
-  initial?: Procedimento;
+  initial?: Documento;
 };
 
-export function ProcedimentoForm({ initial }: Props) {
+export function DocumentoForm({ initial }: Props) {
   const isEdit = Boolean(initial);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -49,7 +49,7 @@ export function ProcedimentoForm({ initial }: Props) {
   const [unidade, setUnidade] = useState<Unidade | "">(
     defaultUnidadeForPerfil(null, initial?.unidade),
   );
-  const [tipo, setTipo] = useState<ProcedimentoTipo | "">(initial?.tipo ?? "");
+  const [tipo, setTipo] = useState<DocumentoTipo | "">(initial?.tipo ?? "");
   const [nome, setNome] = useState(initial?.nome ?? "");
   const [resumo, setResumo] = useState(initial?.resumo ?? "");
   const [data, setData] = useState(toDateInputValue(initial?.data));
@@ -90,7 +90,7 @@ export function ProcedimentoForm({ initial }: Props) {
         setError("Selecione a unidade.");
         return;
       }
-      setStatus(isEdit ? "Atualizando procedimento…" : "Salvando procedimento…");
+      setStatus(isEdit ? "Atualizando documento…" : "Salvando documento…");
 
       const payload = {
         unidade,
@@ -102,15 +102,15 @@ export function ProcedimentoForm({ initial }: Props) {
       };
 
       const { data: row, error: saveError } = isEdit
-        ? await updateProcedimento(initial!.id, payload)
-        : await createProcedimento(payload);
+        ? await updateDocumento(initial!.id, payload)
+        : await createDocumento(payload);
 
       setStatus(null);
       if (saveError || !row) {
-        setError(saveError ?? "Erro ao salvar procedimento.");
+        setError(saveError ?? "Erro ao salvar documento.");
         return;
       }
-      router.push(`/procedimentos/${row.id}`);
+      router.push(`/documentos/${row.id}`);
       router.refresh();
     });
   }
@@ -130,7 +130,7 @@ export function ProcedimentoForm({ initial }: Props) {
 
       <section className="rounded border border-border bg-panel p-4">
         <h3 className="mb-3 text-sm font-semibold text-foreground">
-          Dados do procedimento
+          Dados do documento
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -161,12 +161,12 @@ export function ProcedimentoForm({ initial }: Props) {
               id="tipo"
               value={tipo}
               onChange={(e) =>
-                setTipo(e.target.value as ProcedimentoTipo | "")
+                setTipo(e.target.value as DocumentoTipo | "")
               }
               disabled={pending}
             >
               <option value="">Selecione</option>
-              {PROCEDIMENTO_TIPOS.map((t) => (
+              {DOCUMENTO_TIPOS.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
@@ -222,7 +222,7 @@ export function ProcedimentoForm({ initial }: Props) {
           variant="secondary"
           onClick={() =>
             router.push(
-              isEdit ? `/procedimentos/${initial!.id}` : "/procedimentos",
+              isEdit ? `/documentos/${initial!.id}` : "/documentos",
             )
           }
           disabled={pending}
@@ -236,7 +236,7 @@ export function ProcedimentoForm({ initial }: Props) {
               : "Salvando…"
             : isEdit
               ? "Salvar alterações"
-              : "Salvar procedimento"}
+              : "Salvar documento"}
         </Button>
       </div>
     </form>

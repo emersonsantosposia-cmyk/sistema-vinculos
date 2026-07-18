@@ -26,7 +26,7 @@ const TIPO_ORDER: BuscaEntidadeTipo[] = [
   "empresa",
   "veiculo",
   "endereco",
-  "procedimento",
+  "documento",
   "caso",
   "comunicacao",
   "orcrim",

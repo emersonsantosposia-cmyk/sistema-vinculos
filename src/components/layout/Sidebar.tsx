@@ -49,7 +49,7 @@ export function Sidebar() {
             alt="Rede Lince · PPF"
             width={224}
             height={127}
-            className="block h-auto w-full object-cover object-center"
+            className="block h-auto w-full object-contain object-center"
           />
         </div>
       </div>

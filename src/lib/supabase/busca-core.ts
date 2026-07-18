@@ -6,7 +6,7 @@ export type BuscaEntidadeTipo =
   | "empresa"
   | "endereco"
   | "veiculo"
-  | "procedimento"
+  | "documento"
   | "caso"
   | "comunicacao"
   | "orcrim"
@@ -28,7 +28,7 @@ export const BUSCA_TIPO_LABEL: Record<BuscaEntidadeTipo, string> = {
   empresa: "Empresa",
   endereco: "Endereço",
   veiculo: "Veículo",
-  procedimento: "Procedimento",
+  documento: "Documento",
   caso: "Caso",
   comunicacao: "Comunicação",
   orcrim: "Orcrim",
@@ -40,7 +40,7 @@ const HREF_BY_TIPO: Record<BuscaEntidadeTipo, (id: string) => string> = {
   empresa: (id) => `/empresas/${id}`,
   endereco: (id) => `/enderecos/${id}`,
   veiculo: (id) => `/veiculos/${id}`,
-  procedimento: (id) => `/procedimentos/${id}`,
+  documento: (id) => `/documentos/${id}`,
   caso: (id) => `/casos/${id}`,
   comunicacao: (id) => `/comunicacoes/${id}`,
   orcrim: (id) => `/orcrims/${id}`,
@@ -67,6 +67,7 @@ function sanitizeTerm(q: string): string {
 function campoLabel(campo: string): string {
   const map: Record<string, string> = {
     nome: "nome",
+    alcunha: "alcunha",
     cpf: "CPF",
     nome_mae: "nome da mãe",
     nome_pai: "nome do pai",

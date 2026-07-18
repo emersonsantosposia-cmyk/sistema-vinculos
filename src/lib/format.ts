@@ -1,26 +1,37 @@
 import {
+  CASO_STATUS,
   COMUNICACAO_STATUS,
   COMUNICACAO_TIPOS,
   COMUNICACAO_TIPOS_COM_OPERADORA,
   PESSOA_TIPOS,
-  PROCEDIMENTO_TIPOS,
+  DOCUMENTO_TIPOS,
+  type CasoStatus,
   type ComunicacaoStatus,
   type ComunicacaoTipo,
+  type DocumentoTipo,
   type PessoaTipo,
-  type ProcedimentoTipo,
 } from "@/lib/types";
 
 export function labelPessoaTipo(tipo: string): string {
+  if (tipo === "outros") return "Agente público de outros órgãos";
   return PESSOA_TIPOS.find((t) => t.value === tipo)?.label ?? tipo;
 }
 
-export function labelProcedimentoTipo(tipo: string | null | undefined): string {
-  if (!tipo) return "—";
-  return PROCEDIMENTO_TIPOS.find((t) => t.value === tipo)?.label ?? tipo;
+/** Primeiro nome + último sobrenome (ex.: "Ana Laura Costa" → "Ana Costa"). */
+export function formatNomeCurto(nome: string | null | undefined): string {
+  if (!nome?.trim()) return "—";
+  const parts = nome.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0]!;
+  return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
-export function isProcedimentoTipo(value: string): value is ProcedimentoTipo {
-  return PROCEDIMENTO_TIPOS.some((t) => t.value === value);
+export function labelDocumentoTipo(tipo: string | null | undefined): string {
+  if (!tipo) return "—";
+  return DOCUMENTO_TIPOS.find((t) => t.value === tipo)?.label ?? tipo;
+}
+
+export function isDocumentoTipo(value: string): value is DocumentoTipo {
+  return DOCUMENTO_TIPOS.some((t) => t.value === value);
 }
 
 /** Máscara 000.000.000-00 enquanto digita. */
@@ -254,6 +265,15 @@ export function isPessoaTipo(value: string): value is PessoaTipo {
 export function labelComunicacaoTipo(tipo: string | null | undefined): string {
   if (!tipo) return "—";
   return COMUNICACAO_TIPOS.find((t) => t.value === tipo)?.label ?? tipo;
+}
+
+export function labelCasoStatus(status: string | null | undefined): string {
+  if (!status) return "—";
+  return CASO_STATUS.find((t) => t.value === status)?.label ?? status;
+}
+
+export function isCasoStatus(value: string): value is CasoStatus {
+  return CASO_STATUS.some((t) => t.value === value);
 }
 
 export function labelComunicacaoStatus(

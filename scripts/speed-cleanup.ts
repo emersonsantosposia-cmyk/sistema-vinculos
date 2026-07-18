@@ -1,7 +1,7 @@
 /**
  * Apaga dados de cadastro para deixar o sistema limpo.
  *
- * Remove: pessoas, endereços, veículos, casos, procedimentos
+ * Remove: pessoas, endereços, veículos, casos, documentos
  * e vínculos/observações ligados a essas entidades.
  * Também remove fotos nos buckets fotos-pessoas e fotos-veiculos.
  *
@@ -22,7 +22,7 @@ const TARGET_TYPES = [
   "endereco",
   "veiculo",
   "caso",
-  "procedimento",
+  "documento",
 ] as const;
 
 const ENTITY_TABLES = [
@@ -30,7 +30,7 @@ const ENTITY_TABLES = [
   "enderecos",
   "veiculos",
   "casos",
-  "procedimentos",
+  "documentos",
 ] as const;
 
 const PAGE = 1000;
@@ -165,7 +165,7 @@ Este script APAGA dados permanentes.
 
 Escopo:
   - pessoas (+ fotos e redes sociais via CASCADE)
-  - endereços, veículos, casos, procedimentos
+  - endereços, veículos, casos, documentos
   - vínculos e observações ligados a esses tipos
   - arquivos em fotos-pessoas e fotos-veiculos
 

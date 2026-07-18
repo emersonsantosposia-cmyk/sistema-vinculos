@@ -50,6 +50,26 @@ const nextConfig: NextConfig = {
         destination: "/enderecos/:id/editar",
         permanent: true,
       },
+      {
+        source: "/procedimentos",
+        destination: "/documentos",
+        permanent: true,
+      },
+      {
+        source: "/procedimentos/novo",
+        destination: "/documentos/novo",
+        permanent: true,
+      },
+      {
+        source: "/procedimentos/:id",
+        destination: "/documentos/:id",
+        permanent: true,
+      },
+      {
+        source: "/procedimentos/:id/editar",
+        destination: "/documentos/:id/editar",
+        permanent: true,
+      },
     ];
   },
 };

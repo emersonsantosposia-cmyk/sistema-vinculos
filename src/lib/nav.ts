@@ -12,7 +12,7 @@ export const NAV_ITEMS: {
   { href: "/veiculos", label: "Veículos" },
   { href: "/empresas", label: "Empresas" },
   { href: "/orcrims", label: "Orcrims" },
-  { href: "/procedimentos", label: "Procedimentos" },
+  { href: "/documentos", label: "Documentos" },
   { href: "/casos", label: "Casos" },
   { href: "/usuarios", label: "Usuários", adminOnly: true },
   { href: "/auditoria", label: "Auditoria", adminOnly: true },

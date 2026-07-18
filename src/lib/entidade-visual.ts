@@ -9,7 +9,7 @@ export const ENTIDADE_COLORS: Record<EntidadeTipo, string> = {
   veiculo: "var(--cor-entidade-veiculos)",
   empresa: "var(--cor-entidade-empresas)",
   orcrim: "var(--cor-entidade-orcrims)",
-  procedimento: "var(--cor-entidade-procedimentos)",
+  documento: "var(--cor-entidade-documentos)",
   caso: "var(--cor-entidade-casos)",
 };
 
@@ -23,7 +23,7 @@ export const ENTIDADE_TO_DASHBOARD_KEY: Record<
   veiculo: "veiculos",
   empresa: "empresas",
   orcrim: "orcrims",
-  procedimento: "procedimentos",
+  documento: "documentos",
   caso: "casos",
 };
 

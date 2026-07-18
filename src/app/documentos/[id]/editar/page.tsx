@@ -1,25 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ProcedimentoForm } from "@/components/procedimentos/ProcedimentoForm";
+import { DocumentoForm } from "@/components/documentos/DocumentoForm";
 import { ErrorBanner } from "@/components/ui/Form";
-import { getProcedimentoById } from "@/lib/supabase/procedimentos-server";
+import { getDocumentoById } from "@/lib/supabase/documentos-server";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
-export default async function EditarProcedimentoPage({ params }: Props) {
+export default async function EditarDocumentoPage({ params }: Props) {
   const { id } = await params;
-  const { data: procedimento, error } = await getProcedimentoById(id);
+  const { data: documento, error } = await getDocumentoById(id);
 
   if (error) {
     return (
       <DashboardShell
-        title="Editar procedimento"
+        title="Editar documento"
         actions={
           <Link
-            href={`/procedimentos/${id}`}
+            href={`/documentos/${id}`}
             className="btn-acao-secundario"
           >
             Voltar ao detalhe
@@ -36,21 +36,21 @@ export default async function EditarProcedimentoPage({ params }: Props) {
     );
   }
 
-  if (!procedimento) notFound();
+  if (!documento) notFound();
 
   return (
     <DashboardShell
-      title="Editar procedimento"
+      title="Editar documento"
       actions={
         <Link
-          href={`/procedimentos/${id}`}
+          href={`/documentos/${id}`}
           className="btn-acao-secundario"
         >
           Voltar ao detalhe
         </Link>
       }
     >
-      <ProcedimentoForm initial={procedimento} />
+      <DocumentoForm initial={documento} />
     </DashboardShell>
   );
 }

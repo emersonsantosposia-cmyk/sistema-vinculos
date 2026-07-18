@@ -7,6 +7,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 A versão oficial do sistema está no campo `version` de `package.json`.
 
+## [1.1.0] - 2026-07-18
+
+### Alterado
+
+- Entidade **Procedimentos** renomeada para **Documentos** em todo o sistema (UI, rotas `/documentos`, tipos, Supabase, busca global, dashboard e diagrama de vínculos)
+- Migration SQL: tabela `procedimentos` → `documentos`; `entidade_tipo` `'procedimento'` → `'documento'`; RLS e `busca_global` atualizados
+- Campo interno `tipo` do documento permanece com os valores de negócio (RCI, INFO, RDCI, OUTROS)
+
+### Adicionado
+
+- Visualizações salvas do diagrama de vínculos (salvar/abrir estado do canvas)
+- Ajustes de UX do diagrama (cards compactos, avatar unificado, expansão em cascata, seleção Ctrl+clique para caminho)
+
 ## [1.0.0] - 2026-07-17
 
 Primeira versão estável do **Rede Lince**, consolidando o que já está em produção.

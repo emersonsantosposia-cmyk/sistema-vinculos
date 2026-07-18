@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { OrcrimDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
-import { formatDate } from "@/lib/format";
 import { getOrcrimById } from "@/lib/supabase/orcrims-server";
 
 type Props = {
@@ -47,7 +47,7 @@ export default async function OrcrimDetailPage({ params }: Props) {
 
   return (
     <DashboardShell
-      title={orcrim.nome}
+      title="Orcrim"
       actions={
         <div className="flex items-center gap-2">
           <Link href={`/orcrims/${orcrim.id}/editar`} className="btn-acao">
@@ -70,16 +70,16 @@ export default async function OrcrimDetailPage({ params }: Props) {
                 label="Estado de origem"
                 value={orcrim.estado_origem || "—"}
               />
-              <Field
-                label="Data de cadastro"
-                value={formatDate(orcrim.data_cadastro)}
-              />
               <div className="sm:col-span-2">
                 <Field
                   label="Descrição"
                   value={orcrim.descricao || "—"}
                 />
               </div>
+              <CadastroMeta
+                dataCadastro={orcrim.data_cadastro}
+                usuarioCadastroId={orcrim.usuario_cadastro}
+              />
             </dl>
           </Panel>
           <VinculosDiagramPanel entidadeTipo="orcrim" entidadeId={orcrim.id} />

@@ -1,29 +1,37 @@
 import { Suspense } from "react";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
-import { DashboardGauges } from "@/components/dashboard/DashboardGauges";
 import {
   EntityKpiCards,
   EntityKpiCardsSkeleton,
 } from "@/components/dashboard/EntityKpiCards";
-import type {
-  DashboardCounts,
-  DashboardSeriesPoint,
-  DashboardUnidadePoint,
+import {
+  DASHBOARD_TIME_TUDO,
+  type DashboardCasoStatusPoint,
+  type DashboardCounts,
+  type DashboardEntityTotalPoint,
+  type DashboardDocTipoUnidadePoint,
+  type DashboardUnidadePoint,
 } from "@/lib/dashboard";
 import {
+  getCasosPorStatus,
   getDashboardCounts,
-  getInsercoesPorPeriodo,
-  getProcCasosPorUnidade,
+  getDocCasosPorUnidade,
+  getDocPorTipoUnidade,
+  getTotaisEntidades,
 } from "@/lib/supabase/dashboard-server";
 
 export function DashboardView({
   counts,
-  initialSeries,
+  initialTotais,
   initialPorUnidade,
+  initialPorTipo,
+  initialCasosStatus,
 }: {
   counts: DashboardCounts;
-  initialSeries: DashboardSeriesPoint[];
+  initialTotais: DashboardEntityTotalPoint[];
   initialPorUnidade: DashboardUnidadePoint[];
+  initialPorTipo: DashboardDocTipoUnidadePoint[];
+  initialCasosStatus: DashboardCasoStatusPoint[];
 }) {
   return (
     <div className="dashboard-tactical relative min-h-full overflow-hidden">
@@ -32,18 +40,14 @@ export function DashboardView({
 
       <div className="relative space-y-6 p-5 sm:p-6">
         <header className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--cor-fundo-primaria)] shadow-[var(--cor-sombra-modal)]">
-          {/* Altura ~60% da original (582 → 349), largura integral */}
-          <div className="relative aspect-[1024/349] w-full overflow-hidden bg-[color:var(--cor-fundo-secundaria)]">
+          {/* Banner na proporção da arte — sem cortes (object-contain) */}
+          <div className="relative aspect-[2048/832] w-full overflow-hidden bg-black">
             <img
               src="/rede-lince-institucional.png"
               alt="Rede Lince — Sistema de Contrainteligência da Polícia Penal Federal (PPF)"
-              width={1024}
-              height={582}
-              className="absolute inset-0 h-full w-full object-cover object-center"
-            />
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[color:var(--cor-fundo-overlay)] to-transparent"
-              aria-hidden
+              width={2048}
+              height={832}
+              className="absolute inset-0 h-full w-full object-contain object-center"
             />
           </div>
 
@@ -61,14 +65,10 @@ export function DashboardView({
         <EntityKpiCards entities={counts.entities} />
 
         <DashboardCharts
-          initialSeries={initialSeries}
+          initialTotais={initialTotais}
           initialPorUnidade={initialPorUnidade}
-          initialMode="mes"
-        />
-
-        <DashboardGauges
-          pessoasPresasPct={counts.gauges.pessoasPresasPct}
-          comunicacoesAtivasPct={counts.gauges.comunicacoesAtivasPct}
+          initialPorTipo={initialPorTipo}
+          initialCasosStatus={initialCasosStatus}
         />
       </div>
     </div>
@@ -77,10 +77,18 @@ export function DashboardView({
 
 /** Carrega contagens e série inicial no servidor (Suspense-friendly). */
 export async function DashboardData() {
-  const [countsResult, seriesResult, porUnidadeResult] = await Promise.all([
+  const [
+    countsResult,
+    totaisResult,
+    porUnidadeResult,
+    porTipoResult,
+    casosStatusResult,
+  ] = await Promise.all([
     getDashboardCounts(),
-    getInsercoesPorPeriodo("mes"),
-    getProcCasosPorUnidade("mes"),
+    getTotaisEntidades(DASHBOARD_TIME_TUDO),
+    getDocCasosPorUnidade(DASHBOARD_TIME_TUDO),
+    getDocPorTipoUnidade(DASHBOARD_TIME_TUDO),
+    getCasosPorStatus(DASHBOARD_TIME_TUDO),
   ]);
 
   if (countsResult.error || !countsResult.data) {
@@ -96,8 +104,10 @@ export async function DashboardData() {
   return (
     <DashboardView
       counts={countsResult.data}
-      initialSeries={seriesResult.data}
+      initialTotais={totaisResult.data}
       initialPorUnidade={porUnidadeResult.data}
+      initialPorTipo={porTipoResult.data}
+      initialCasosStatus={casosStatusResult.data}
     />
   );
 }
@@ -117,12 +127,10 @@ export function DashboardFallback() {
         <EntityKpiCardsSkeleton />
         <div className="space-y-3">
           <div className="h-4 w-56 animate-pulse rounded bg-[color:var(--dash-border)]" />
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3">
             <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
             <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
-          </div>
-          <div className="h-4 w-72 animate-pulse rounded bg-[color:var(--dash-border)]" />
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
             <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
             <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
           </div>

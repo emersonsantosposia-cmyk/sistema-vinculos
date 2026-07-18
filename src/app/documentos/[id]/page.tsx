@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ProcedimentoDeleteButton } from "@/components/shared/EntityDeletes";
+import { CadastroMeta } from "@/components/shared/CadastroMeta";
+import { DocumentoDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
-import { formatDate, labelProcedimentoTipo } from "@/lib/format";
-import { getProcedimentoById } from "@/lib/supabase/procedimentos-server";
+import { formatDate, labelDocumentoTipo } from "@/lib/format";
+import { getDocumentoById } from "@/lib/supabase/documentos-server";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -34,13 +35,13 @@ function Field({
   );
 }
 
-export default async function ProcedimentoDetailPage({ params }: Props) {
+export default async function DocumentoDetailPage({ params }: Props) {
   const { id } = await params;
-  const { data: procedimento, error } = await getProcedimentoById(id);
+  const { data: documento, error } = await getDocumentoById(id);
 
   if (error) {
     return (
-      <DashboardShell title="Procedimento">
+      <DashboardShell title="Documento">
         <ErrorBanner>
           {error}{" "}
           <Link href="/login" className="font-medium underline">
@@ -51,22 +52,22 @@ export default async function ProcedimentoDetailPage({ params }: Props) {
     );
   }
 
-  if (!procedimento) notFound();
+  if (!documento) notFound();
 
   return (
     <DashboardShell
-      title="Procedimento"
+      title="Documento"
       actions={
         <div className="flex items-center gap-2">
           <Link
-            href={`/procedimentos/${procedimento.id}/editar`}
+            href={`/documentos/${documento.id}/editar`}
             className="btn-acao"
           >
             Editar
           </Link>
-          <ProcedimentoDeleteButton id={procedimento.id} />
+          <DocumentoDeleteButton id={documento.id} />
           <Link
-            href="/procedimentos"
+            href="/documentos"
             className="btn-acao-secundario"
           >
             Voltar à lista
@@ -78,68 +79,68 @@ export default async function ProcedimentoDetailPage({ params }: Props) {
         <div className="space-y-4">
           <Panel title="Dados cadastrais">
             <dl className="grid gap-3 sm:grid-cols-2">
-              <Field label="Unidade" value={procedimento.unidade || "—"} />
+              <Field label="Unidade" value={documento.unidade || "—"} />
               <Field
                 label="Tipo"
-                value={labelProcedimentoTipo(procedimento.tipo)}
+                value={labelDocumentoTipo(documento.tipo)}
               />
               <Field
                 label="Data"
                 value={
-                  procedimento.data
-                    ? formatDate(`${procedimento.data}T12:00:00`)
+                  documento.data
+                    ? formatDate(`${documento.data}T12:00:00`)
                     : "—"
                 }
               />
               <div className="sm:col-span-2">
-                <Field label="Nome" value={procedimento.nome || "—"} />
+                <Field label="Nome" value={documento.nome || "—"} />
               </div>
               <div className="sm:col-span-2">
                 <Field label="Resumo">
                   <p className="whitespace-pre-wrap">
-                    {procedimento.resumo || "—"}
+                    {documento.resumo || "—"}
                   </p>
                 </Field>
               </div>
               <div className="sm:col-span-2">
                 <Field label="Link do CRONOS">
-                  {procedimento.link_cronos ? (
+                  {documento.link_cronos ? (
                     <a
-                      href={procedimento.link_cronos}
+                      href={documento.link_cronos}
                       target="_blank"
                       rel="noreferrer"
                       className="break-all underline-offset-2 hover:underline"
                     >
-                      {procedimento.link_cronos}
+                      {documento.link_cronos}
                     </a>
                   ) : (
                     "—"
                   )}
                 </Field>
               </div>
-              <Field
-                label="Data de cadastro"
-                value={formatDate(procedimento.data_cadastro)}
+              <CadastroMeta
+                dataCadastro={documento.data_cadastro}
+                usuarioCadastroId={documento.usuario_cadastro}
               />
             </dl>
           </Panel>
           <VinculosDiagramPanel
-            entidadeTipo="procedimento"
-            entidadeId={procedimento.id}
+            entidadeTipo="documento"
+            entidadeId={documento.id}
           />
 
           <Panel title="Vínculos">
             <VinculosSection
-              entidadeTipo="procedimento"
-              entidadeId={procedimento.id}
+              entidadeTipo="documento"
+              entidadeId={documento.id}
             />
           </Panel>
         </div>
         <div>
           <Panel title="Observações">
             <ObservacoesTimeline
-              entidadeTipo="procedimento"
-              entidadeId={procedimento.id}
+              entidadeTipo="documento"
+              entidadeId={documento.id}
             />
           </Panel>
         </div>

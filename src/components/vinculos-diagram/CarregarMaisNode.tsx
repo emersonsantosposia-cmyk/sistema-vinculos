@@ -44,7 +44,7 @@ function CarregarMaisNodeComponent({ data }: NodeProps<CarregarMaisFlowNode>) {
 
   return (
     <div
-      className={`relative w-[188px] cursor-pointer rounded-lg border border-dashed border-[var(--cor-borda-destaque)] bg-[color:var(--cor-diagrama-legenda-bg)] px-3 py-2.5 text-center transition-colors hover:border-[var(--cor-destaque-dourado)] hover:bg-[var(--cor-card-fundo-hover)] ${removing ? "diagrama-node-removing" : ""}`}
+      className={`relative w-[168px] cursor-pointer rounded-md border border-dashed border-[var(--cor-borda-destaque)] bg-[color:var(--cor-diagrama-legenda-bg)] px-2 py-1.5 text-center transition-colors hover:border-[var(--cor-destaque-dourado)] hover:bg-[var(--cor-card-fundo-hover)] ${removing ? "diagrama-node-removing" : ""}`}
     >
       <Handle
         type="target"
@@ -53,16 +53,16 @@ function CarregarMaisNodeComponent({ data }: NodeProps<CarregarMaisFlowNode>) {
         style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
       />
       {loading ? (
-        <div className="flex items-center justify-center gap-2 py-1">
-          <Spinner className="h-4 w-4 text-[var(--cor-destaque-dourado)]" />
-          <span className="text-xs text-muted">Carregando…</span>
+        <div className="flex items-center justify-center gap-2 py-0.5">
+          <Spinner className="h-3.5 w-3.5 text-[var(--cor-destaque-dourado)]" />
+          <span className="text-[10px] text-muted">Carregando…</span>
         </div>
       ) : (
         <>
-          <p className="text-sm font-medium text-[var(--cor-destaque-dourado)]">
+          <p className="text-[11px] leading-tight font-medium text-[var(--cor-destaque-dourado)]">
             + {remaining} vínculo{remaining === 1 ? "" : "s"}
           </p>
-          <p className="mt-0.5 text-[11px] text-muted">
+          <p className="mt-px text-[9px] leading-tight text-muted">
             Clique para carregar mais
           </p>
         </>

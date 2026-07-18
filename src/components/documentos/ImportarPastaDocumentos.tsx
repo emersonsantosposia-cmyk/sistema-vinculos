@@ -14,21 +14,21 @@ import {
 import {
   detectTipoFromFilename,
   fileLastModifiedToDate,
-} from "@/lib/procedimentos-import";
+} from "@/lib/documentos-import";
 import {
-  createProcedimentosBatch,
-  findExistingProcedimentoNomes,
-} from "@/lib/supabase/procedimentos";
+  createDocumentosBatch,
+  findExistingDocumentoNomes,
+} from "@/lib/supabase/documentos";
 import { createClient } from "@/lib/supabase/client";
 import {
-  PROCEDIMENTO_TIPOS,
-  type ProcedimentoTipo,
+  DOCUMENTO_TIPOS,
+  type DocumentoTipo,
 } from "@/lib/types";
 
 type PreviewRow = {
   id: string;
   nome: string;
-  tipo: ProcedimentoTipo;
+  tipo: DocumentoTipo;
   data: string;
   selected: boolean;
   jaExiste: boolean;
@@ -61,7 +61,7 @@ async function readFilesFromDirectory(
   return files;
 }
 
-export function ImportarPastaProcedimentos() {
+export function ImportarPastaDocumentos() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [unsupportedMsg, setUnsupportedMsg] = useState<string | null>(null);
@@ -154,7 +154,7 @@ export function ImportarPastaProcedimentos() {
 
         setStatus("Verificando duplicados…");
         const { nomes: existing, error: dupError } =
-          await findExistingProcedimentoNomes(parsed.map((p) => p.nome));
+          await findExistingDocumentoNomes(parsed.map((p) => p.nome));
 
         if (dupError) {
           setStatus(null);
@@ -211,12 +211,12 @@ export function ImportarPastaProcedimentos() {
     startTransition(async () => {
       setError(null);
       if (!unidade) {
-        setError("Selecione a unidade dos procedimentos importados.");
+        setError("Selecione a unidade dos documentos importados.");
         return;
       }
-      setStatus(`Importando ${selected.length} procedimento(s)…`);
+      setStatus(`Importando ${selected.length} documento(s)…`);
 
-      const { created, error: saveError } = await createProcedimentosBatch(
+      const { created, error: saveError } = await createDocumentosBatch(
         selected.map((r) => ({
           tipo: r.tipo,
           nome: r.nome,
@@ -292,7 +292,7 @@ export function ImportarPastaProcedimentos() {
               {summary ? (
                 <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
                   <p>
-                    <strong>{summary.criados}</strong> procedimento
+                    <strong>{summary.criados}</strong> documento
                     {summary.criados === 1 ? "" : "s"} criado
                     {summary.criados === 1 ? "" : "s"} com sucesso.
                   </p>
@@ -386,11 +386,11 @@ export function ImportarPastaProcedimentos() {
                                 value={row.tipo}
                                 onChange={(e) =>
                                   updateRow(row.id, {
-                                    tipo: e.target.value as ProcedimentoTipo,
+                                    tipo: e.target.value as DocumentoTipo,
                                   })
                                 }
                               >
-                                {PROCEDIMENTO_TIPOS.map((t) => (
+                                {DOCUMENTO_TIPOS.map((t) => (
                                   <option key={t.value} value={t.value}>
                                     {t.label}
                                   </option>

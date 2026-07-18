@@ -12,7 +12,7 @@ import {
 } from "@/lib/perfis";
 import { createCaso, updateCaso } from "@/lib/supabase/casos";
 import { createClient } from "@/lib/supabase/client";
-import type { Caso } from "@/lib/types";
+import { CASO_STATUS, type Caso, type CasoStatus } from "@/lib/types";
 
 function toDateInputValue(value: string | null | undefined): string {
   if (!value) return "";
@@ -28,7 +28,7 @@ export function CasoForm({ initial }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
   const [perfilReady, setPerfilReady] = useState(false);
 
@@ -40,6 +40,12 @@ export function CasoForm({ initial }: Props) {
   const [nome, setNome] = useState(initial?.nome ?? "");
   const [dataAbertura, setDataAbertura] = useState(
     toDateInputValue(initial?.data_abertura),
+  );
+  const [status, setStatus] = useState<CasoStatus>(
+    initial?.status ?? "em_andamento",
+  );
+  const [dataEncerramento, setDataEncerramento] = useState(
+    toDateInputValue(initial?.data_encerramento),
   );
   const [linkCronos, setLinkCronos] = useState(initial?.link_cronos ?? "");
 
@@ -69,6 +75,13 @@ export function CasoForm({ initial }: Props) {
     })();
   }, [initial?.unidade]);
 
+  function handleStatusChange(next: CasoStatus) {
+    setStatus(next);
+    if (next !== "encerrado") {
+      setDataEncerramento("");
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -78,13 +91,20 @@ export function CasoForm({ initial }: Props) {
         setError("Selecione a unidade.");
         return;
       }
-      setStatus(isEdit ? "Atualizando caso…" : "Salvando caso…");
+      if (status === "encerrado" && !dataEncerramento) {
+        setError("Informe a data de encerramento.");
+        return;
+      }
+      setStatusMsg(isEdit ? "Atualizando caso…" : "Salvando caso…");
 
       const payload = {
         unidade,
         numero,
         nome,
         data_abertura: dataAbertura,
+        status,
+        data_encerramento:
+          status === "encerrado" ? dataEncerramento : null,
         link_cronos: linkCronos,
       };
 
@@ -92,7 +112,7 @@ export function CasoForm({ initial }: Props) {
         ? await updateCaso(initial!.id, payload)
         : await createCaso(payload);
 
-      setStatus(null);
+      setStatusMsg(null);
       if (saveError || !data) {
         setError(saveError ?? "Erro ao salvar caso.");
         return;
@@ -109,9 +129,9 @@ export function CasoForm({ initial }: Props) {
           {error}
         </div>
       ) : null}
-      {pending && status ? (
+      {pending && statusMsg ? (
         <div className="rounded border border-border bg-panel-soft px-3 py-2 text-sm text-muted-strong">
-          {status}
+          {statusMsg}
         </div>
       ) : null}
 
@@ -161,6 +181,37 @@ export function CasoForm({ initial }: Props) {
               disabled={pending}
             />
           </div>
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select
+              id="status"
+              value={status}
+              onChange={(e) =>
+                handleStatusChange(e.target.value as CasoStatus)
+              }
+              disabled={pending}
+              required
+            >
+              {CASO_STATUS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          {status === "encerrado" ? (
+            <div>
+              <Label htmlFor="data_encerramento">Data de encerramento</Label>
+              <Input
+                id="data_encerramento"
+                type="date"
+                value={dataEncerramento}
+                onChange={(e) => setDataEncerramento(e.target.value)}
+                disabled={pending}
+                required
+              />
+            </div>
+          ) : null}
           <div className="sm:col-span-2">
             <Label htmlFor="nome">Nome</Label>
             <Input

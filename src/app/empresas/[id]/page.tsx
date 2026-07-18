@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { EmpresaDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
-import { formatCnpj, formatDate } from "@/lib/format";
+import { formatCnpj } from "@/lib/format";
 import { getEmpresaById } from "@/lib/supabase/empresas-server";
 
 type Props = {
@@ -43,11 +44,9 @@ export default async function EmpresaDetailPage({ params }: Props) {
 
   if (!empresa) notFound();
 
-  const titulo = empresa.nome_fantasia || empresa.razao_social;
-
   return (
     <DashboardShell
-      title={titulo}
+      title="Empresa"
       actions={
         <div className="flex items-center gap-2">
           <Link
@@ -80,9 +79,9 @@ export default async function EmpresaDetailPage({ params }: Props) {
                 label="CNAE principal"
                 value={empresa.cnae_principal || "—"}
               />
-              <Field
-                label="Data de cadastro"
-                value={formatDate(empresa.data_cadastro)}
+              <CadastroMeta
+                dataCadastro={empresa.data_cadastro}
+                usuarioCadastroId={empresa.usuario_cadastro}
               />
             </dl>
           </Panel>

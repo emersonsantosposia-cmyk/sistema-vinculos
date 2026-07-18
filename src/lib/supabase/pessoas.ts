@@ -12,6 +12,7 @@ import type {
 export type PessoaInput = {
   tipo: PessoaTipo;
   nome: string;
+  alcunha?: string | null;
   cpf?: string | null;
   data_nascimento?: string | null;
   nome_mae?: string | null;
@@ -49,6 +50,7 @@ export async function createPessoa(
     .insert({
       tipo: input.tipo,
       nome: input.nome.trim(),
+      alcunha: emptyToNull(input.alcunha),
       cpf: emptyToNull(input.cpf),
       data_nascimento: emptyToNull(input.data_nascimento),
       nome_mae: emptyToNull(input.nome_mae),
@@ -79,6 +81,9 @@ export async function updatePessoa(
   const payload: Record<string, unknown> = {};
   if (input.tipo !== undefined) payload.tipo = input.tipo;
   if (input.nome !== undefined) payload.nome = input.nome.trim();
+  if (input.alcunha !== undefined) {
+    payload.alcunha = emptyToNull(input.alcunha);
+  }
   if (input.cpf !== undefined) payload.cpf = emptyToNull(input.cpf);
   if (input.data_nascimento !== undefined) {
     payload.data_nascimento = emptyToNull(input.data_nascimento);

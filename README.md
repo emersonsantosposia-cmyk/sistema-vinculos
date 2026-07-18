@@ -1,6 +1,6 @@
 # Rede Lince
 
-Sistema interno de registro de dados e vínculos entre entidades (pessoas, empresas, endereços, veículos, procedimentos, casos, comunicações e orcrims).
+Sistema interno de registro de dados e vínculos entre entidades (pessoas, empresas, endereços, veículos, documentos, casos, comunicações e orcrims).
 
 **Versão atual:** o campo `version` em [`package.json`](./package.json) é a fonte oficial da versão do sistema (semver: `MAJOR.MINOR.PATCH`). O histórico de mudanças está em [`CHANGELOG.md`](./CHANGELOG.md).
 

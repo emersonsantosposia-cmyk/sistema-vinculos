@@ -43,13 +43,13 @@
   outline: none;
 }
 
-/* Transição suave após o layout radial. */
-.diagrama-vinculos-shell.layout-animating .react-flow__node {
-  transition: transform 0.35s ease;
+/* Transição suave só nas arestas — nós pinados não “deslizam” e o duplo clique não falha. */
+.diagrama-vinculos-shell.layout-animating .react-flow__edge-path {
+  transition: d 0.3s ease;
 }
 
 .diagrama-vinculos-shell .react-flow__edge-path {
-  transition: d 0.35s ease;
+  transition: none;
 }
 
 /* Fade-out ao recolher ramos. */
@@ -94,4 +94,33 @@
 
 .diagrama-vinculos-shell .diagrama-node-shake {
   animation: diagrama-node-shake 0.4s ease;
+}
+
+/* Card de entidade: tamanho pelo conteúdo (não herda caixa fixa do RF). */
+.diagrama-vinculos-shell .react-flow__node-entidade {
+  width: fit-content !important;
+  height: fit-content !important;
+}
+
+.diagrama-vinculos-shell .diagrama-entidade-node {
+  display: inline-block;
+}
+
+@keyframes diagrama-path-endpoint-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px var(--cor-destaque-dourado),
+      0 0 0 0 color-mix(in srgb, var(--cor-destaque-dourado) 0%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px var(--cor-destaque-dourado),
+      0 0 14px 2px
+        color-mix(in srgb, var(--cor-destaque-dourado) 55%, transparent);
+  }
+}
+
+.diagrama-vinculos-shell .diagrama-path-endpoint {
+  animation: diagrama-path-endpoint-pulse 1.35s ease-in-out infinite;
 }

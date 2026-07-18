@@ -18,7 +18,7 @@ const TIPO_ORDER: BuscaEntidadeTipo[] = [
   "empresa",
   "veiculo",
   "endereco",
-  "procedimento",
+  "documento",
   "caso",
   "comunicacao",
   "orcrim",
@@ -43,7 +43,7 @@ async function BuscaContent({ q }: { q?: string }) {
     return (
       <p className="text-sm text-muted">
         Digite pelo menos 2 caracteres na busca do topo para pesquisar pessoas,
-        empresas, veículos, endereços, procedimentos, casos, comunicações,
+        empresas, veículos, endereços, documentos, casos, comunicações,
         orcrims e usuários.
       </p>
     );

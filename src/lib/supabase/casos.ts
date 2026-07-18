@@ -7,12 +7,14 @@ import {
   friendlyError,
   normalizeUrl,
 } from "@/lib/supabase/errors";
-import type { Caso } from "@/lib/types";
+import type { Caso, CasoStatus } from "@/lib/types";
 
 export type CasoInput = {
   numero?: string | null;
   nome?: string | null;
   data_abertura?: string | null;
+  status?: CasoStatus | null;
+  data_encerramento?: string | null;
   link_cronos?: string | null;
   unidade?: string | null;
 };
@@ -28,6 +30,14 @@ export async function createCaso(
     return { data: null, error: "Informe a unidade do caso." };
   }
 
+  const status: CasoStatus = input.status ?? "em_andamento";
+  if (status === "encerrado" && !emptyToNull(input.data_encerramento)) {
+    return {
+      data: null,
+      error: "Informe a data de encerramento.",
+    };
+  }
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from("casos")
@@ -35,6 +45,11 @@ export async function createCaso(
       numero: emptyToNull(input.numero),
       nome: emptyToNull(input.nome),
       data_abertura: emptyToNull(input.data_abertura),
+      status,
+      data_encerramento:
+        status === "encerrado"
+          ? emptyToNull(input.data_encerramento)
+          : null,
       link_cronos: normalizeUrl(input.link_cronos),
       unidade,
       usuario_cadastro: auth.user.id,
@@ -62,6 +77,29 @@ export async function updateCaso(
   if (input.nome !== undefined) payload.nome = emptyToNull(input.nome);
   if (input.data_abertura !== undefined) {
     payload.data_abertura = emptyToNull(input.data_abertura);
+  }
+  if (input.status !== undefined) {
+    const status = input.status ?? "em_andamento";
+    payload.status = status;
+    if (status === "encerrado") {
+      const dataEncerramento =
+        input.data_encerramento !== undefined
+          ? emptyToNull(input.data_encerramento)
+          : undefined;
+      if (dataEncerramento !== undefined) {
+        if (!dataEncerramento) {
+          return {
+            data: null,
+            error: "Informe a data de encerramento.",
+          };
+        }
+        payload.data_encerramento = dataEncerramento;
+      }
+    } else {
+      payload.data_encerramento = null;
+    }
+  } else if (input.data_encerramento !== undefined) {
+    payload.data_encerramento = emptyToNull(input.data_encerramento);
   }
   if (input.link_cronos !== undefined) {
     payload.link_cronos = normalizeUrl(input.link_cronos);

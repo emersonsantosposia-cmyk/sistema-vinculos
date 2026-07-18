@@ -45,6 +45,7 @@ export function PessoaForm({ initial }: Props) {
 
   const [tipo, setTipo] = useState<PessoaTipo>(pessoa?.tipo ?? "ppf");
   const [nome, setNome] = useState(pessoa?.nome ?? "");
+  const [alcunha, setAlcunha] = useState(pessoa?.alcunha ?? "");
   const [cpf, setCpf] = useState(pessoa?.cpf ?? "");
   const [dataNascimento, setDataNascimento] = useState(
     toDateInputValue(pessoa?.data_nascimento),
@@ -138,6 +139,7 @@ export function PessoaForm({ initial }: Props) {
       const payload = {
         tipo,
         nome: nome.trim(),
+        alcunha,
         cpf,
         data_nascimento: dataNascimento || null,
         nome_mae: nomeMae,
@@ -269,6 +271,16 @@ export function PessoaForm({ initial }: Props) {
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               required
+              disabled={pending}
+            />
+          </div>
+          <div>
+            <Label htmlFor="alcunha">Alcunha</Label>
+            <Input
+              id="alcunha"
+              value={alcunha}
+              onChange={(e) => setAlcunha(e.target.value)}
+              placeholder="Apelido ou nome de guerra"
               disabled={pending}
             />
           </div>

@@ -52,7 +52,7 @@ function LoginFormInner() {
             alt="Rede Lince · PPF"
             width={420}
             height={238}
-            className="block h-auto w-full object-cover"
+            className="block h-auto w-full object-contain object-center"
           />
         </div>
         <p className="text-[10px] font-medium tracking-[0.22em] text-muted uppercase">

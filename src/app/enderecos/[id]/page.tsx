@@ -2,12 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { EnderecoMapa } from "@/components/enderecos/EnderecoMapa";
+import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { EnderecoDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
-import { formatCep, formatDate, formatEnderecoResumo } from "@/lib/format";
+import { formatCep, formatEnderecoResumo } from "@/lib/format";
 import { getEnderecoById } from "@/lib/supabase/enderecos-server";
 
 type Props = {
@@ -51,7 +52,7 @@ export default async function EnderecoDetailPage({ params }: Props) {
 
   return (
     <DashboardShell
-      title={titulo}
+      title="Endereço"
       actions={
         <div className="flex items-center gap-2">
           <Link
@@ -91,9 +92,9 @@ export default async function EnderecoDetailPage({ params }: Props) {
                 label="Longitude"
                 value={endereco.longitude != null ? String(endereco.longitude) : "—"}
               />
-              <Field
-                label="Data de cadastro"
-                value={formatDate(endereco.data_cadastro)}
+              <CadastroMeta
+                dataCadastro={endereco.data_cadastro}
+                usuarioCadastroId={endereco.usuario_cadastro}
               />
             </dl>
           </Panel>

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { CasoDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
-import { formatDate } from "@/lib/format";
+import { formatDate, labelCasoStatus } from "@/lib/format";
 import { getCasoById } from "@/lib/supabase/casos-server";
 
 type Props = {
@@ -53,11 +54,9 @@ export default async function CasoDetailPage({ params }: Props) {
 
   if (!caso) notFound();
 
-  const titulo = caso.nome || caso.numero || "Caso sem nome";
-
   return (
     <DashboardShell
-      title={titulo}
+      title="Caso"
       actions={
         <div className="flex items-center gap-2">
           <Link
@@ -90,6 +89,17 @@ export default async function CasoDetailPage({ params }: Props) {
                     : "—"
                 }
               />
+              <Field label="Status" value={labelCasoStatus(caso.status)} />
+              {caso.status === "encerrado" ? (
+                <Field
+                  label="Data de encerramento"
+                  value={
+                    caso.data_encerramento
+                      ? formatDate(`${caso.data_encerramento}T12:00:00`)
+                      : "—"
+                  }
+                />
+              ) : null}
               <div className="sm:col-span-2">
                 <Field label="Nome" value={caso.nome || "—"} />
               </div>
@@ -109,9 +119,9 @@ export default async function CasoDetailPage({ params }: Props) {
                   )}
                 </Field>
               </div>
-              <Field
-                label="Data de cadastro"
-                value={formatDate(caso.data_cadastro)}
+              <CadastroMeta
+                dataCadastro={caso.data_cadastro}
+                usuarioCadastroId={caso.usuario_cadastro}
               />
             </dl>
           </Panel>

@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { VeiculoDeleteButton } from "@/components/shared/EntityDeletes";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { VeiculoFoto } from "@/components/veiculos/VeiculoFoto";
-import { formatDate, formatPlaca } from "@/lib/format";
+import { formatPlaca } from "@/lib/format";
 import { getVeiculoById } from "@/lib/supabase/veiculos-server";
 
 type Props = {
@@ -44,15 +45,9 @@ export default async function VeiculoDetailPage({ params }: Props) {
 
   if (!veiculo) notFound();
 
-  const titulo =
-    formatPlaca(veiculo.placa) !== "—"
-      ? formatPlaca(veiculo.placa)
-      : [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ") ||
-        "Veículo sem placa";
-
   return (
     <DashboardShell
-      title={titulo}
+      title="Veículo"
       actions={
         <div className="flex items-center gap-2">
           <Link
@@ -93,9 +88,9 @@ export default async function VeiculoDetailPage({ params }: Props) {
                   veiculo.ano_modelo != null ? String(veiculo.ano_modelo) : "—"
                 }
               />
-              <Field
-                label="Data de cadastro"
-                value={formatDate(veiculo.data_cadastro)}
+              <CadastroMeta
+                dataCadastro={veiculo.data_cadastro}
+                usuarioCadastroId={veiculo.usuario_cadastro}
               />
             </dl>
           </Panel>

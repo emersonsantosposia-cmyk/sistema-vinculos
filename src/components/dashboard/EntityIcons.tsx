@@ -90,7 +90,7 @@ export function EmpresaIcon(props: IconProps) {
   });
 }
 
-export function ProcedimentoIcon(props: IconProps) {
+export function DocumentoIcon(props: IconProps) {
   return base({
     ...props,
     children: (
@@ -136,7 +136,7 @@ const ICONS: Record<DashboardEntityKey, (props: IconProps) => ReactElement> = {
   veiculos: VeiculoIcon,
   empresas: EmpresaIcon,
   orcrims: OrcrimIcon,
-  procedimentos: ProcedimentoIcon,
+  documentos: DocumentoIcon,
   casos: CasoIcon,
 };
 

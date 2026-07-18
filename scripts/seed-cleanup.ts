@@ -30,7 +30,7 @@ const TABLE_BY_TIPO: Record<EntidadeTipo, EntityTable> = {
   empresa: "empresas",
   endereco: "enderecos",
   veiculo: "veiculos",
-  procedimento: "procedimentos",
+  documento: "documentos",
   caso: "casos",
   comunicacao: "comunicacoes",
 };
@@ -219,7 +219,7 @@ Para confirmar:
     "empresa",
     "endereco",
     "veiculo",
-    "procedimento",
+    "documento",
     "caso",
     "comunicacao",
   ];
