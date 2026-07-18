@@ -4,6 +4,7 @@ import {
   EntityKpiCards,
   EntityKpiCardsSkeleton,
 } from "@/components/dashboard/EntityKpiCards";
+import { PorQueLinceButton } from "@/components/dashboard/PorQueLinceButton";
 import {
   DASHBOARD_TIME_TUDO,
   type DashboardCasoStatusPoint,
@@ -52,9 +53,12 @@ export function DashboardView({
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[color:var(--dash-border)] bg-[color:var(--dash-header)] px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
-            <p className="self-center text-[9px] font-medium tracking-[0.18em] text-[color:var(--dash-muted)] uppercase sm:text-[10px] sm:tracking-[0.2em]">
-              Painel operacional · Rede Lince / PPF
-            </p>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <p className="self-center text-[9px] font-medium tracking-[0.18em] text-[color:var(--dash-muted)] uppercase sm:text-[10px] sm:tracking-[0.2em]">
+                Painel operacional · Rede Lince / PPF
+              </p>
+              <PorQueLinceButton />
+            </div>
             <div className="flex flex-wrap gap-2 sm:gap-2.5">
               <SummaryChip label="Registros" value={counts.totalRegistros} />
               <SummaryChip label="Vínculos" value={counts.totalVinculos} />
