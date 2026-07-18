@@ -1,5 +1,16 @@
 # Changelog
+markdown
+## [1.2.0] - 2026-07-18
 
+### Adicionado
+- novos gráficos no dashboard, campo alcunha em pessoas e campo de status em casos
+
+### Alterado
+- o digrama de vínculos foi reestruturado, renomeada entidade para documentos
+
+
+### Corrigido
+- melhoria na imagem dos bunners
 Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
