@@ -199,9 +199,9 @@ function EntidadeVinculoNodeComponent({
       : isRoot
         ? "Nó inicial — não pode ser removido"
         : pathEndpoint === "a"
-          ? "Selecionado para caminho (A) — Ctrl+clique para desmarcar"
+          ? "Selecionado para caminho (A) — toque/Ctrl+clique para desmarcar"
           : pathEndpoint === "b"
-            ? "Selecionado para caminho (B) — Ctrl+clique para desmarcar"
+            ? "Selecionado para caminho (B) — toque/Ctrl+clique para desmarcar"
             : null,
   ]
     .filter(Boolean)
@@ -216,7 +216,7 @@ function EntidadeVinculoNodeComponent({
       }}
     >
       <div
-        className={`group relative box-border inline-flex max-w-[260px] min-w-[160px] items-center gap-2.5 rounded-md border bg-[var(--cor-card-fundo)] p-2.5 transition-[box-shadow,border-color] ${borderClass} ${selected && !restrito ? "ring-1 ring-[var(--cor-destaque-dourado)]/40" : ""} ${removing ? "diagrama-node-removing" : ""} ${shaking ? "diagrama-node-shake" : ""}`}
+        className={`group relative box-border inline-flex max-w-[280px] min-h-[44px] min-w-[168px] items-center gap-2.5 rounded-md border bg-[var(--cor-card-fundo)] p-3 transition-[box-shadow,border-color] sm:max-w-[260px] sm:min-w-[160px] sm:p-2.5 ${borderClass} ${selected && !restrito ? "ring-1 ring-[var(--cor-destaque-dourado)]/40" : ""} ${removing ? "diagrama-node-removing" : ""} ${shaking ? "diagrama-node-shake" : ""}`}
         title={tooltip}
       >
         <Handle
@@ -244,7 +244,7 @@ function EntidadeVinculoNodeComponent({
           <button
             type="button"
             data-dismiss-node
-            className="nodrag nopan absolute -top-2 -right-2 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] text-sm leading-none text-muted opacity-0 shadow-sm transition-opacity hover:border-danger-border hover:bg-danger-bg hover:text-danger-fg group-hover:opacity-100 focus-visible:opacity-100"
+            className="diagrama-dismiss-btn nodrag nopan absolute -top-3 -right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full text-muted transition-opacity sm:-top-2 sm:-right-2 sm:h-5 sm:w-5 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
             aria-label="Remover nó do diagrama"
             title="Remover do diagrama"
             onMouseDown={(e) => {
@@ -260,7 +260,9 @@ function EntidadeVinculoNodeComponent({
               e.preventDefault();
             }}
           >
-            ×
+            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] text-base leading-none shadow-sm sm:h-5 sm:w-5 sm:text-sm hover:border-danger-border hover:bg-danger-bg hover:text-danger-fg">
+              ×
+            </span>
           </button>
         ) : null}
 

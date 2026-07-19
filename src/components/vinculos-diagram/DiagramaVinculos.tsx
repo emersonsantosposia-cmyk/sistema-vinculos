@@ -13,6 +13,7 @@ import {
   Background,
   BackgroundVariant,
   Controls,
+  MiniMap,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -30,6 +31,11 @@ import {
 } from "@/components/vinculos-diagram/CarregarMaisNode";
 import { DiagramaNodeActionsProvider } from "@/components/vinculos-diagram/DiagramaNodeActions";
 import {
+  DiagramLegend,
+  DiagramPathModeBanner,
+  DiagramToolbar,
+} from "@/components/vinculos-diagram/DiagramToolbar";
+import {
   EntidadeResumoPanel,
   type EntidadeResumoSelecionada,
 } from "@/components/vinculos-diagram/EntidadeResumoPanel";
@@ -37,6 +43,7 @@ import {
   EntidadeVinculoNode,
   type EntidadeNodeData,
 } from "@/components/vinculos-diagram/EntidadeVinculoNode";
+import { ENTIDADE_COLORS, entidadeNodeId, resolveCssColor } from "@/lib/entidade-visual";
 import {
   computeEntidadeDegrees,
   degreeToScale,
@@ -69,7 +76,6 @@ import {
   type DiagramaRestoreResult,
 } from "@/lib/supabase/diagrama-visualizacoes";
 import type { DiagramaVisualizacaoSalva } from "@/lib/diagrama-visualizacoes";
-import { entidadeNodeId } from "@/lib/entidade-visual";
 import {
   buscarVinculosDaEntidade,
   getEntidadeResumo,
@@ -111,6 +117,18 @@ const nodeTypes: NodeTypes = {
   entidade: EntidadeVinculoNode,
   carregarMais: CarregarMaisNode,
 };
+
+function useIsNarrow(query = "(max-width: 639px)") {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const sync = () => setNarrow(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, [query]);
+  return narrow;
+}
 
 type ContextMenuState = {
   x: number;
@@ -183,6 +201,12 @@ function DiagramaVinculosInner({
   const [highlightedPath, setHighlightedPath] =
     useState<ShortestPathResult | null>(null);
   const [pathMessage, setPathMessage] = useState<string | null>(null);
+  /** Modo toque: toques nos nós selecionam caminho em vez de expandir. */
+  const [pathSelectMode, setPathSelectMode] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
+  const isNarrow = useIsNarrow();
 
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveNome, setSaveNome] = useState("");
@@ -855,7 +879,7 @@ function DiagramaVinculosInner({
   const highlightPathBetweenSelected = useCallback(() => {
     if (!pathEndpointA || !pathEndpointB) {
       setPathMessage(
-        "Selecione exatamente dois nós com Ctrl+clique (Cmd no Mac) para destacar o caminho.",
+        "Selecione exatamente dois nós (Ctrl+clique no desktop, ou ative “Selecionar nós para caminho” no celular) para destacar o caminho.",
       );
       setHighlightedPath(null);
       return;
@@ -1146,8 +1170,8 @@ function DiagramaVinculosInner({
       if (!isEntidadeNode(node)) return;
       if (node.data.removing) return;
 
-      // Ctrl/Cmd+clique: só seleção de caminho — nunca expandir/recolher.
-      if (isPathModifier(event)) {
+      // Ctrl/Cmd+clique ou modo caminho (toque): só seleção — nunca expandir.
+      if (isPathModifier(event) || pathSelectMode) {
         event.preventDefault();
         event.stopPropagation();
         clearPendingClick();
@@ -1195,6 +1219,7 @@ function DiagramaVinculosInner({
       expandNode,
       isPathModifier,
       loadMore,
+      pathSelectMode,
       syncSelecionadaFromNode,
       togglePathEndpoint,
     ],
@@ -1318,11 +1343,17 @@ function DiagramaVinculosInner({
   return (
     <DiagramaNodeActionsProvider dismissNode={requestDismiss}>
       <div className={fullScreen ? "flex h-full flex-col gap-2" : "space-y-2"}>
-      <p className="text-xs text-muted">
+      <p className="hidden text-xs text-muted sm:block">
         Clique: expandir/recolher. Alt+clique: foco. Ctrl+clique (Cmd no Mac):
         marcar até 2 nós para o caminho. Duplo clique ou ×: remover. Botão
         direito: mais ações.
       </p>
+      <p className="text-xs text-muted sm:hidden">
+        Toque no nó: expandir/recolher. Use Ferramentas → “Selecionar nós para
+        caminho” para marcar A/B. Pinça para zoom; um dedo arrasta o canvas. ×
+        remove o nó.
+      </p>
+      <DiagramPathModeBanner active={pathSelectMode} />
       {pathMessage ? (
         <p
           className={`rounded border px-3 py-2 text-xs ${
@@ -1359,9 +1390,14 @@ function DiagramaVinculosInner({
             minZoom={0.2}
             maxZoom={1.6}
             nodesDraggable
-            nodeDragThreshold={5}
+            nodeDragThreshold={8}
             nodesConnectable={false}
             elementsSelectable
+            panOnDrag
+            zoomOnPinch
+            zoomOnScroll
+            zoomOnDoubleClick={false}
+            selectionOnDrag={false}
             proOptions={{ hideAttribution: true }}
           >
             <FitViewOnChange version={layoutVersion} />
@@ -1375,70 +1411,66 @@ function DiagramaVinculosInner({
               showInteractive={false}
               className="diagrama-vinculos-controls"
             />
-            <Panel position="top-right" className="!m-2 flex max-w-[16rem] flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
+            {showMinimap ? (
+              <MiniMap
+                pannable
+                zoomable
+                position={isNarrow ? "top-left" : "bottom-right"}
+                nodeStrokeWidth={2}
+                maskColor={resolveCssColor(
+                  "var(--cor-diagrama-minimap-mask)",
+                  "rgba(0,0,0,0.45)",
+                )}
+                nodeColor={(node) => {
+                  if (node.type !== "entidade") {
+                    return resolveCssColor("var(--cor-texto-muted)", "#888");
+                  }
+                  const tipo = (node.data as EntidadeNodeData | undefined)
+                    ?.entidadeTipo;
+                  if (!tipo) {
+                    return resolveCssColor("var(--cor-destaque-dourado)");
+                  }
+                  return resolveCssColor(ENTIDADE_COLORS[tipo]);
+                }}
+              />
+            ) : null}
+            {showLegend ? (
+              <Panel position="bottom-left">
+                <DiagramLegend />
+              </Panel>
+            ) : null}
+            <Panel position={isNarrow ? "bottom-right" : "top-right"}>
+              <DiagramToolbar
+                narrow={isNarrow}
+                toolsOpen={toolsOpen}
+                onToolsOpenChange={setToolsOpen}
+                pathSelectMode={pathSelectMode}
+                onPathSelectModeChange={setPathSelectMode}
+                showMinimap={showMinimap}
+                onShowMinimapChange={setShowMinimap}
+                showLegend={showLegend}
+                onShowLegendChange={setShowLegend}
+                ioPending={ioPending}
+                nodesEmpty={nodes.length === 0}
+                expandingCascade={expandingCascade}
+                nodesCount={nodes.length}
+                focusNodeId={focusNodeId}
+                pathEndpointA={pathEndpointA}
+                pathEndpointB={pathEndpointB}
+                hasPathState={Boolean(
+                  pathEndpointA || pathEndpointB || highlightedPath,
+                )}
+                onSave={() => {
                   setSaveError(null);
                   setSaveNome("");
                   setSaveOpen(true);
                 }}
-                disabled={ioPending || nodes.length === 0}
-                className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50"
-              >
-                Salvar visualização
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenList}
-                disabled={ioPending}
-                className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50"
-              >
-                Abrir visualização salva
-              </button>
-              <button
-                type="button"
-                onClick={reorganize}
-                disabled={expandingCascade || nodes.length < 2}
-                className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50"
-              >
-                Reorganizar automaticamente
-              </button>
-              {focusNodeId ? (
-                <button
-                  type="button"
-                  onClick={clearFocus}
-                  className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)]"
-                >
-                  Remover foco
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={highlightPathBetweenSelected}
-                disabled={!pathEndpointA || !pathEndpointB}
-                className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50"
-              >
-                Destacar caminho entre selecionados
-              </button>
-              {pathEndpointA || pathEndpointB || highlightedPath ? (
-                <button
-                  type="button"
-                  onClick={clearPathSelection}
-                  className="rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)]"
-                >
-                  Limpar caminho
-                </button>
-              ) : null}
-              {(pathEndpointA || pathEndpointB) && (
-                <p className="px-0.5 text-[10px] leading-snug text-muted">
-                  {pathEndpointA && pathEndpointB
-                    ? "2 nós selecionados — caminho pronto"
-                    : pathEndpointA
-                      ? "1 nó selecionado — Ctrl+clique em outro"
-                      : "Selecione 2 nós com Ctrl+clique"}
-                </p>
-              )}
+                onOpenList={handleOpenList}
+                onReorganize={reorganize}
+                onClearFocus={clearFocus}
+                onHighlightPath={highlightPathBetweenSelected}
+                onClearPath={clearPathSelection}
+              />
             </Panel>
           </ReactFlow>
 
@@ -1484,14 +1516,14 @@ function DiagramaVinculosInner({
 
       {saveOpen ? (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-[color:var(--cor-fundo-overlay)] p-4"
+          className="fixed inset-0 z-[70] flex items-stretch justify-center p-2 sm:items-center sm:p-4 bg-[color:var(--cor-fundo-overlay)]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="salvar-viz-titulo"
           onClick={() => !ioPending && setSaveOpen(false)}
         >
           <div
-            className="w-full max-w-sm space-y-3 rounded-md border border-border bg-panel p-4 shadow-[var(--cor-sombra-modal)]"
+            className="max-h-full w-full max-w-sm space-y-3 overflow-y-auto rounded-md border border-border bg-panel p-4 shadow-[var(--cor-sombra-modal)] sm:max-h-[min(80vh,32rem)]"
             onClick={(e) => e.stopPropagation()}
           >
             <h2
@@ -1552,14 +1584,14 @@ function DiagramaVinculosInner({
 
       {openListOpen ? (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-[color:var(--cor-fundo-overlay)] p-4"
+          className="fixed inset-0 z-[70] flex items-stretch justify-center p-2 sm:items-center sm:p-4 bg-[color:var(--cor-fundo-overlay)]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="abrir-viz-titulo"
           onClick={() => !ioPending && setOpenListOpen(false)}
         >
           <div
-            className="flex max-h-[min(80vh,32rem)] w-full max-w-lg flex-col rounded-md border border-border bg-panel shadow-[var(--cor-sombra-modal)]"
+            className="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-md border border-border bg-panel shadow-[var(--cor-sombra-modal)] sm:max-h-[min(80vh,32rem)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="border-b border-border px-4 py-3">

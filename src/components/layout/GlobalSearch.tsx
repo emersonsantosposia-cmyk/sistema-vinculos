@@ -52,19 +52,46 @@ function flatResults(grouped: Map<BuscaEntidadeTipo, BuscaResultado[]>) {
   return flat;
 }
 
-export function GlobalSearch() {
+type PanelLayout = {
+  position: "absolute" | "fixed";
+  top?: number;
+  left?: number;
+  width?: number;
+  maxHeight: number;
+};
+
+export function GlobalSearch({
+  mobileExpanded = false,
+  onMobileExpandedChange,
+}: {
+  /** No mobile, quando true mostra o campo expandido. */
+  mobileExpanded?: boolean;
+  onMobileExpandedChange?: (open: boolean) => void;
+} = {}) {
   const router = useRouter();
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<BuscaResultado[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [panelLayout, setPanelLayout] = useState<PanelLayout>({
+    position: "absolute",
+    maxHeight: 384,
+  });
 
   const grouped = useMemo(() => groupByTipo(results), [results]);
   const flat = useMemo(() => flatResults(grouped), [grouped]);
+
+  useEffect(() => {
+    if (!mobileExpanded) return;
+    window.requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, [mobileExpanded]);
 
   const runSearch = useCallback((value: string) => {
     const trimmed = value.trim();
@@ -92,22 +119,90 @@ export function GlobalSearch() {
     function onPointerDown(event: MouseEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
+        if (window.matchMedia("(max-width: 639px)").matches) {
+          onMobileExpandedChange?.(false);
+        }
       }
     }
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
-  }, []);
+  }, [onMobileExpandedChange]);
+
+  const term = query.trim();
+  const showDropdown = open && term.length >= MIN_CHARS;
+
+  useEffect(() => {
+    if (!showDropdown) return;
+
+    function updatePanelLayout() {
+      const root = rootRef.current;
+      if (!root) return;
+
+      const rect = root.getBoundingClientRect();
+      const vv = window.visualViewport;
+      const viewportTop = vv?.offsetTop ?? 0;
+      const viewportHeight = vv?.height ?? window.innerHeight;
+      const viewportBottom = viewportTop + viewportHeight;
+      const gap = 4;
+      const spaceBelow = Math.max(0, viewportBottom - rect.bottom - gap);
+      const spaceAbove = Math.max(0, rect.top - viewportTop - gap);
+      const isNarrow = window.matchMedia("(max-width: 639px)").matches;
+
+      if (!isNarrow) {
+        setPanelLayout({
+          position: "absolute",
+          maxHeight: Math.min(384, Math.max(spaceBelow, 120)),
+        });
+        return;
+      }
+
+      // Mobile: painel fixo limitado ao visualViewport (respeita teclado virtual).
+      const openUpward = spaceBelow < 140 && spaceAbove > spaceBelow;
+      const available = openUpward ? spaceAbove : spaceBelow;
+      const maxHeight = Math.min(384, available);
+      const width = Math.min(rect.width, window.innerWidth - 16);
+      const left = Math.max(
+        8,
+        Math.min(rect.left, window.innerWidth - width - 8),
+      );
+
+      setPanelLayout({
+        position: "fixed",
+        top: openUpward ? rect.top - gap - maxHeight : rect.bottom + gap,
+        left,
+        width,
+        maxHeight,
+      });
+    }
+
+    updatePanelLayout();
+
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", updatePanelLayout);
+    vv?.addEventListener("scroll", updatePanelLayout);
+    window.addEventListener("resize", updatePanelLayout);
+    window.addEventListener("scroll", updatePanelLayout, true);
+
+    return () => {
+      vv?.removeEventListener("resize", updatePanelLayout);
+      vv?.removeEventListener("scroll", updatePanelLayout);
+      window.removeEventListener("resize", updatePanelLayout);
+      window.removeEventListener("scroll", updatePanelLayout, true);
+    };
+  }, [showDropdown, results.length, pending]);
 
   function goToResultsPage(value = query) {
     const trimmed = value.trim();
     if (trimmed.length < MIN_CHARS) return;
     setOpen(false);
+    onMobileExpandedChange?.(false);
     router.push(`/busca?q=${encodeURIComponent(trimmed)}`);
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Escape") {
       setOpen(false);
+      onMobileExpandedChange?.(false);
       return;
     }
 
@@ -115,6 +210,7 @@ export function GlobalSearch() {
       event.preventDefault();
       if (open && activeIndex >= 0 && flat[activeIndex]) {
         setOpen(false);
+        onMobileExpandedChange?.(false);
         router.push(flat[activeIndex].href);
         return;
       }
@@ -133,14 +229,10 @@ export function GlobalSearch() {
     }
   }
 
-  const term = query.trim();
-  const showDropdown = open && term.length >= MIN_CHARS;
   const empty = !pending && !error && results.length === 0 && term.length >= MIN_CHARS;
 
-  let optionIndex = -1;
-
-  return (
-    <div ref={rootRef} className="relative min-w-0 max-w-xl flex-1">
+  const searchField = (
+    <div className="relative min-w-0 flex-1">
       <label htmlFor="global-search" className="sr-only">
         Busca global
       </label>
@@ -158,8 +250,10 @@ export function GlobalSearch() {
           />
         </svg>
         <input
+          ref={inputRef}
           id="global-search"
           type="search"
+          enterKeyHint="search"
           role="combobox"
           aria-expanded={showDropdown}
           aria-controls={listId}
@@ -174,17 +268,92 @@ export function GlobalSearch() {
             setQuery(e.target.value);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setOpen(true);
+            window.requestAnimationFrame(() => {
+              inputRef.current?.scrollIntoView({
+                block: "nearest",
+                behavior: "smooth",
+              });
+            });
+          }}
           onKeyDown={onKeyDown}
           className="campo-institucional h-8 w-full rounded pl-8 pr-3 text-sm"
         />
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      ref={rootRef}
+      className={`relative min-w-0 ${
+        mobileExpanded
+          ? "flex min-w-0 flex-1 items-center gap-1.5"
+          : "flex shrink-0 items-center sm:min-w-[6rem] sm:max-w-xl sm:flex-1"
+      }`}
+    >
+      {/* Mobile: ícone que abre a busca */}
+      {!mobileExpanded ? (
+        <button
+          type="button"
+          className="inline-flex h-8 w-8 items-center justify-center rounded border border-border bg-panel text-muted-strong hover:bg-panel-hover hover:text-gold sm:hidden"
+          aria-label="Abrir busca global"
+          onClick={() => onMobileExpandedChange?.(true)}
+        >
+          <svg
+            className="h-3.5 w-3.5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden
+          >
+            <path
+              fillRule="evenodd"
+              d="M8.5 3.5a5 5 0 103.156 8.802l3.27 3.271a.75.75 0 101.061-1.06l-3.271-3.271A5 5 0 008.5 3.5zm-3.5 5a3.5 3.5 0 117 0 3.5 3.5 0 01-7 0z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      ) : null}
+
+      {/* Campo: sempre no desktop; no mobile só quando expandido */}
+      <div
+        className={`min-w-0 flex-1 items-center gap-1.5 ${
+          mobileExpanded ? "flex" : "hidden sm:flex"
+        }`}
+      >
+        {searchField}
+        {mobileExpanded ? (
+          <button
+            type="button"
+            className="inline-flex h-8 shrink-0 items-center justify-center rounded border border-border bg-panel px-2 text-xs text-muted-strong hover:bg-panel-hover sm:hidden"
+            aria-label="Fechar busca"
+            onClick={() => {
+              setOpen(false);
+              onMobileExpandedChange?.(false);
+            }}
+          >
+            Fechar
+          </button>
+        ) : null}
       </div>
 
       {showDropdown ? (
         <div
           id={listId}
           role="listbox"
-          className="absolute right-0 left-0 z-40 mt-1 max-h-96 overflow-auto rounded border border-border bg-panel shadow-[var(--cor-sombra-dropdown)]"
+          style={{
+            position: panelLayout.position,
+            top: panelLayout.top,
+            left: panelLayout.left,
+            width: panelLayout.width,
+            maxHeight: panelLayout.maxHeight,
+          }}
+          className={`z-50 overflow-auto rounded border border-border bg-panel shadow-[var(--cor-sombra-dropdown)] ${
+            panelLayout.position === "absolute"
+              ? "right-0 left-0 mt-1"
+              : ""
+          }`}
         >
           {pending && results.length === 0 ? (
             <p className="px-3 py-2.5 text-xs text-muted">Buscando…</p>
@@ -214,8 +383,9 @@ export function GlobalSearch() {
                 </h3>
                 <ul>
                   {items.map((item) => {
-                    optionIndex += 1;
-                    const index = optionIndex;
+                    const index = flat.findIndex(
+                      (r) => r.tipo === item.tipo && r.id === item.id,
+                    );
                     const aproximada = item.tipoCorrespondencia === "aproximada";
 
                     return (
@@ -225,7 +395,10 @@ export function GlobalSearch() {
                           role="option"
                           aria-selected={index === activeIndex}
                           href={item.href}
-                          onClick={() => setOpen(false)}
+                          onClick={() => {
+                            setOpen(false);
+                            onMobileExpandedChange?.(false);
+                          }}
                           onMouseEnter={() => setActiveIndex(index)}
                           className={`block px-3 py-2 ${
                             index === activeIndex

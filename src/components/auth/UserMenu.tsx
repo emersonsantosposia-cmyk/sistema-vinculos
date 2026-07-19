@@ -3,13 +3,22 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { AboutSystemModal } from "@/components/auth/AboutSystemModal";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Button, Input, Label } from "@/components/ui/Form";
+import { ModalShell } from "@/components/ui/ModalShell";
 import {
   formatPerfilAcesso,
   type PerfilUsuario,
 } from "@/lib/perfis";
 import { createClient } from "@/lib/supabase/client";
 import { limparSessaoAtiva } from "@/lib/sessao";
+
+function iniciais(nome: string) {
+  const parts = nome.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
+}
 
 function ChangePasswordModal({
   email,
@@ -77,98 +86,80 @@ function ChangePasswordModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-[color:var(--cor-fundo-overlay)] p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="trocar-senha-titulo"
-      onClick={onClose}
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-3 rounded-md border border-border bg-panel p-4 shadow-[var(--cor-sombra-modal)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h2
-              id="trocar-senha-titulo"
-              className="text-sm font-bold tracking-[0.14em] text-gold uppercase"
-            >
-              Trocar senha
-            </h2>
-            <p className="mt-0.5 text-xs text-muted">
-              Informe a senha atual e defina a nova senha.
-            </p>
-          </div>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Fechar
-          </Button>
-        </div>
-
-        {error ? (
-          <p className="rounded border border-danger-border bg-danger-bg px-2 py-1.5 text-xs text-danger-fg">
-            {error}
-          </p>
-        ) : null}
-
-        {success ? (
-          <p className="rounded border border-border bg-panel-soft px-2 py-1.5 text-xs text-gold">
-            {success}
-          </p>
-        ) : null}
-
-        <div>
-          <Label htmlFor="senha_atual">Senha atual</Label>
-          <Input
-            id="senha_atual"
-            type="password"
-            autoComplete="current-password"
-            value={senhaAtual}
-            onChange={(e) => setSenhaAtual(e.target.value)}
-            required
-            disabled={pending}
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="nova_senha">Nova senha</Label>
-          <Input
-            id="nova_senha"
-            type="password"
-            autoComplete="new-password"
-            value={novaSenha}
-            onChange={(e) => setNovaSenha(e.target.value)}
-            required
-            minLength={8}
-            disabled={pending}
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="confirmar_senha">Confirmar nova senha</Label>
-          <Input
-            id="confirmar_senha"
-            type="password"
-            autoComplete="new-password"
-            value={confirmar}
-            onChange={(e) => setConfirmar(e.target.value)}
-            required
-            minLength={8}
-            disabled={pending}
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 pt-1">
+    <ModalShell
+      title="Trocar senha"
+      description="Informe a senha atual e defina a nova senha."
+      onClose={onClose}
+      size="sm"
+      asForm
+      onSubmit={handleSubmit}
+      labelledBy="trocar-senha-titulo"
+      footer={
+        <>
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
           <Button type="submit" disabled={pending}>
             {pending ? "Salvando…" : "Confirmar"}
           </Button>
-        </div>
-      </form>
-    </div>
+        </>
+      }
+    >
+      <div className="space-y-3">
+      {error ? (
+        <p className="rounded border border-danger-border bg-danger-bg px-2 py-1.5 text-xs text-danger-fg">
+          {error}
+        </p>
+      ) : null}
+
+      {success ? (
+        <p className="rounded border border-border bg-panel-soft px-2 py-1.5 text-xs text-gold">
+          {success}
+        </p>
+      ) : null}
+
+      <div>
+        <Label htmlFor="senha_atual">Senha atual</Label>
+        <Input
+          id="senha_atual"
+          type="password"
+          autoComplete="current-password"
+          value={senhaAtual}
+          onChange={(e) => setSenhaAtual(e.target.value)}
+          required
+          disabled={pending}
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="nova_senha">Nova senha</Label>
+        <Input
+          id="nova_senha"
+          type="password"
+          autoComplete="new-password"
+          value={novaSenha}
+          onChange={(e) => setNovaSenha(e.target.value)}
+          required
+          minLength={8}
+          disabled={pending}
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="confirmar_senha">Confirmar nova senha</Label>
+        <Input
+          id="confirmar_senha"
+          type="password"
+          autoComplete="new-password"
+          value={confirmar}
+          onChange={(e) => setConfirmar(e.target.value)}
+          required
+          minLength={8}
+          disabled={pending}
+        />
+      </div>
+      </div>
+    </ModalShell>
   );
 }
 
@@ -264,18 +255,25 @@ export function UserMenu() {
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex max-w-[240px] items-center gap-2 rounded border border-border bg-panel px-2.5 py-1.5 text-left hover:bg-panel-hover"
+          className="flex max-w-[240px] items-center gap-2 rounded border border-border bg-panel p-1 text-left hover:bg-panel-hover sm:px-2.5 sm:py-1.5"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
+          aria-label={`Menu do usuário: ${nome}`}
         >
-          <div className="min-w-0 flex-1">
+          <span
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded bg-panel-soft text-[10px] font-semibold tracking-wide text-gold"
+            aria-hidden
+          >
+            {iniciais(nome)}
+          </span>
+          <div className="hidden min-w-0 flex-1 sm:block">
             <p className="truncate text-xs font-medium text-foreground">
               {nome}
             </p>
             <p className="truncate text-[11px] text-muted">{perfilLabel}</p>
           </div>
           <span
-            className={`shrink-0 text-[10px] text-muted transition-transform ${menuOpen ? "rotate-180" : ""}`}
+            className={`hidden shrink-0 text-[10px] text-muted transition-transform sm:inline ${menuOpen ? "rotate-180" : ""}`}
             aria-hidden
           >
             ▾
@@ -285,8 +283,20 @@ export function UserMenu() {
         {menuOpen ? (
           <div
             role="menu"
-            className="absolute right-0 z-50 mt-1 min-w-[11rem] overflow-hidden rounded border border-border bg-panel py-1 shadow-[var(--cor-sombra-dropdown)]"
+            className="absolute right-0 z-50 mt-1 min-w-[12rem] overflow-hidden rounded border border-border bg-panel py-1 shadow-[var(--cor-sombra-dropdown)]"
           >
+            <div className="border-b border-border px-3 py-2 sm:hidden">
+              <p className="truncate text-xs font-medium text-foreground">
+                {nome}
+              </p>
+              <p className="truncate text-[11px] text-muted">{perfilLabel}</p>
+            </div>
+            <div className="border-b border-border px-3 py-2 sm:hidden">
+              <p className="mb-1.5 text-[10px] tracking-wide text-muted uppercase">
+                Tema
+              </p>
+              <ThemeToggle className="w-full justify-center" />
+            </div>
             <button
               type="button"
               role="menuitem"

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { Button, Input, Label } from "@/components/ui/Form";
+import { Button, FormActions, Input, Label } from "@/components/ui/Form";
 import { maskPlacaInput } from "@/lib/format";
 import {
   createVeiculo,
@@ -244,7 +244,7 @@ export function VeiculoForm({ initial }: Props) {
         </div>
       </section>
 
-      <div className="flex justify-end gap-2">
+      <FormActions>
         <Button
           type="button"
           variant="secondary"
@@ -264,7 +264,7 @@ export function VeiculoForm({ initial }: Props) {
               ? "Salvar alterações"
               : "Salvar veículo"}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

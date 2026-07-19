@@ -21,14 +21,14 @@ export function ImageLightbox({ src, alt, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={alt}
       onClick={onClose}
     >
       <div
-        className="relative flex max-h-[90vh] max-w-[min(92vw,56rem)] flex-col items-end gap-2"
+        className="relative flex max-h-full w-full flex-col items-end gap-2"
         onClick={(e) => e.stopPropagation()}
       >
         <Button type="button" variant="ghost" onClick={onClose}>
@@ -38,7 +38,7 @@ export function ImageLightbox({ src, alt, onClose }: Props) {
         <img
           src={src}
           alt={alt}
-          className="max-h-[80vh] max-w-full rounded border border-border bg-panel-soft object-contain"
+          className="max-h-full w-full rounded border border-border bg-panel-soft object-contain"
         />
       </div>
     </div>

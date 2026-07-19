@@ -3,6 +3,19 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
+import {
+  EntityListView,
+  ListCardMeta,
+  ListCardMetaSep,
+  ListCardShell,
+  ListCardTitle,
+  LIST_COL_SECONDARY,
+} from "@/components/shared/EntityListView";
+import {
+  ListFilterField,
+  ListFilterSearch,
+  ListFiltersBar,
+} from "@/components/shared/ListFiltersBar";
 import { Button, Input, Select } from "@/components/ui/Form";
 import { formatCpf } from "@/lib/format";
 import {
@@ -36,8 +49,8 @@ export function UsuariosFilters() {
   }
 
   return (
-    <div className="mb-3 flex flex-wrap items-end gap-2">
-      <div className="min-w-[200px] flex-1">
+    <ListFiltersBar>
+      <ListFilterSearch>
         <label className="mb-1 block text-xs font-medium text-muted">
           Buscar
         </label>
@@ -49,8 +62,8 @@ export function UsuariosFilters() {
             if (e.key === "Enter") apply();
           }}
         />
-      </div>
-      <div className="w-[9rem]">
+      </ListFilterSearch>
+      <ListFilterField className="w-full sm:w-[9rem]">
         <label className="mb-1 block text-xs font-medium text-muted">
           Unidade
         </label>
@@ -65,8 +78,8 @@ export function UsuariosFilters() {
             </option>
           ))}
         </Select>
-      </div>
-      <div className="w-[9rem]">
+      </ListFilterField>
+      <ListFilterField className="w-full sm:w-[9rem]">
         <label className="mb-1 block text-xs font-medium text-muted">
           Status
         </label>
@@ -75,7 +88,7 @@ export function UsuariosFilters() {
           <option value="ativo">Ativo</option>
           <option value="inativo">Inativo</option>
         </Select>
-      </div>
+      </ListFilterField>
       <button
         type="button"
         disabled={pending}
@@ -84,7 +97,7 @@ export function UsuariosFilters() {
       >
         Filtrar
       </button>
-    </div>
+    </ListFiltersBar>
   );
 }
 
@@ -120,29 +133,85 @@ export function UsuariosTable({ usuarios, currentUserId }: Props) {
     }
   }
 
-  if (usuarios.length === 0) {
+  function actionButtons(user: PerfilUsuario) {
+    const isSelf = user.id === currentUserId;
+    const busy = pendingId === user.id;
     return (
-      <div className="rounded border border-border bg-panel px-4 py-10 text-center text-sm text-muted">
-        Nenhum usuário encontrado com os filtros atuais.
-      </div>
+      <>
+        <Link
+          href={`/usuarios/${user.id}/editar`}
+          className="btn-acao-secundario text-[11px]"
+        >
+          Editar
+        </Link>
+        <Button
+          type="button"
+          variant="secondary"
+          className="text-[11px]"
+          disabled={busy || (isSelf && user.ativo)}
+          title={
+            isSelf && user.ativo
+              ? "Não é possível descredenciar a própria conta"
+              : undefined
+          }
+          onClick={() => void toggleCredenciamento(user)}
+        >
+          {busy ? "…" : user.ativo ? "Descredenciar" : "Recredenciar"}
+        </Button>
+      </>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {error ? (
-        <p className="rounded border border-danger-border bg-danger-bg px-3 py-2 text-xs text-danger-fg">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="overflow-x-auto rounded border border-border bg-panel">
-        <table className="w-full min-w-[880px] border-collapse text-left text-sm">
+    <EntityListView
+      empty={usuarios.length === 0}
+      emptyMessage="Nenhum usuário encontrado com os filtros atuais."
+      before={
+        error ? (
+          <p className="rounded border border-danger-border bg-danger-bg px-3 py-2 text-xs text-danger-fg">
+            {error}
+          </p>
+        ) : null
+      }
+      cards={usuarios.map((user) => (
+        <ListCardShell
+          key={user.id}
+          href={`/usuarios/${user.id}/editar`}
+          actions={actionButtons(user)}
+        >
+          <ListCardTitle>{user.nome}</ListCardTitle>
+          <ListCardMeta>
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
+                user.ativo
+                  ? "bg-panel-soft text-gold"
+                  : "bg-danger-bg text-danger-fg"
+              }`}
+            >
+              {user.ativo ? "Ativo" : "Inativo"}
+            </span>
+            <ListCardMetaSep />
+            <span>{labelPerfilRole(user.role)}</span>
+            <ListCardMetaSep />
+            <span>{labelUnidade(user.unidade)}</span>
+          </ListCardMeta>
+          <p className="mt-1 font-mono text-[10px] text-muted">
+            {formatCpf(user.cpf)}
+            {user.matricula ? ` · ${user.matricula}` : ""}
+          </p>
+        </ListCardShell>
+      ))}
+      table={
+        <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
               <th className="px-3 py-2.5 font-semibold">Nome</th>
-              <th className="px-3 py-2.5 font-semibold">Matrícula</th>
-              <th className="px-3 py-2.5 font-semibold">E-mail</th>
+              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                Matrícula
+              </th>
+              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                E-mail
+              </th>
               <th className="px-3 py-2.5 font-semibold">Perfil</th>
               <th className="px-3 py-2.5 font-semibold">Unidade</th>
               <th className="px-3 py-2.5 font-semibold">Status</th>
@@ -150,76 +219,59 @@ export function UsuariosTable({ usuarios, currentUserId }: Props) {
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((user) => {
-              const isSelf = user.id === currentUserId;
-              const busy = pendingId === user.id;
-              return (
-                <tr
-                  key={user.id}
-                  className="border-b border-border last:border-b-0 hover:bg-panel-hover"
+            {usuarios.map((user) => (
+              <tr
+                key={user.id}
+                className="border-b border-border last:border-b-0 hover:bg-panel-hover"
+              >
+                <td className="px-3 py-2 font-medium text-foreground">
+                  {user.nome}
+                  <div className="font-mono text-[10px] text-muted">
+                    {formatCpf(user.cpf)}
+                  </div>
+                </td>
+                <td
+                  className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted-strong`}
                 >
-                  <td className="px-3 py-2 font-medium text-foreground">
-                    {user.nome}
-                    <div className="font-mono text-[10px] text-muted">
-                      {formatCpf(user.cpf)}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-muted-strong">{user.matricula}</td>
-                  <td className="px-3 py-2 text-muted-strong">{user.email}</td>
-                  <td className="px-3 py-2 text-muted-strong">
-                    {labelPerfilRole(user.role)}
-                  </td>
-                  <td className="px-3 py-2 text-muted-strong">
-                    {labelUnidade(user.unidade)}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
-                        user.ativo
-                          ? "bg-panel-soft text-gold"
-                          : "bg-danger-bg text-danger-fg"
-                      }`}
-                    >
-                      {user.ativo ? "Ativo" : "Inativo"}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      <Link
-                        href={`/usuarios/${user.id}/editar`}
-                        className="btn-acao-secundario text-[11px]"
-                      >
-                        Editar
-                      </Link>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="text-[11px]"
-                        disabled={busy || (isSelf && user.ativo)}
-                        title={
-                          isSelf && user.ativo
-                            ? "Não é possível descredenciar a própria conta"
-                            : undefined
-                        }
-                        onClick={() => void toggleCredenciamento(user)}
-                      >
-                        {busy
-                          ? "…"
-                          : user.ativo
-                            ? "Descredenciar"
-                            : "Recredenciar"}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                  {user.matricula}
+                </td>
+                <td
+                  className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted-strong`}
+                >
+                  {user.email}
+                </td>
+                <td className="px-3 py-2 text-muted-strong">
+                  {labelPerfilRole(user.role)}
+                </td>
+                <td className="px-3 py-2 text-muted-strong">
+                  {labelUnidade(user.unidade)}
+                </td>
+                <td className="px-3 py-2">
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
+                      user.ativo
+                        ? "bg-panel-soft text-gold"
+                        : "bg-danger-bg text-danger-fg"
+                    }`}
+                  >
+                    {user.ativo ? "Ativo" : "Inativo"}
+                  </span>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {actionButtons(user)}
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
-      </div>
-      <p className="text-xs text-muted">
-        {usuarios.length} usuário{usuarios.length === 1 ? "" : "s"}
-      </p>
-    </div>
+      }
+      pagination={
+        <p className="text-xs text-muted">
+          {usuarios.length} usuário{usuarios.length === 1 ? "" : "s"}
+        </p>
+      }
+    />
   );
 }

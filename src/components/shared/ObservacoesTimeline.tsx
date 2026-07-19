@@ -179,7 +179,7 @@ export function ObservacoesTimeline({ entidadeTipo, entidadeId }: Props) {
           onChange={(e) => setMensagem(e.target.value)}
           disabled={pending}
         />
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           {error ? (
             <p className="text-xs text-danger-fg">{error}</p>
           ) : (
@@ -187,7 +187,11 @@ export function ObservacoesTimeline({ entidadeTipo, entidadeId }: Props) {
               Publicada na timeline desta entidade.
             </span>
           )}
-          <Button type="submit" disabled={pending || !mensagem.trim()}>
+          <Button
+            type="submit"
+            className="h-11 min-h-[44px] w-full sm:h-8 sm:min-h-0 sm:w-auto"
+            disabled={pending || !mensagem.trim()}
+          >
             {pending && !itemPendingId ? "Salvando…" : "Adicionar observação"}
           </Button>
         </div>

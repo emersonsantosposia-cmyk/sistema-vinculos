@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
   Button,
+  FormActions,
   Input,
   Label,
   Select,
@@ -216,7 +217,7 @@ export function DocumentoForm({ initial }: Props) {
         </div>
       </section>
 
-      <div className="flex justify-end gap-2">
+      <FormActions>
         <Button
           type="button"
           variant="secondary"
@@ -238,7 +239,7 @@ export function DocumentoForm({ initial }: Props) {
               ? "Salvar alterações"
               : "Salvar documento"}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

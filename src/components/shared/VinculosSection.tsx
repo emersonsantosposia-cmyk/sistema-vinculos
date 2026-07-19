@@ -9,6 +9,7 @@ import {
   Select,
   Textarea,
 } from "@/components/ui/Form";
+import { ModalShell } from "@/components/ui/ModalShell";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
 import { VeiculoAvatar } from "@/components/veiculos/VeiculoAvatar";
 import { formatDateTime } from "@/lib/format";
@@ -241,103 +242,76 @@ function VinculoDetalheModal({
   card: VinculoCard;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="vinculo-detalhe-titulo"
-      onClick={onClose}
+    <ModalShell
+      title="Detalhes do vínculo"
+      onClose={onClose}
+      size="md"
+      darkBackdrop
+      labelledBy="vinculo-detalhe-titulo"
+      footer={
+        card.restrito ? (
+          <p className="text-xs text-muted italic sm:mr-auto">
+            Sem permissão para abrir este registro.
+          </p>
+        ) : (
+          <a
+            href={`${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`}
+            className="btn-acao-secundario text-xs"
+          >
+            Abrir entidade
+          </a>
+        )
+      }
     >
-      <div
-        className="w-full max-w-md rounded-md border border-border bg-panel p-4 shadow-[var(--cor-sombra-modal)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p
-              id="vinculo-detalhe-titulo"
-              className="text-sm font-bold tracking-[0.14em] text-gold uppercase"
-            >
-              Detalhes do vínculo
-            </p>
-            <p className="mt-1 text-sm text-foreground">{card.titulo}</p>
-            <p className="mt-0.5 text-xs text-muted">
-              {ENTIDADE_LABELS[card.outroTipo]}
-              {card.tipo_vinculo
-                ? ` · ${formatTipoVinculoLabel(card.tipo_vinculo)}`
-                : ""}
-            </p>
-          </div>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Fechar
-          </Button>
-        </div>
+      <p className="text-sm text-foreground">{card.titulo}</p>
+      <p className="mt-0.5 text-xs text-muted">
+        {ENTIDADE_LABELS[card.outroTipo]}
+        {card.tipo_vinculo
+          ? ` · ${formatTipoVinculoLabel(card.tipo_vinculo)}`
+          : ""}
+      </p>
 
-        <dl className="mt-4 space-y-3 border-t border-border pt-3">
-          {card.restrito ? (
+      <dl className="mt-4 space-y-3 border-t border-border pt-3">
+        {card.restrito ? (
+          <div>
+            <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+              Acesso
+            </dt>
+            <dd className="mt-0.5 text-sm text-muted italic">
+              Sem permissão para ver fundamentação ou metadados deste vínculo.
+            </dd>
+          </div>
+        ) : (
+          <>
             <div>
               <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
-                Acesso
+                Usuário
               </dt>
-              <dd className="mt-0.5 text-sm text-muted italic">
-                Sem permissão para ver fundamentação ou metadados deste vínculo.
+              <dd className="mt-0.5 text-sm text-foreground">
+                {card.usuario_nome?.trim() || "Não informado"}
               </dd>
             </div>
-          ) : (
-            <>
-              <div>
-                <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
-                  Usuário
-                </dt>
-                <dd className="mt-0.5 text-sm text-foreground">
-                  {card.usuario_nome?.trim() || "Não informado"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
-                  Data de criação
-                </dt>
-                <dd className="mt-0.5 text-sm text-foreground">
-                  {formatDateTime(card.data_cadastro)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
-                  Fundamentação
-                </dt>
-                <dd className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
-                  {card.fundamentacao?.trim() || "—"}
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
-
-        <div className="mt-4 flex justify-end">
-          {card.restrito ? (
-            <p className="text-xs text-muted italic">
-              Sem permissão para abrir este registro.
-            </p>
-          ) : (
-            <a
-              href={`${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`}
-              className="btn-acao-secundario text-xs"
-            >
-              Abrir entidade
-            </a>
-          )}
-        </div>
-      </div>
-    </div>
+            <div>
+              <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+                Data de criação
+              </dt>
+              <dd className="mt-0.5 text-sm text-foreground">
+                {formatDateTime(card.data_cadastro)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+                Fundamentação
+              </dt>
+              <dd className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
+                {card.fundamentacao?.trim() || "—"}
+              </dd>
+            </div>
+          </>
+        )}
+      </dl>
+    </ModalShell>
   );
 }
 
@@ -783,9 +757,10 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
           />
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button
             type="submit"
+            className="h-11 min-h-[44px] w-full sm:h-8 sm:min-h-0 sm:w-auto"
             disabled={
               pending ||
               !fundamentacao.trim() ||

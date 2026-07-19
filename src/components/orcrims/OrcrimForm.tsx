@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Input, Label, Select, Textarea } from "@/components/ui/Form";
+import { Button, FormActions, Input, Label, Select, Textarea } from "@/components/ui/Form";
 import { UFS } from "@/lib/format";
 import { createOrcrim, updateOrcrim } from "@/lib/supabase/orcrims";
 import type { Orcrim } from "@/lib/types";
@@ -125,7 +125,7 @@ export function OrcrimForm({ initial }: Props) {
         </div>
       </section>
 
-      <div className="flex justify-end gap-2">
+      <FormActions>
         <Button
           type="button"
           variant="secondary"
@@ -145,7 +145,7 @@ export function OrcrimForm({ initial }: Props) {
               ? "Salvar alterações"
               : "Salvar orcrim"}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

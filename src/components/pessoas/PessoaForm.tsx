@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Button, Input, Label, Select } from "@/components/ui/Form";
+import { Button, FormActions, Input, Label, Select } from "@/components/ui/Form";
 import { ImageLightbox } from "@/components/shared/ImageLightbox";
 import { calcularIdade, formatIdade } from "@/lib/format";
 import {
@@ -230,7 +230,7 @@ export function PessoaForm({ initial }: Props) {
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
+      <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6 pb-2">
       {error ? (
         <div className="rounded border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger-fg">
           {error}
@@ -296,17 +296,17 @@ export function PessoaForm({ initial }: Props) {
           </div>
           <div>
             <Label htmlFor="data_nascimento">Data de nascimento</Label>
-            <div className="flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
               <Input
                 id="data_nascimento"
                 type="date"
                 value={dataNascimento}
                 onChange={(e) => setDataNascimento(e.target.value)}
                 disabled={pending}
-                className="min-w-[11rem] flex-1"
+                className="w-full min-w-0 flex-1 sm:min-w-[11rem]"
                 max={new Date().toISOString().slice(0, 10)}
               />
-              <div className="min-w-[7.5rem]">
+              <div className="w-full sm:min-w-[7.5rem] sm:w-auto">
                 <Label htmlFor="idade_calculada">Idade</Label>
                 <Input
                   id="idade_calculada"
@@ -359,7 +359,7 @@ export function PessoaForm({ initial }: Props) {
       </section>
 
       <section className="rounded border border-border bg-panel p-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-semibold text-foreground">
             Redes sociais
           </h3>
@@ -374,7 +374,7 @@ export function PessoaForm({ initial }: Props) {
         </div>
         <div className="space-y-2">
           {redes.map((linha) => (
-            <div key={linha.id} className="flex flex-wrap gap-2">
+            <div key={linha.id} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Input
                 className="min-w-[140px] flex-1"
                 placeholder="Rede (ex.: Instagram)"
@@ -562,7 +562,7 @@ export function PessoaForm({ initial }: Props) {
         </div>
       </section>
 
-      <div className="flex justify-end gap-2">
+      <FormActions>
         <Button
           type="button"
           variant="secondary"
@@ -582,7 +582,7 @@ export function PessoaForm({ initial }: Props) {
               ? "Salvar alterações"
               : "Salvar pessoa"}
         </Button>
-      </div>
+      </FormActions>
     </form>
 
       {lightbox ? (

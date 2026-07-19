@@ -2,8 +2,21 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import {
+  EntityListView,
+  ListCardButton,
+  ListCardMeta,
+  ListCardMetaSep,
+  ListCardTitle,
+  LIST_COL_SECONDARY,
+} from "@/components/shared/EntityListView";
+import {
+  ListFilterField,
+  ListFiltersBar,
+} from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
 import { Button, Input, Select } from "@/components/ui/Form";
+import { ModalShell } from "@/components/ui/ModalShell";
 import {
   AUDITORIA_ACOES,
   AUDITORIA_TABELAS,
@@ -58,8 +71,8 @@ export function AuditoriaFilters({ usuarios }: { usuarios: FilterUser[] }) {
 
   return (
     <div className="mb-3 space-y-2 rounded border border-border bg-panel p-3">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[160px] flex-1">
+      <ListFiltersBar className="mb-0">
+        <ListFilterField className="min-w-0 w-full sm:min-w-[160px] sm:flex-1">
           <label className="mb-1 block text-xs font-medium text-muted">
             Usuário
           </label>
@@ -74,8 +87,8 @@ export function AuditoriaFilters({ usuarios }: { usuarios: FilterUser[] }) {
               </option>
             ))}
           </Select>
-        </div>
-        <div className="min-w-[160px] flex-1">
+        </ListFilterField>
+        <ListFilterField className="min-w-0 w-full sm:min-w-[160px] sm:flex-1">
           <label className="mb-1 block text-xs font-medium text-muted">
             Tabela / entidade
           </label>
@@ -87,8 +100,8 @@ export function AuditoriaFilters({ usuarios }: { usuarios: FilterUser[] }) {
               </option>
             ))}
           </Select>
-        </div>
-        <div className="w-[9rem]">
+        </ListFilterField>
+        <ListFilterField className="w-full sm:w-[9rem]">
           <label className="mb-1 block text-xs font-medium text-muted">
             Ação
           </label>
@@ -100,8 +113,8 @@ export function AuditoriaFilters({ usuarios }: { usuarios: FilterUser[] }) {
               </option>
             ))}
           </Select>
-        </div>
-        <div className="w-[10rem]">
+        </ListFilterField>
+        <ListFilterField className="w-full sm:w-[10rem]">
           <label className="mb-1 block text-xs font-medium text-muted">
             De
           </label>
@@ -110,8 +123,8 @@ export function AuditoriaFilters({ usuarios }: { usuarios: FilterUser[] }) {
             value={de}
             onChange={(e) => setDe(e.target.value)}
           />
-        </div>
-        <div className="w-[10rem]">
+        </ListFilterField>
+        <ListFilterField className="w-full sm:w-[10rem]">
           <label className="mb-1 block text-xs font-medium text-muted">
             Até
           </label>
@@ -120,7 +133,7 @@ export function AuditoriaFilters({ usuarios }: { usuarios: FilterUser[] }) {
             value={ate}
             onChange={(e) => setAte(e.target.value)}
           />
-        </div>
+        </ListFilterField>
         <button
           type="button"
           disabled={pending}
@@ -137,7 +150,7 @@ export function AuditoriaFilters({ usuarios }: { usuarios: FilterUser[] }) {
         >
           Limpar
         </button>
-      </div>
+      </ListFiltersBar>
     </div>
   );
 }
@@ -155,76 +168,70 @@ function DiffModal({
   );
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="auditoria-diff-titulo"
-      onClick={onClose}
+    <ModalShell
+      title="Detalhe da edição"
+      description={`${labelAuditoriaTabela(row.tabela_afetada)} · ${formatDateTime(row.data_hora)} · ${row.usuario_nome || "Usuário não identificado"}`}
+      onClose={onClose}
+      size="2xl"
+      darkBackdrop
+      labelledBy="auditoria-diff-titulo"
     >
-      <div
-        className="max-h-[85vh] w-full max-w-3xl overflow-auto rounded-md border border-border bg-panel p-4 shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2
-              id="auditoria-diff-titulo"
-              className="text-sm font-bold tracking-[0.14em] text-gold uppercase"
-            >
-              Detalhe da edição
-            </h2>
-            <p className="mt-1 text-xs text-muted">
-              {labelAuditoriaTabela(row.tabela_afetada)} ·{" "}
-              {formatDateTime(row.data_hora)} ·{" "}
-              {row.usuario_nome || "Usuário não identificado"}
-            </p>
-            <p className="mt-0.5 font-mono text-[10px] text-muted">
-              registro {row.registro_id}
-            </p>
-          </div>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Fechar
-          </Button>
-        </div>
+      <p className="font-mono text-[10px] text-muted">
+        registro {row.registro_id}
+      </p>
 
-        {diffs.length === 0 ? (
-          <p className="mt-4 text-sm text-muted">
-            Nenhuma diferença de campo detectada.
-          </p>
-        ) : (
-          <div className="mt-4 overflow-x-auto rounded border border-border">
-            <table className="w-full min-w-[560px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.12em] text-gold uppercase">
-                  <th className="px-3 py-2">Campo</th>
-                  <th className="px-3 py-2">Valor antigo</th>
-                  <th className="px-3 py-2">Valor novo</th>
+      {diffs.length === 0 ? (
+        <p className="mt-4 text-sm text-muted">
+          Nenhuma diferença de campo detectada.
+        </p>
+      ) : (
+        <div className="mt-4 overflow-x-auto scroll-smooth rounded border border-border">
+          <table className="w-full min-w-[560px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.12em] text-gold uppercase">
+                <th className="px-3 py-2">Campo</th>
+                <th className="px-3 py-2">Valor antigo</th>
+                <th className="px-3 py-2">Valor novo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {diffs.map((d) => (
+                <tr
+                  key={d.campo}
+                  className="border-b border-border last:border-b-0"
+                >
+                  <td className="px-3 py-2 font-mono text-xs text-gold">
+                    {d.campo}
+                  </td>
+                  <td className="px-3 py-2 whitespace-pre-wrap text-danger-fg">
+                    {d.antigo}
+                  </td>
+                  <td className="px-3 py-2 whitespace-pre-wrap text-foreground">
+                    {d.novo}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {diffs.map((d) => (
-                  <tr
-                    key={d.campo}
-                    className="border-b border-border last:border-b-0"
-                  >
-                    <td className="px-3 py-2 font-mono text-xs text-gold">
-                      {d.campo}
-                    </td>
-                    <td className="px-3 py-2 whitespace-pre-wrap text-danger-fg">
-                      {d.antigo}
-                    </td>
-                    <td className="px-3 py-2 whitespace-pre-wrap text-foreground">
-                      {d.novo}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
+function AcaoBadge({ acao }: { acao: AuditoriaRow["acao"] }) {
+  return (
+    <span
+      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
+        acao === "insert"
+          ? "bg-panel-soft text-gold"
+          : acao === "delete"
+            ? "bg-danger-bg text-danger-fg"
+            : "bg-panel-soft text-muted-strong"
+      }`}
+    >
+      {labelAuditoriaAcao(acao)}
+    </span>
   );
 }
 
@@ -241,96 +248,121 @@ export function AuditoriaTable({
 }) {
   const [selected, setSelected] = useState<AuditoriaRow | null>(null);
 
-  if (rows.length === 0) {
-    return (
-      <div className="rounded border border-border bg-panel px-4 py-10 text-center text-sm text-muted">
-        Nenhum registro de auditoria com os filtros atuais.
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto rounded border border-border bg-panel">
-        <table className="w-full min-w-[960px] border-collapse text-left text-sm">
-          <thead>
-            <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-              <th className="px-3 py-2.5 font-semibold">Data/hora</th>
-              <th className="px-3 py-2.5 font-semibold">Usuário</th>
-              <th className="px-3 py-2.5 font-semibold">Tabela</th>
-              <th className="px-3 py-2.5 font-semibold">Ação</th>
-              <th className="px-3 py-2.5 font-semibold">Resumo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const clickable = row.acao === "update";
-              return (
-                <tr
-                  key={row.id}
-                  className={`border-b border-border last:border-b-0 ${
-                    clickable
-                      ? "cursor-pointer hover:bg-panel-hover"
-                      : "hover:bg-panel-hover/60"
-                  }`}
-                  onClick={() => {
-                    if (clickable) setSelected(row);
-                  }}
-                  title={
-                    clickable
-                      ? "Clique para ver o detalhe das alterações"
-                      : undefined
-                  }
-                >
-                  <td className="px-3 py-2 whitespace-nowrap text-muted-strong">
-                    {formatDateTime(row.data_hora)}
-                  </td>
-                  <td className="px-3 py-2 text-foreground">
-                    {row.usuario_nome || (
-                      <span className="text-muted">Não identificado</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-muted-strong">
-                    {labelAuditoriaTabela(row.tabela_afetada)}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
-                        row.acao === "insert"
-                          ? "bg-panel-soft text-gold"
-                          : row.acao === "delete"
-                            ? "bg-danger-bg text-danger-fg"
-                            : "bg-panel-soft text-muted-strong"
-                      }`}
+    <>
+      <EntityListView
+        empty={rows.length === 0}
+        emptyMessage="Nenhum registro de auditoria com os filtros atuais."
+        cards={rows.map((row) => {
+          const clickable = row.acao === "update";
+          return (
+            <ListCardButton
+              key={row.id}
+              disabled={!clickable}
+              title={
+                clickable
+                  ? "Toque para ver o detalhe das alterações"
+                  : undefined
+              }
+              onClick={clickable ? () => setSelected(row) : undefined}
+            >
+              <ListCardTitle>
+                <span className="font-normal text-muted-strong">
+                  {formatDateTime(row.data_hora)}
+                </span>
+              </ListCardTitle>
+              <ListCardMeta>
+                <AcaoBadge acao={row.acao} />
+                <ListCardMetaSep />
+                <span>{row.usuario_nome || "Não identificado"}</span>
+                <ListCardMetaSep />
+                <span>{labelAuditoriaTabela(row.tabela_afetada)}</span>
+              </ListCardMeta>
+              <p className="mt-1.5 line-clamp-2 text-xs text-muted-strong">
+                {resumoAuditoria(row)}
+                {clickable ? (
+                  <span className="ml-1 text-gold">· ver diff</span>
+                ) : null}
+              </p>
+            </ListCardButton>
+          );
+        })}
+        table={
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
+                <th className="px-3 py-2.5 font-semibold">Data/hora</th>
+                <th className="px-3 py-2.5 font-semibold">Usuário</th>
+                <th className="px-3 py-2.5 font-semibold">Tabela</th>
+                <th className="px-3 py-2.5 font-semibold">Ação</th>
+                <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                  Resumo
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const clickable = row.acao === "update";
+                return (
+                  <tr
+                    key={row.id}
+                    className={`border-b border-border last:border-b-0 ${
+                      clickable
+                        ? "cursor-pointer hover:bg-panel-hover"
+                        : "hover:bg-panel-hover/60"
+                    }`}
+                    onClick={() => {
+                      if (clickable) setSelected(row);
+                    }}
+                    title={
+                      clickable
+                        ? "Clique para ver o detalhe das alterações"
+                        : undefined
+                    }
+                  >
+                    <td className="px-3 py-2 whitespace-nowrap text-muted-strong">
+                      {formatDateTime(row.data_hora)}
+                    </td>
+                    <td className="px-3 py-2 text-foreground">
+                      {row.usuario_nome || (
+                        <span className="text-muted">Não identificado</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-muted-strong">
+                      {labelAuditoriaTabela(row.tabela_afetada)}
+                    </td>
+                    <td className="px-3 py-2">
+                      <AcaoBadge acao={row.acao} />
+                    </td>
+                    <td
+                      className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted-strong`}
                     >
-                      {labelAuditoriaAcao(row.acao)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-muted-strong">
-                    {resumoAuditoria(row)}
-                    {clickable ? (
-                      <span className="ml-2 text-[10px] text-gold">
-                        ver diff
-                      </span>
-                    ) : null}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <ListPagination
-        basePath="/auditoria"
-        total={total}
-        page={page}
-        pageSize={pageSize}
+                      {resumoAuditoria(row)}
+                      {clickable ? (
+                        <span className="ml-2 text-[10px] text-gold">
+                          ver diff
+                        </span>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        }
+        pagination={
+          <ListPagination
+            basePath="/auditoria"
+            total={total}
+            page={page}
+            pageSize={pageSize}
+          />
+        }
       />
 
       {selected ? (
         <DiffModal row={selected} onClose={() => setSelected(null)} />
       ) : null}
-    </div>
+    </>
   );
 }

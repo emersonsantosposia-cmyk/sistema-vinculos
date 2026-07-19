@@ -3,6 +3,20 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import {
+  EntityListView,
+  ListCardLink,
+  ListCardMeta,
+  ListCardMetaSep,
+  ListCardTitle,
+  LIST_COL_SECONDARY,
+} from "@/components/shared/EntityListView";
+import {
+  ListFilterField,
+  ListFilterSearch,
+  ListFilterTotal,
+  ListFiltersBar,
+} from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
 import { Input, Select } from "@/components/ui/Form";
 import { formatDate, labelDocumentoTipo } from "@/lib/format";
@@ -11,7 +25,6 @@ import { DOCUMENTO_TIPOS, type Documento } from "@/lib/types";
 
 type FiltersProps = {
   total: number;
-  /** Admin e Analista CGIN veem o filtro; demais analistas não. */
   showUnidadeFilter?: boolean;
 };
 
@@ -40,15 +53,14 @@ export function DocumentosFilters({
     if (nextQ.trim()) params.set("q", nextQ.trim());
     if (nextTipo) params.set("tipo", nextTipo);
     if (showUnidadeFilter && nextUnidade) params.set("unidade", nextUnidade);
-    // Sem `page` → volta para a página 1
     startTransition(() => {
       router.push(`/documentos${params.toString() ? `?${params}` : ""}`);
     });
   }
 
   return (
-    <div className="mb-3 flex flex-wrap items-end gap-2">
-      <div className="min-w-[220px] flex-1">
+    <ListFiltersBar>
+      <ListFilterSearch>
         <label className="mb-1 block text-xs font-medium text-muted">
           Buscar
         </label>
@@ -60,9 +72,9 @@ export function DocumentosFilters({
             if (e.key === "Enter") apply(q, tipo, unidade);
           }}
         />
-      </div>
+      </ListFilterSearch>
       {showUnidadeFilter ? (
-        <div className="w-40">
+        <ListFilterField className="w-full sm:w-40">
           <label className="mb-1 block text-xs font-medium text-muted">
             Unidade
           </label>
@@ -80,9 +92,9 @@ export function DocumentosFilters({
               </option>
             ))}
           </Select>
-        </div>
+        </ListFilterField>
       ) : null}
-      <div className="w-44">
+      <ListFilterField>
         <label className="mb-1 block text-xs font-medium text-muted">
           Tipo
         </label>
@@ -100,7 +112,7 @@ export function DocumentosFilters({
             </option>
           ))}
         </Select>
-      </div>
+      </ListFilterField>
       <button
         type="button"
         disabled={pending}
@@ -109,10 +121,10 @@ export function DocumentosFilters({
       >
         Filtrar
       </button>
-      <p className="ml-auto self-center text-xs text-muted">
+      <ListFilterTotal>
         {total} registro{total === 1 ? "" : "s"} no total
-      </p>
-    </div>
+      </ListFilterTotal>
+    </ListFiltersBar>
   );
 }
 
@@ -124,25 +136,39 @@ export function DocumentosTable({
 }: TableProps) {
   const rows = useMemo(() => documentos, [documentos]);
 
-  if (rows.length === 0) {
-    return (
-      <div className="rounded border border-border bg-panel px-4 py-10 text-center text-sm text-muted">
-        Nenhum documento encontrado com os filtros atuais.
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto rounded border border-border bg-panel">
-        <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+    <EntityListView
+      empty={rows.length === 0}
+      emptyMessage="Nenhum documento encontrado com os filtros atuais."
+      cards={rows.map((documento) => (
+        <ListCardLink key={documento.id} href={`/documentos/${documento.id}`}>
+          <ListCardTitle>{documento.nome || "Sem nome"}</ListCardTitle>
+          <ListCardMeta>
+            <span>{labelDocumentoTipo(documento.tipo)}</span>
+            <ListCardMetaSep />
+            <span>{documento.unidade || "—"}</span>
+            {documento.data ? (
+              <>
+                <ListCardMetaSep />
+                <span>{formatDate(`${documento.data}T12:00:00`)}</span>
+              </>
+            ) : null}
+          </ListCardMeta>
+        </ListCardLink>
+      ))}
+      table={
+        <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
               <th className="px-3 py-2.5 font-semibold">Nome</th>
               <th className="px-3 py-2.5 font-semibold">Unidade</th>
               <th className="px-3 py-2.5 font-semibold">Tipo</th>
-              <th className="px-3 py-2.5 font-semibold">Data</th>
-              <th className="px-3 py-2.5 font-semibold">Cadastro</th>
+              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                Data
+              </th>
+              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                Cadastro
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -165,25 +191,29 @@ export function DocumentosTable({
                 <td className="px-3 py-2 text-muted-strong">
                   {labelDocumentoTipo(documento.tipo)}
                 </td>
-                <td className="px-3 py-2 text-muted-strong">
+                <td
+                  className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted-strong`}
+                >
                   {documento.data
                     ? formatDate(`${documento.data}T12:00:00`)
                     : "—"}
                 </td>
-                <td className="px-3 py-2 text-muted">
+                <td className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted`}>
                   {formatDate(documento.data_cadastro)}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-      <ListPagination
-        basePath="/documentos"
-        total={total}
-        page={page}
-        pageSize={pageSize}
-      />
-    </div>
+      }
+      pagination={
+        <ListPagination
+          basePath="/documentos"
+          total={total}
+          page={page}
+          pageSize={pageSize}
+        />
+      }
+    />
   );
 }

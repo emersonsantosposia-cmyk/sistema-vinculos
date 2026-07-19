@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { Button, Input, Label, Select } from "@/components/ui/Form";
+import { Button, FormActions, Input, Label, Select } from "@/components/ui/Form";
 import {
   canChooseUnidade,
   defaultUnidadeForPerfil,
@@ -235,7 +235,7 @@ export function CasoForm({ initial }: Props) {
         </div>
       </section>
 
-      <div className="flex justify-end gap-2">
+      <FormActions>
         <Button
           type="button"
           variant="secondary"
@@ -255,7 +255,7 @@ export function CasoForm({ initial }: Props) {
               ? "Salvar alterações"
               : "Salvar caso"}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

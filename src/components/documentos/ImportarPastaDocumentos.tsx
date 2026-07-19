@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Button, ErrorBanner, Label, Select } from "@/components/ui/Form";
+import { ModalShell } from "@/components/ui/ModalShell";
 import { formatDate } from "@/lib/format";
 import {
   canChooseUnidade,
@@ -256,27 +257,21 @@ export function ImportarPastaDocumentos() {
       </Button>
 
       {unsupportedMsg || error || status || summary || rows ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-16 sm:pt-24">
-          <div className="w-full max-w-4xl rounded border border-border bg-panel shadow-lg">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                {summary
-                  ? "Importação concluída"
-                  : rows
-                    ? "Pré-visualização da importação"
-                    : "Importar de pasta"}
-              </h3>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={pending}
-                onClick={resetPreview}
-              >
-                Fechar
-              </Button>
-            </div>
-
-            <div className="space-y-4 p-4">
+        <ModalShell
+          title={
+            summary
+              ? "Importação concluída"
+              : rows
+                ? "Pré-visualização da importação"
+                : "Importar de pasta"
+          }
+          onClose={() => {
+            if (!pending) resetPreview();
+          }}
+          size="4xl"
+          darkBackdrop
+        >
+          <div className="space-y-4">
               {unsupportedMsg ? (
                 <ErrorBanner>{unsupportedMsg}</ErrorBanner>
               ) : null}
@@ -457,9 +452,8 @@ export function ImportarPastaDocumentos() {
                   </Button>
                 </div>
               ) : null}
-            </div>
           </div>
-        </div>
+        </ModalShell>
       ) : null}
     </>
   );

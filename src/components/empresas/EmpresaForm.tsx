@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Input, Label } from "@/components/ui/Form";
+import { Button, FormActions, Input, Label } from "@/components/ui/Form";
 import { maskCnpjInput } from "@/lib/format";
 import { createEmpresa, updateEmpresa } from "@/lib/supabase/empresas";
 import type { Empresa } from "@/lib/types";
@@ -119,7 +119,7 @@ export function EmpresaForm({ initial }: Props) {
         </div>
       </section>
 
-      <div className="flex justify-end gap-2">
+      <FormActions>
         <Button
           type="button"
           variant="secondary"
@@ -139,7 +139,7 @@ export function EmpresaForm({ initial }: Props) {
               ? "Salvar alterações"
               : "Salvar empresa"}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

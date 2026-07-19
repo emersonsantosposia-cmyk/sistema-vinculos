@@ -3,6 +3,19 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import {
+  EntityListView,
+  ListCardLink,
+  ListCardMeta,
+  ListCardMetaSep,
+  ListCardTitle,
+  LIST_COL_SECONDARY,
+} from "@/components/shared/EntityListView";
+import {
+  ListFilterSearch,
+  ListFilterTotal,
+  ListFiltersBar,
+} from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
 import { Input } from "@/components/ui/Form";
 import { formatCep, formatDate, formatEnderecoResumo } from "@/lib/format";
@@ -28,15 +41,14 @@ export function EnderecosFilters({ total }: FiltersProps) {
   function apply(nextQ: string) {
     const params = new URLSearchParams();
     if (nextQ.trim()) params.set("q", nextQ.trim());
-    // Sem `page` → volta para a página 1
     startTransition(() => {
       router.push(`/enderecos${params.toString() ? `?${params}` : ""}`);
     });
   }
 
   return (
-    <div className="mb-3 flex flex-wrap items-end gap-2">
-      <div className="min-w-[220px] flex-1">
+    <ListFiltersBar>
+      <ListFilterSearch>
         <label className="mb-1 block text-xs font-medium text-muted">
           Buscar
         </label>
@@ -48,7 +60,7 @@ export function EnderecosFilters({ total }: FiltersProps) {
             if (e.key === "Enter") apply(q);
           }}
         />
-      </div>
+      </ListFilterSearch>
       <button
         type="button"
         disabled={pending}
@@ -57,10 +69,10 @@ export function EnderecosFilters({ total }: FiltersProps) {
       >
         Filtrar
       </button>
-      <p className="ml-auto self-center text-xs text-muted">
+      <ListFilterTotal>
         {total} registro{total === 1 ? "" : "s"} no total
-      </p>
-    </div>
+      </ListFilterTotal>
+    </ListFiltersBar>
   );
 }
 
@@ -72,25 +84,41 @@ export function EnderecosTable({
 }: TableProps) {
   const rows = useMemo(() => enderecos, [enderecos]);
 
-  if (rows.length === 0) {
-    return (
-      <div className="rounded border border-border bg-panel px-4 py-10 text-center text-sm text-muted">
-        Nenhum endereço encontrado com os filtros atuais.
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto rounded border border-border bg-panel">
-        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+    <EntityListView
+      empty={rows.length === 0}
+      emptyMessage="Nenhum endereço encontrado com os filtros atuais."
+      cards={rows.map((endereco) => {
+        const titulo =
+          endereco.nome ||
+          formatEnderecoResumo(endereco).split(" — ")[0] ||
+          "Sem nome";
+        return (
+          <ListCardLink key={endereco.id} href={`/enderecos/${endereco.id}`}>
+            <ListCardTitle>{titulo}</ListCardTitle>
+            <ListCardMeta>
+              <span className="line-clamp-2">
+                {formatEnderecoResumo(endereco)}
+              </span>
+              <ListCardMetaSep />
+              <span>{endereco.estado || "—"}</span>
+              <ListCardMetaSep />
+              <span className="font-mono">{formatCep(endereco.cep)}</span>
+            </ListCardMeta>
+          </ListCardLink>
+        );
+      })}
+      table={
+        <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
               <th className="px-3 py-2.5 font-semibold">Nome</th>
               <th className="px-3 py-2.5 font-semibold">Endereço</th>
               <th className="px-3 py-2.5 font-semibold">CEP</th>
               <th className="px-3 py-2.5 font-semibold">UF</th>
-              <th className="px-3 py-2.5 font-semibold">Cadastro</th>
+              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                Cadastro
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -115,21 +143,25 @@ export function EnderecosTable({
                 <td className="px-3 py-2 font-mono text-xs text-muted-strong">
                   {formatCep(endereco.cep)}
                 </td>
-                <td className="px-3 py-2 text-muted-strong">{endereco.estado || "—"}</td>
-                <td className="px-3 py-2 text-muted">
+                <td className="px-3 py-2 text-muted-strong">
+                  {endereco.estado || "—"}
+                </td>
+                <td className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted`}>
                   {formatDate(endereco.data_cadastro)}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-      <ListPagination
-        basePath="/enderecos"
-        total={total}
-        page={page}
-        pageSize={pageSize}
-      />
-    </div>
+      }
+      pagination={
+        <ListPagination
+          basePath="/enderecos"
+          total={total}
+          page={page}
+          pageSize={pageSize}
+        />
+      }
+    />
   );
 }

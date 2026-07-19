@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Input, Label, Select } from "@/components/ui/Form";
+import { Button, FormActions, Input, Label, Select } from "@/components/ui/Form";
 import { maskCpfInput } from "@/lib/format";
 import {
   PERFIL_ROLES,
@@ -227,30 +227,28 @@ export function UsuarioForm({ initial }: Props) {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+      <FormActions>
         <Link href="/usuarios" className="btn-acao-secundario text-xs">
           Cancelar
         </Link>
-        <div className="flex flex-wrap gap-2">
-          {isEdit ? (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleRedefinirSenha}
-              disabled={pending}
-            >
-              Redefinir senha
-            </Button>
-          ) : null}
-          <Button type="submit" disabled={pending}>
-            {pending
-              ? "Salvando…"
-              : isEdit
-                ? "Salvar alterações"
-                : "Criar usuário"}
+        {isEdit ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleRedefinirSenha}
+            disabled={pending}
+          >
+            Redefinir senha
           </Button>
-        </div>
-      </div>
+        ) : null}
+        <Button type="submit" disabled={pending}>
+          {pending
+            ? "Salvando…"
+            : isEdit
+              ? "Salvar alterações"
+              : "Criar usuário"}
+        </Button>
+      </FormActions>
     </form>
   );
 }

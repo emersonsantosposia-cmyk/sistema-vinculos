@@ -3,6 +3,20 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import {
+  EntityListView,
+  ListCardLink,
+  ListCardMeta,
+  ListCardMetaSep,
+  ListCardTitle,
+  LIST_COL_SECONDARY,
+} from "@/components/shared/EntityListView";
+import {
+  ListFilterField,
+  ListFilterSearch,
+  ListFilterTotal,
+  ListFiltersBar,
+} from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
 import { Input, Select } from "@/components/ui/Form";
 import { formatDate, UFS } from "@/lib/format";
@@ -30,15 +44,14 @@ export function OrcrimsFilters({ total }: FiltersProps) {
     const params = new URLSearchParams();
     if (nextQ.trim()) params.set("q", nextQ.trim());
     if (nextEstado) params.set("estado", nextEstado);
-    // Sem `page` → volta para a página 1
     startTransition(() => {
       router.push(`/orcrims${params.toString() ? `?${params}` : ""}`);
     });
   }
 
   return (
-    <div className="mb-3 flex flex-wrap items-end gap-2">
-      <div className="min-w-[220px] flex-1">
+    <ListFiltersBar>
+      <ListFilterSearch>
         <label className="mb-1 block text-xs font-medium text-muted">
           Buscar
         </label>
@@ -50,8 +63,8 @@ export function OrcrimsFilters({ total }: FiltersProps) {
             if (e.key === "Enter") apply(q, estado);
           }}
         />
-      </div>
-      <div className="w-36">
+      </ListFilterSearch>
+      <ListFilterField className="w-full sm:w-36">
         <label className="mb-1 block text-xs font-medium text-muted">
           Estado
         </label>
@@ -69,7 +82,7 @@ export function OrcrimsFilters({ total }: FiltersProps) {
             </option>
           ))}
         </Select>
-      </div>
+      </ListFilterField>
       <button
         type="button"
         disabled={pending}
@@ -78,10 +91,10 @@ export function OrcrimsFilters({ total }: FiltersProps) {
       >
         Filtrar
       </button>
-      <p className="ml-auto self-center text-xs text-muted">
+      <ListFilterTotal>
         {total} registro{total === 1 ? "" : "s"} no total
-      </p>
-    </div>
+      </ListFilterTotal>
+    </ListFiltersBar>
   );
 }
 
@@ -93,24 +106,30 @@ export function OrcrimsTable({
 }: TableProps) {
   const rows = useMemo(() => orcrims, [orcrims]);
 
-  if (rows.length === 0) {
-    return (
-      <div className="rounded border border-border bg-panel px-4 py-10 text-center text-sm text-muted">
-        Nenhuma orcrim encontrada com os filtros atuais.
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto rounded border border-border bg-panel">
-        <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+    <EntityListView
+      empty={rows.length === 0}
+      emptyMessage="Nenhuma orcrim encontrada com os filtros atuais."
+      cards={rows.map((orcrim) => (
+        <ListCardLink key={orcrim.id} href={`/orcrims/${orcrim.id}`}>
+          <ListCardTitle>{orcrim.nome || "Sem nome"}</ListCardTitle>
+          <ListCardMeta>
+            <span>{orcrim.sigla || "—"}</span>
+            <ListCardMetaSep />
+            <span>{orcrim.estado_origem || "—"}</span>
+          </ListCardMeta>
+        </ListCardLink>
+      ))}
+      table={
+        <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
               <th className="px-3 py-2.5 font-semibold">Nome</th>
               <th className="px-3 py-2.5 font-semibold">Sigla</th>
               <th className="px-3 py-2.5 font-semibold">Estado de origem</th>
-              <th className="px-3 py-2.5 font-semibold">Cadastro</th>
+              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                Cadastro
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -133,20 +152,22 @@ export function OrcrimsTable({
                 <td className="px-3 py-2 text-muted-strong">
                   {orcrim.estado_origem || "—"}
                 </td>
-                <td className="px-3 py-2 text-muted">
+                <td className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted`}>
                   {formatDate(orcrim.data_cadastro)}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-      <ListPagination
-        basePath="/orcrims"
-        total={total}
-        page={page}
-        pageSize={pageSize}
-      />
-    </div>
+      }
+      pagination={
+        <ListPagination
+          basePath="/orcrims"
+          total={total}
+          page={page}
+          pageSize={pageSize}
+        />
+      }
+    />
   );
 }

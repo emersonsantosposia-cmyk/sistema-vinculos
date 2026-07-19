@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Form";
+import { ModalShell } from "@/components/ui/ModalShell";
 import { createClient } from "@/lib/supabase/client";
 import {
   limparSessaoAtiva,
@@ -205,54 +206,44 @@ export function SessionGuard({ children }: Props) {
     <>
       {children}
       {warningOpen ? (
-        <div
-          className="fixed inset-0 z-[1200] flex items-center justify-center bg-[color:var(--cor-fundo-overlay)] p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="sessao-aviso-titulo"
-          aria-describedby="sessao-aviso-desc"
+        <ModalShell
+          title="Sua sessão vai expirar"
+          onClose={continueSession}
+          size="sm"
+          zClass="z-[1200]"
+          closeOnBackdrop={false}
+          describedBy="sessao-aviso-desc"
+          footer={
+            <Button type="button" onClick={continueSession}>
+              Continuar conectado
+            </Button>
+          }
         >
-          <div className="w-full max-w-sm rounded-md border border-border bg-panel p-4 shadow-[var(--cor-sombra-modal)]">
-            <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">
-              Sessão
-            </p>
-            <h2
-              id="sessao-aviso-titulo"
-              className="mt-2 text-base font-semibold text-foreground"
-            >
-              Sua sessão vai expirar
-            </h2>
-            <p
-              id="sessao-aviso-desc"
-              className="mt-2 text-sm leading-relaxed text-muted"
-            >
-              Sua sessão vai expirar em{" "}
-              <span className="font-semibold text-foreground tabular-nums">
-                {secondsLeft}s
-              </span>{" "}
-              por inatividade. Deseja continuar conectado?
-            </p>
-            <p
-              className="mt-3 text-center text-3xl font-semibold tracking-tight text-gold tabular-nums"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {secondsLeft}
-            </p>
-            <p className="mt-1 text-center text-[11px] text-muted uppercase tracking-wide">
-              segundos restantes
-            </p>
-            <div className="mt-4 flex justify-end">
-              <Button type="button" onClick={continueSession}>
-                Continuar conectado
-              </Button>
-            </div>
-            <p className="mt-3 text-[11px] text-muted">
-              Qualquer movimento do mouse, tecla ou toque também mantém a
-              sessão.
-            </p>
-          </div>
-        </div>
+          <p
+            id="sessao-aviso-desc"
+            className="text-sm leading-relaxed text-muted"
+          >
+            Sua sessão vai expirar em{" "}
+            <span className="font-semibold text-foreground tabular-nums">
+              {secondsLeft}s
+            </span>{" "}
+            por inatividade. Deseja continuar conectado?
+          </p>
+          <p
+            className="mt-3 text-center text-3xl font-semibold tracking-tight text-gold tabular-nums"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {secondsLeft}
+          </p>
+          <p className="mt-1 text-center text-[11px] text-muted uppercase tracking-wide">
+            segundos restantes
+          </p>
+          <p className="mt-3 text-[11px] text-muted">
+            Qualquer movimento do mouse, tecla ou toque também mantém a
+            sessão.
+          </p>
+        </ModalShell>
       ) : null}
     </>
   );

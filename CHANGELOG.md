@@ -1,15 +1,18 @@
 # Changelog
 ## [1.2.1] - 2026-07-19
 
-### Adicionado
-- nada foi adcionado
-
 ### Alterado
 - paginação da lista de entidades
+- navegação principal responsiva: sidebar vira menu hambúrguer com drawer em telas <640px; cabeçalho compacto (logo, busca, avatar) no mobile
+- listagens de entidades em cards no celular; tabela com colunas essenciais no tablet e filtros empilhados no mobile
+- formulários de entidade e modais no mobile: barra de ações sticky (`FormActions`) com alvos de toque ≥44px; modais quase tela cheia no celular via `ModalShell`
+- dashboard responsivo: KPI em 1/2/4 colunas; gráficos com rótulos abreviados e rolagem horizontal suave no celular
+- diagrama de vínculos touch-friendly: pinça/pan, toolbar em FAB no mobile, modo “Selecionar nós para caminho”, × com alvo ≥44px, minimapa/legenda sob demanda
 
 ### Corrigido
 - erros apontados pela auditoria
-markdown
+- painel da busca global ajustado ao teclado virtual (visualViewport) em dispositivos móveis
+- cabeçalho de listagens no mobile (<640px): busca colapsável em ícone e ações (“Nova …”, Importar, etc.) na segunda linha, sem rolagem horizontal
 ## [1.2.0] - 2026-07-18
 
 ### Adicionado

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { Button, Input, Label, Select } from "@/components/ui/Form";
+import { Button, FormActions, Input, Label, Select } from "@/components/ui/Form";
 import { MapPicker } from "@/components/maps/MapComponents";
 import { geocodeEndereco } from "@/lib/geocode";
 import { maskCepInput, UFS } from "@/lib/format";
@@ -367,7 +367,7 @@ export function EnderecoForm({ initial }: Props) {
         </div>
       </section>
 
-      <div className="flex justify-end gap-2">
+      <FormActions>
         <Button
           type="button"
           variant="secondary"
@@ -387,7 +387,7 @@ export function EnderecoForm({ initial }: Props) {
               ? "Salvar alterações"
               : "Salvar endereço"}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

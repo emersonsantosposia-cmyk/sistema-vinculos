@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   Button,
+  FormActions,
   Input,
   Label,
   Select,
@@ -191,7 +192,7 @@ export function ComunicacaoForm({ initial }: Props) {
         </div>
       </section>
 
-      <div className="flex justify-end gap-2">
+      <FormActions>
         <Button
           type="button"
           variant="secondary"
@@ -213,7 +214,7 @@ export function ComunicacaoForm({ initial }: Props) {
               ? "Salvar alterações"
               : "Salvar comunicação"}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

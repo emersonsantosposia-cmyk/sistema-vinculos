@@ -9,7 +9,7 @@ export function EntityKpiCards({
 }) {
   return (
     <section aria-label="Acesso às entidades">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {entities.map((entity) => (
           <Link
             key={entity.key}
@@ -41,7 +41,7 @@ export function EntityKpiCards({
 export function EntityKpiCardsSkeleton() {
   return (
     <section aria-label="Carregando entidades" aria-busy="true">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {DASHBOARD_ENTITIES.map((entity) => (
           <div
             key={entity.key}

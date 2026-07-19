@@ -313,7 +313,8 @@ main,
 
 .btn-acao {
   display: inline-flex;
-  height: 2rem;
+  height: 2.75rem;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
@@ -326,13 +327,21 @@ main,
   transition: background-color 150ms ease;
 }
 
+@media (min-width: 640px) {
+  .btn-acao {
+    height: 2rem;
+    min-height: 0;
+  }
+}
+
 .btn-acao:hover {
   background: var(--cor-destaque-dourado-claro);
 }
 
 .btn-acao-secundario {
   display: inline-flex;
-  height: 2rem;
+  height: 2.75rem;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
@@ -347,6 +356,13 @@ main,
     background-color 150ms ease,
     border-color 150ms ease,
     color 150ms ease;
+}
+
+@media (min-width: 640px) {
+  .btn-acao-secundario {
+    height: 2rem;
+    min-height: 0;
+  }
 }
 
 .btn-acao-secundario:hover {

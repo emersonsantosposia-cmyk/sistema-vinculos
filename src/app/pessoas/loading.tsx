@@ -1,7 +1,7 @@
 export default function PessoasLoading() {
   return (
     <div className="flex min-h-screen bg-background">
-      <div className="w-56 shrink-0 bg-sidebar" />
+      <div className="hidden w-56 shrink-0 bg-sidebar sm:block" />
       <div className="flex flex-1 flex-col">
         <div className="h-12 border-b border-border bg-panel" />
         <div className="space-y-3 p-5">

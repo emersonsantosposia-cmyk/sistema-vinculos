@@ -3,6 +3,20 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  EntityListView,
+  ListCardLink,
+  ListCardMeta,
+  ListCardMetaSep,
+  ListCardTitle,
+  LIST_COL_SECONDARY,
+} from "@/components/shared/EntityListView";
+import {
+  ListFilterField,
+  ListFilterSearch,
+  ListFilterTotal,
+  ListFiltersBar,
+} from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
 import { Input, Select } from "@/components/ui/Form";
@@ -48,7 +62,6 @@ export function PessoasFilters({
     const params = new URLSearchParams();
     if (nextQ.trim()) params.set("q", nextQ.trim());
     if (nextTipo) params.set("tipo", nextTipo);
-    // Sem `page` → volta para a página 1
     startTransition(() => {
       router.push(`/pessoas${params.toString() ? `?${params}` : ""}`);
     });
@@ -56,8 +69,8 @@ export function PessoasFilters({
 
   return (
     <div className="mb-3 space-y-2">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[220px] flex-1">
+      <ListFiltersBar>
+        <ListFilterSearch>
           <label className="mb-1 block text-xs font-medium text-muted">
             Buscar
           </label>
@@ -70,8 +83,8 @@ export function PessoasFilters({
             }}
             disabled={pending}
           />
-        </div>
-        <div className="w-44">
+        </ListFilterSearch>
+        <ListFilterField>
           <label className="mb-1 block text-xs font-medium text-muted">
             Tipo
           </label>
@@ -90,7 +103,7 @@ export function PessoasFilters({
               </option>
             ))}
           </Select>
-        </div>
+        </ListFilterField>
         <button
           type="button"
           disabled={pending}
@@ -99,7 +112,7 @@ export function PessoasFilters({
         >
           {pending ? "Filtrando…" : "Filtrar"}
         </button>
-        <label className="mb-0.5 flex h-8 cursor-pointer items-center gap-2 rounded border border-border bg-panel px-2.5 text-xs text-muted-strong">
+        <label className="flex h-8 cursor-pointer items-center gap-2 rounded border border-border bg-panel px-2.5 text-xs text-muted-strong">
           <input
             type="checkbox"
             className="accent-[var(--cor-destaque-dourado)]"
@@ -108,10 +121,10 @@ export function PessoasFilters({
           />
           Mostrar idade
         </label>
-        <p className="ml-auto self-center text-xs text-muted">
+        <ListFilterTotal>
           {total} registro{total === 1 ? "" : "s"} no total
-        </p>
-      </div>
+        </ListFilterTotal>
+      </ListFiltersBar>
       {pending ? (
         <p className="text-xs text-muted">Atualizando listagem…</p>
       ) : null}
@@ -128,28 +141,54 @@ export function PessoasTable({
 }: TableProps) {
   const rows = useMemo(() => pessoas, [pessoas]);
 
-  if (rows.length === 0) {
-    return (
-      <div className="rounded border border-border bg-panel px-4 py-10 text-center text-sm text-muted">
-        Nenhuma pessoa encontrada com os filtros atuais.
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto rounded border border-border bg-panel">
-        <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+    <EntityListView
+      empty={rows.length === 0}
+      emptyMessage="Nenhuma pessoa encontrada com os filtros atuais."
+      cards={rows.map((pessoa) => (
+        <ListCardLink key={pessoa.id} href={`/pessoas/${pessoa.id}`}>
+          <ListCardTitle
+            leading={
+              <PessoaAvatar
+                path={pessoa.foto_perfil_path}
+                nome={pessoa.nome}
+                size="sm"
+              />
+            }
+          >
+            {pessoa.nome}
+          </ListCardTitle>
+          <ListCardMeta>
+            <span>{labelPessoaTipo(pessoa.tipo)}</span>
+            <ListCardMetaSep />
+            <span className="font-mono">{formatCpf(pessoa.cpf)}</span>
+            {showIdade ? (
+              <>
+                <ListCardMetaSep />
+                <span>{formatIdade(pessoa.data_nascimento)}</span>
+              </>
+            ) : null}
+          </ListCardMeta>
+        </ListCardLink>
+      ))}
+      table={
+        <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
               <th className="px-3 py-2.5 font-semibold">Nome</th>
               <th className="px-3 py-2.5 font-semibold">Tipo</th>
               <th className="px-3 py-2.5 font-semibold">CPF</th>
               {showIdade ? (
-                <th className="px-3 py-2.5 font-semibold">Idade</th>
+                <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                  Idade
+                </th>
               ) : null}
-              <th className="px-3 py-2.5 font-semibold">Profissão</th>
-              <th className="px-3 py-2.5 font-semibold">Cadastro</th>
+              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                Profissão
+              </th>
+              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
+                Cadastro
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -178,28 +217,34 @@ export function PessoasTable({
                   {formatCpf(pessoa.cpf)}
                 </td>
                 {showIdade ? (
-                  <td className="px-3 py-2 text-muted-strong">
+                  <td
+                    className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted-strong`}
+                  >
                     {formatIdade(pessoa.data_nascimento)}
                   </td>
                 ) : null}
-                <td className="px-3 py-2 text-muted-strong">
+                <td
+                  className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted-strong`}
+                >
                   {pessoa.profissao || "—"}
                 </td>
-                <td className="px-3 py-2 text-muted">
+                <td className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted`}>
                   {formatDate(pessoa.data_cadastro)}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-      <ListPagination
-        basePath="/pessoas"
-        total={total}
-        page={page}
-        pageSize={pageSize}
-      />
-    </div>
+      }
+      pagination={
+        <ListPagination
+          basePath="/pessoas"
+          total={total}
+          page={page}
+          pageSize={pageSize}
+        />
+      }
+    />
   );
 }
 
