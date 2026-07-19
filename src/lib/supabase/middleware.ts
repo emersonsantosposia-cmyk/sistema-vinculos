@@ -6,18 +6,33 @@ const PUBLIC_PATHS = ["/login", "/api/auth/sessao-abandono"];
 /** Página de erro quando o deploy está sem configuração do Supabase. */
 const CONFIG_ERROR_PATH = "/indisponivel";
 
+const ENV_URL = "NEXT_PUBLIC_SUPABASE_URL";
+const ENV_ANON = "NEXT_PUBLIC_SUPABASE_ANON_KEY";
+
 let missingConfigLogged = false;
+let configOkLogged = false;
+
+/**
+ * Lê env em runtime via chave dinâmica.
+ * Acesso estático `process.env.NEXT_PUBLIC_*` pode ser inlined pelo
+ * Turbopack/webpack no bundle do middleware — aí comentar o .env.local
+ * e reiniciar não surte efeito até limpar `.next`.
+ */
+function readEnv(name: string): string | undefined {
+  const value = process.env[name];
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 function isValidSupabaseConfig(
   url: string | undefined,
   key: string | undefined,
 ): boolean {
-  const trimmedUrl = url?.trim();
-  const trimmedKey = key?.trim();
-  if (!trimmedUrl || !trimmedKey) return false;
+  if (!url || !key) return false;
 
   try {
-    const parsed = new URL(trimmedUrl);
+    const parsed = new URL(url);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       return false;
     }
@@ -26,8 +41,8 @@ function isValidSupabaseConfig(
   }
 
   // Chave anon típica (JWT ou sb_*) — rejeita placeholders óbvios.
-  if (trimmedKey.length < 20) return false;
-  if (/^(your|changeme|todo|xxx)/i.test(trimmedKey)) return false;
+  if (key.length < 20) return false;
+  if (/^(your|changeme|todo|xxx|\.\.\.)/i.test(key)) return false;
 
   return true;
 }
@@ -37,8 +52,9 @@ function logMissingConfig(pathname: string, reason: string) {
   missingConfigLogged = true;
   console.error(
     `[Rede Lince] Configuração Supabase inválida ou ausente (${reason}). ` +
-      `Bloqueando acesso a rotas protegidas. Path inicial: ${pathname}. ` +
-      `Defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.`,
+      `Bloqueando acesso (inclui /login). Path: ${pathname}. ` +
+      `Defina ${ENV_URL} e ${ENV_ANON} no .env.local e reinicie o servidor ` +
+      `(se o bloqueio não aparecer após comentar as vars, apague a pasta .next).`,
   );
 }
 
@@ -65,6 +81,7 @@ function blockForMissingConfig(request: NextRequest, reason: string) {
     );
   }
 
+  // Inclui /login e demais rotas “públicas”: sem config, nada funciona.
   const redirectUrl = request.nextUrl.clone();
   redirectUrl.pathname = CONFIG_ERROR_PATH;
   redirectUrl.search = "";
@@ -76,10 +93,10 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = readEnv(ENV_URL);
+  const key = readEnv(ENV_ANON);
 
-  if (!url?.trim() || !key?.trim()) {
+  if (!url || !key) {
     return blockForMissingConfig(request, "variáveis ausentes");
   }
 
@@ -87,7 +104,14 @@ export async function updateSession(request: NextRequest) {
     return blockForMissingConfig(request, "variáveis inválidas");
   }
 
-  const supabase = createServerClient(url.trim(), key.trim(), {
+  if (!configOkLogged) {
+    configOkLogged = true;
+    console.info(
+      "[Rede Lince] Middleware: configuração Supabase presente (URL + ANON).",
+    );
+  }
+
+  const supabase = createServerClient(url, key, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
