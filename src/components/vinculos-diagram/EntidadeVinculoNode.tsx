@@ -151,6 +151,25 @@ function NodeAvatar({
   );
 }
 
+function InfoIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
 function EntidadeVinculoNodeComponent({
   data,
   selected,
@@ -240,6 +259,32 @@ function EntidadeVinculoNodeComponent({
           }}
         />
 
+        {!restrito ? (
+          <button
+            type="button"
+            data-info-node
+            className="diagrama-info-btn nodrag nopan absolute -top-3 -left-3 z-20 flex h-11 w-11 items-center justify-center rounded-full text-muted sm:hidden"
+            aria-label="Abrir resumo da entidade"
+            title="Ver resumo"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              if (nodeId) actions?.openResumo(nodeId);
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] text-[var(--cor-destaque-dourado)] shadow-sm">
+              <InfoIcon className="h-3.5 w-3.5" />
+            </span>
+          </button>
+        ) : null}
+
         {!restrito && !isRoot ? (
           <button
             type="button"
@@ -307,7 +352,7 @@ function EntidadeVinculoNodeComponent({
 
         {!restrito && expanded ? (
           <div
-            className="absolute top-1 left-1 h-1.5 w-1.5 rounded-full border border-[var(--cor-card-fundo)]"
+            className="absolute top-1 left-1 h-1.5 w-1.5 rounded-full border border-[var(--cor-card-fundo)] sm:left-1"
             style={{ backgroundColor: accent }}
             title="Vínculos já expandidos — clique para recolher"
             aria-hidden

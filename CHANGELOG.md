@@ -13,6 +13,7 @@
 - erros apontados pela auditoria
 - painel da busca global ajustado ao teclado virtual (visualViewport) em dispositivos móveis
 - cabeçalho de listagens no mobile (<640px): busca colapsável em ícone e ações (“Nova …”, Importar, etc.) na segunda linha, sem rolagem horizontal
+- diagrama de vínculos no mobile: toque no corpo do nó só expande/recolhe; ícone “i” abre o painel Resumo e o painel não reabre sozinho após fechar
 ## [1.2.0] - 2026-07-18
 
 ### Adicionado

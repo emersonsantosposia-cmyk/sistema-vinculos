@@ -180,6 +180,8 @@ function DiagramaVinculosInner({
   const [animating, setAnimating] = useState(false);
   const [selecionada, setSelecionada] =
     useState<EntidadeResumoSelecionada | null>(null);
+  const selecionadaRef = useRef(selecionada);
+  selecionadaRef.current = selecionada;
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [expandingCascade, setExpandingCascade] = useState(false);
   const expandingCascadeRef = useRef(false);
@@ -377,6 +379,22 @@ function DiagramaVinculosInner({
     });
   }, []);
 
+  /** Atualiza o painel só se já estiver aberto para o mesmo nó (não reabre após fechar). */
+  const syncSelecionadaIfOpen = useCallback(
+    (node: DiagramNode) => {
+      const current = selecionadaRef.current;
+      if (!current || !isEntidadeNode(node)) return;
+      if (
+        current.entidadeTipo !== node.data.entidadeTipo ||
+        current.entidadeId !== node.data.entidadeId
+      ) {
+        return;
+      }
+      syncSelecionadaFromNode(node);
+    },
+    [syncSelecionadaFromNode],
+  );
+
   const resetToRoot = useCallback(() => {
     const root = nodesRef.current.find((n) => n.id === rootId);
     if (!root || !isEntidadeNode(root)) return;
@@ -452,7 +470,7 @@ function DiagramaVinculosInner({
       });
 
       const parent = nodesRef.current.find((n) => n.id === parentId);
-      if (parent) syncSelecionadaFromNode(parent);
+      if (parent) syncSelecionadaIfOpen(parent);
 
       // Filhos descobertos neste passo (para a fronteira do próximo nível).
       // Usa o grafo já sincronizado em nodesRef após applyLayout.
@@ -465,7 +483,7 @@ function DiagramaVinculosInner({
         )
         .map((n) => n.id);
     },
-    [applyLayout, syncSelecionadaFromNode],
+    [applyLayout, syncSelecionadaIfOpen],
   );
 
   const fetchVinculos = useCallback(async (nodeId: string) => {
@@ -617,10 +635,10 @@ function DiagramaVinculosInner({
 
       applyLayout(result.nodes, result.edges);
       const updated = result.nodes.find((n) => n.id === nodeId);
-      if (updated) syncSelecionadaFromNode(updated);
+      if (updated) syncSelecionadaIfOpen(updated);
       collapsingRef.current = false;
     },
-    [applyLayout, rootId, syncSelecionadaFromNode],
+    [applyLayout, rootId, syncSelecionadaIfOpen],
   );
 
   const shakeRootNode = useCallback(() => {
@@ -691,8 +709,10 @@ function DiagramaVinculosInner({
       applyLayout(result.nodes, result.edges);
 
       const root = result.nodes.find((n) => n.id === rootId);
-      if (root) syncSelecionadaFromNode(root);
-      else setSelecionada(null);
+      if (selecionadaRef.current) {
+        if (root) syncSelecionadaFromNode(root);
+        else setSelecionada(null);
+      }
 
       collapsingRef.current = false;
     },
@@ -1154,8 +1174,16 @@ function DiagramaVinculosInner({
         clearPendingClick();
         if (!isEntidadeNode(node)) return;
         if (node.data.removing || node.data.restrito || node.data.isRoot) return;
-        syncSelecionadaFromNode(node);
+        if (!isNarrow) syncSelecionadaFromNode(node);
         void dismissNode(node.id);
+        return;
+      }
+
+      // Ícone i (mobile): só abre o resumo — não expande/recolhe.
+      if (target?.closest("[data-info-node]")) {
+        clearPendingClick();
+        if (!isEntidadeNode(node) || node.data.removing) return;
+        syncSelecionadaFromNode(node);
         return;
       }
 
@@ -1175,7 +1203,7 @@ function DiagramaVinculosInner({
         event.preventDefault();
         event.stopPropagation();
         clearPendingClick();
-        syncSelecionadaFromNode(node);
+        if (!isNarrow) syncSelecionadaFromNode(node);
         if (!node.data.restrito) {
           const now = Date.now();
           const last = pathContextSelectRef.current;
@@ -1187,7 +1215,10 @@ function DiagramaVinculosInner({
         return;
       }
 
-      syncSelecionadaFromNode(node);
+      // Mobile: toque no corpo só expande/recolhe — não abre o Resumo.
+      if (!isNarrow) {
+        syncSelecionadaFromNode(node);
+      }
       if (node.data.restrito) {
         clearPendingClick();
         return;
@@ -1217,6 +1248,7 @@ function DiagramaVinculosInner({
       clearPendingClick,
       dismissNode,
       expandNode,
+      isNarrow,
       isPathModifier,
       loadMore,
       pathSelectMode,
@@ -1304,6 +1336,16 @@ function DiagramaVinculosInner({
     [clearPendingClick, dismissNode],
   );
 
+  const openResumo = useCallback(
+    (nodeId: string) => {
+      clearPendingClick();
+      setContextMenu(null);
+      const node = nodesRef.current.find((n) => n.id === nodeId);
+      if (node) syncSelecionadaFromNode(node);
+    },
+    [clearPendingClick, syncSelecionadaFromNode],
+  );
+
   const onNodeDragStop = useCallback(
     (_event: globalThis.MouseEvent | globalThis.TouchEvent, node: DiagramNode) => {
       pinnedRef.current.add(node.id);
@@ -1341,7 +1383,10 @@ function DiagramaVinculosInner({
   }
 
   return (
-    <DiagramaNodeActionsProvider dismissNode={requestDismiss}>
+    <DiagramaNodeActionsProvider
+      dismissNode={requestDismiss}
+      openResumo={openResumo}
+    >
       <div className={fullScreen ? "flex h-full flex-col gap-2" : "space-y-2"}>
       <p className="hidden text-xs text-muted sm:block">
         Clique: expandir/recolher. Alt+clique: foco. Ctrl+clique (Cmd no Mac):
@@ -1349,9 +1394,9 @@ function DiagramaVinculosInner({
         direito: mais ações.
       </p>
       <p className="text-xs text-muted sm:hidden">
-        Toque no nó: expandir/recolher. Use Ferramentas → “Selecionar nós para
-        caminho” para marcar A/B. Pinça para zoom; um dedo arrasta o canvas. ×
-        remove o nó.
+        Toque no nó: expandir/recolher. Ícone i: abrir resumo. Use Ferramentas →
+        “Selecionar nós para caminho” para marcar A/B. Pinça para zoom; um dedo
+        arrasta o canvas. × remove o nó.
       </p>
       <DiagramPathModeBanner active={pathSelectMode} />
       {pathMessage ? (
