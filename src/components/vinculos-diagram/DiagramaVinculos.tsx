@@ -63,6 +63,7 @@ import {
   deleteDiagramaVisualizacao,
   listDiagramaVisualizacoes,
   restoreDiagramaEstado,
+  getDiagramaVisualizacao,
   saveDiagramaVisualizacao,
   serializeDiagramaEstado,
   type DiagramaRestoreResult,
@@ -1086,7 +1087,14 @@ function DiagramaVinculosInner({
       startIoTransition(async () => {
         setListError(null);
         setIoStatus("Carregando visualização…");
-        const { data, error } = await restoreDiagramaEstado(row.estado_json);
+        const { data: loaded, error: loadError } =
+          await getDiagramaVisualizacao(row.id);
+        if (loadError || !loaded?.estado_json) {
+          setIoStatus(null);
+          setListError(loadError ?? "Não foi possível carregar a visualização.");
+          return;
+        }
+        const { data, error } = await restoreDiagramaEstado(loaded.estado_json);
         setIoStatus(null);
         if (error || !data) {
           setListError(error ?? "Não foi possível carregar a visualização.");

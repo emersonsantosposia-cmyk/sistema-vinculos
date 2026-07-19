@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { ListPagination } from "@/components/shared/ListPagination";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
 import { Input, Select } from "@/components/ui/Form";
 import { formatCpf, formatDate, formatIdade, labelPessoaTipo } from "@/lib/format";
@@ -11,18 +12,32 @@ import { PESSOA_TIPOS } from "@/lib/types";
 
 const SHOW_IDADE_KEY = "rede-lince:pessoas-mostrar-idade";
 
-type Props = {
+type FiltersProps = {
+  total: number;
+  showIdade: boolean;
+  onShowIdadeChange: (value: boolean) => void;
+};
+
+type TableProps = {
   pessoas: PessoaListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  showIdade: boolean;
+};
+
+type ListaProps = {
+  pessoas: PessoaListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 export function PessoasFilters({
-  pessoas,
+  total,
   showIdade,
   onShowIdadeChange,
-}: Props & {
-  showIdade: boolean;
-  onShowIdadeChange: (value: boolean) => void;
-}) {
+}: FiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [q, setQ] = useState(searchParams.get("q") ?? "");
@@ -33,6 +48,7 @@ export function PessoasFilters({
     const params = new URLSearchParams();
     if (nextQ.trim()) params.set("q", nextQ.trim());
     if (nextTipo) params.set("tipo", nextTipo);
+    // Sem `page` → volta para a página 1
     startTransition(() => {
       router.push(`/pessoas${params.toString() ? `?${params}` : ""}`);
     });
@@ -93,7 +109,7 @@ export function PessoasFilters({
           Mostrar idade
         </label>
         <p className="ml-auto self-center text-xs text-muted">
-          {pessoas.length} registro{pessoas.length === 1 ? "" : "s"}
+          {total} registro{total === 1 ? "" : "s"} no total
         </p>
       </div>
       {pending ? (
@@ -105,8 +121,11 @@ export function PessoasFilters({
 
 export function PessoasTable({
   pessoas,
+  total,
+  page,
+  pageSize,
   showIdade,
-}: Props & { showIdade: boolean }) {
+}: TableProps) {
   const rows = useMemo(() => pessoas, [pessoas]);
 
   if (rows.length === 0) {
@@ -118,66 +137,74 @@ export function PessoasTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded border border-border bg-panel">
-      <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-            <th className="px-3 py-2.5 font-semibold">Nome</th>
-            <th className="px-3 py-2.5 font-semibold">Tipo</th>
-            <th className="px-3 py-2.5 font-semibold">CPF</th>
-            {showIdade ? (
-              <th className="px-3 py-2.5 font-semibold">Idade</th>
-            ) : null}
-            <th className="px-3 py-2.5 font-semibold">Profissão</th>
-            <th className="px-3 py-2.5 font-semibold">Cadastro</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((pessoa) => (
-            <tr
-              key={pessoa.id}
-              className="border-b border-border last:border-b-0 hover:bg-panel-hover"
-            >
-              <td className="px-3 py-2">
-                <Link
-                  href={`/pessoas/${pessoa.id}`}
-                  className="inline-flex items-center gap-2.5 font-medium text-foreground hover:underline"
-                >
-                  <PessoaAvatar
-                    path={pessoa.foto_perfil_path}
-                    nome={pessoa.nome}
-                    size="sm"
-                  />
-                  <span>{pessoa.nome}</span>
-                </Link>
-              </td>
-              <td className="px-3 py-2 text-muted-strong">
-                {labelPessoaTipo(pessoa.tipo)}
-              </td>
-              <td className="px-3 py-2 font-mono text-xs text-muted-strong">
-                {formatCpf(pessoa.cpf)}
-              </td>
+    <div className="space-y-3">
+      <div className="overflow-x-auto rounded border border-border bg-panel">
+        <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+          <thead>
+            <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
+              <th className="px-3 py-2.5 font-semibold">Nome</th>
+              <th className="px-3 py-2.5 font-semibold">Tipo</th>
+              <th className="px-3 py-2.5 font-semibold">CPF</th>
               {showIdade ? (
-                <td className="px-3 py-2 text-muted-strong">
-                  {formatIdade(pessoa.data_nascimento)}
-                </td>
+                <th className="px-3 py-2.5 font-semibold">Idade</th>
               ) : null}
-              <td className="px-3 py-2 text-muted-strong">
-                {pessoa.profissao || "—"}
-              </td>
-              <td className="px-3 py-2 text-muted">
-                {formatDate(pessoa.data_cadastro)}
-              </td>
+              <th className="px-3 py-2.5 font-semibold">Profissão</th>
+              <th className="px-3 py-2.5 font-semibold">Cadastro</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((pessoa) => (
+              <tr
+                key={pessoa.id}
+                className="border-b border-border last:border-b-0 hover:bg-panel-hover"
+              >
+                <td className="px-3 py-2">
+                  <Link
+                    href={`/pessoas/${pessoa.id}`}
+                    className="inline-flex items-center gap-2.5 font-medium text-foreground hover:underline"
+                  >
+                    <PessoaAvatar
+                      path={pessoa.foto_perfil_path}
+                      nome={pessoa.nome}
+                      size="sm"
+                    />
+                    <span>{pessoa.nome}</span>
+                  </Link>
+                </td>
+                <td className="px-3 py-2 text-muted-strong">
+                  {labelPessoaTipo(pessoa.tipo)}
+                </td>
+                <td className="px-3 py-2 font-mono text-xs text-muted-strong">
+                  {formatCpf(pessoa.cpf)}
+                </td>
+                {showIdade ? (
+                  <td className="px-3 py-2 text-muted-strong">
+                    {formatIdade(pessoa.data_nascimento)}
+                  </td>
+                ) : null}
+                <td className="px-3 py-2 text-muted-strong">
+                  {pessoa.profissao || "—"}
+                </td>
+                <td className="px-3 py-2 text-muted">
+                  {formatDate(pessoa.data_cadastro)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ListPagination
+        basePath="/pessoas"
+        total={total}
+        page={page}
+        pageSize={pageSize}
+      />
     </div>
   );
 }
 
 /** Lista de pessoas com preferência de coluna “Idade” (localStorage). */
-export function PessoasLista({ pessoas }: Props) {
+export function PessoasLista({ pessoas, total, page, pageSize }: ListaProps) {
   const [showIdade, setShowIdade] = useState(true);
   const [ready, setReady] = useState(false);
 
@@ -204,12 +231,15 @@ export function PessoasLista({ pessoas }: Props) {
   return (
     <>
       <PessoasFilters
-        pessoas={pessoas}
+        total={total}
         showIdade={ready ? showIdade : true}
         onShowIdadeChange={handleShowIdadeChange}
       />
       <PessoasTable
         pessoas={pessoas}
+        total={total}
+        page={page}
+        pageSize={pageSize}
         showIdade={ready ? showIdade : true}
       />
     </>

@@ -6,10 +6,11 @@ import {
 } from "@/components/empresas/EmpresasTable";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizePage } from "@/lib/pagination";
 import { listEmpresas } from "@/lib/supabase/empresas-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 };
 
 function LoadingSkeleton() {
@@ -22,8 +23,11 @@ function LoadingSkeleton() {
   );
 }
 
-async function Content({ q }: { q?: string }) {
-  const { data, error } = await listEmpresas({ q });
+async function Content({ q, page }: { q?: string; page?: string }) {
+  const { data, total, page: currentPage, pageSize, error } = await listEmpresas({
+    q,
+    page: normalizePage(page),
+  });
   return (
     <>
       {error ? (
@@ -35,9 +39,14 @@ async function Content({ q }: { q?: string }) {
         </ErrorBanner>
       ) : null}
       <Suspense fallback={null}>
-        <EmpresasFilters empresas={data} />
+        <EmpresasFilters total={total} />
       </Suspense>
-      <EmpresasTable empresas={data} />
+      <EmpresasTable
+        empresas={data}
+        total={total}
+        page={currentPage}
+        pageSize={pageSize}
+      />
     </>
   );
 }
@@ -48,16 +57,13 @@ export default async function EmpresasPage({ searchParams }: Props) {
     <DashboardShell
       title="Empresas"
       actions={
-        <Link
-          href="/empresas/nova"
-          className="btn-acao"
-        >
+        <Link href="/empresas/nova" className="btn-acao">
           Nova Empresa
         </Link>
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} />
+        <Content q={params.q} page={params.page} />
       </Suspense>
     </DashboardShell>
   );

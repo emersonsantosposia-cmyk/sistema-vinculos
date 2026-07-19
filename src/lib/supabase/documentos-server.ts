@@ -1,4 +1,10 @@
 import { isDocumentoTipo } from "@/lib/format";
+import {
+  LIST_PAGE_SIZE,
+  normalizePage,
+  pageRange,
+  type PaginatedListResult,
+} from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
 import { isUnidade } from "@/lib/perfis";
@@ -8,12 +14,25 @@ export async function listDocumentos(filters: {
   q?: string;
   tipo?: string;
   unidade?: string;
-}): Promise<{ data: Documento[]; error: string | null }> {
+  page?: number;
+}): Promise<PaginatedListResult<Documento>> {
+  const pageSize = LIST_PAGE_SIZE;
+  const page = normalizePage(filters.page);
+  const { from, to } = pageRange(page, pageSize);
+  const empty: PaginatedListResult<Documento> = {
+    data: [],
+    total: 0,
+    page,
+    pageSize,
+    error: null,
+  };
+
   const supabase = await createClient();
   let query = supabase
     .from("documentos")
-    .select("*")
-    .order("data_cadastro", { ascending: false });
+    .select("*", { count: "exact" })
+    .order("data_cadastro", { ascending: false })
+    .range(from, to);
 
   if (filters.tipo && isDocumentoTipo(filters.tipo)) {
     query = query.eq("tipo", filters.tipo);
@@ -30,14 +49,21 @@ export async function listDocumentos(filters: {
     }
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) {
     return {
-      data: [],
+      ...empty,
       error: friendlyError(error.message, "Erro ao listar documentos."),
     };
   }
-  return { data: (data ?? []) as Documento[], error: null };
+  const rows = (data ?? []) as Documento[];
+  return {
+    data: rows,
+    total: count ?? rows.length,
+    page,
+    pageSize,
+    error: null,
+  };
 }
 
 export async function getDocumentoById(

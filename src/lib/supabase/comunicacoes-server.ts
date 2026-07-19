@@ -2,6 +2,12 @@ import {
   isComunicacaoStatus,
   isComunicacaoTipo,
 } from "@/lib/format";
+import {
+  LIST_PAGE_SIZE,
+  normalizePage,
+  pageRange,
+  type PaginatedListResult,
+} from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
 import type { Comunicacao } from "@/lib/types";
@@ -10,12 +16,25 @@ export async function listComunicacoes(filters: {
   q?: string;
   tipo?: string;
   status?: string;
-}): Promise<{ data: Comunicacao[]; error: string | null }> {
+  page?: number;
+}): Promise<PaginatedListResult<Comunicacao>> {
+  const pageSize = LIST_PAGE_SIZE;
+  const page = normalizePage(filters.page);
+  const { from, to } = pageRange(page, pageSize);
+  const empty: PaginatedListResult<Comunicacao> = {
+    data: [],
+    total: 0,
+    page,
+    pageSize,
+    error: null,
+  };
+
   const supabase = await createClient();
   let query = supabase
     .from("comunicacoes")
-    .select("*")
-    .order("data_cadastro", { ascending: false });
+    .select("*", { count: "exact" })
+    .order("data_cadastro", { ascending: false })
+    .range(from, to);
 
   if (filters.tipo && isComunicacaoTipo(filters.tipo)) {
     query = query.eq("tipo", filters.tipo);
@@ -32,14 +51,21 @@ export async function listComunicacoes(filters: {
     }
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) {
     return {
-      data: [],
+      ...empty,
       error: friendlyError(error.message, "Erro ao listar comunicações."),
     };
   }
-  return { data: (data ?? []) as Comunicacao[], error: null };
+  const rows = (data ?? []) as Comunicacao[];
+  return {
+    data: rows,
+    total: count ?? rows.length,
+    page,
+    pageSize,
+    error: null,
+  };
 }
 
 export async function getComunicacaoById(

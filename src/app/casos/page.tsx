@@ -3,12 +3,13 @@ import { Suspense } from "react";
 import { CasosFilters, CasosTable } from "@/components/casos/CasosTable";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizePage } from "@/lib/pagination";
 import { canChooseUnidade } from "@/lib/perfis";
 import { listCasos } from "@/lib/supabase/casos-server";
 import { getCurrentPerfil } from "@/lib/supabase/perfis-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string; unidade?: string }>;
+  searchParams: Promise<{ q?: string; unidade?: string; page?: string }>;
 };
 
 function LoadingSkeleton() {
@@ -21,12 +22,21 @@ function LoadingSkeleton() {
   );
 }
 
-async function Content({ q, unidade }: { q?: string; unidade?: string }) {
+async function Content({
+  q,
+  unidade,
+  page,
+}: {
+  q?: string;
+  unidade?: string;
+  page?: string;
+}) {
   const { perfil } = await getCurrentPerfil();
   const showUnidadeFilter = canChooseUnidade(perfil);
-  const { data, error } = await listCasos({
+  const { data, total, page: currentPage, pageSize, error } = await listCasos({
     q,
     unidade: showUnidadeFilter ? unidade : undefined,
+    page: normalizePage(page),
   });
   return (
     <>
@@ -39,9 +49,14 @@ async function Content({ q, unidade }: { q?: string; unidade?: string }) {
         </ErrorBanner>
       ) : null}
       <Suspense fallback={null}>
-        <CasosFilters casos={data} showUnidadeFilter={showUnidadeFilter} />
+        <CasosFilters total={total} showUnidadeFilter={showUnidadeFilter} />
       </Suspense>
-      <CasosTable casos={data} />
+      <CasosTable
+        casos={data}
+        total={total}
+        page={currentPage}
+        pageSize={pageSize}
+      />
     </>
   );
 }
@@ -61,7 +76,7 @@ export default async function CasosPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} unidade={params.unidade} />
+        <Content q={params.q} unidade={params.unidade} page={params.page} />
       </Suspense>
     </DashboardShell>
   );

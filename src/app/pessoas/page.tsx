@@ -3,10 +3,11 @@ import { Suspense } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { PessoasLista } from "@/components/pessoas/PessoasTable";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizePage } from "@/lib/pagination";
 import { listPessoas } from "@/lib/supabase/pessoas-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string; tipo?: string }>;
+  searchParams: Promise<{ q?: string; tipo?: string; page?: string }>;
 };
 
 function PessoasLoadingSkeleton() {
@@ -22,11 +23,17 @@ function PessoasLoadingSkeleton() {
 async function PessoasContent({
   q,
   tipo,
+  page,
 }: {
   q?: string;
   tipo?: string;
+  page?: string;
 }) {
-  const { data, error } = await listPessoas({ q, tipo });
+  const { data, total, page: currentPage, pageSize, error } = await listPessoas({
+    q,
+    tipo,
+    page: normalizePage(page),
+  });
 
   return (
     <>
@@ -40,7 +47,12 @@ async function PessoasContent({
       ) : null}
 
       <Suspense fallback={null}>
-        <PessoasLista pessoas={data} />
+        <PessoasLista
+          pessoas={data}
+          total={total}
+          page={currentPage}
+          pageSize={pageSize}
+        />
       </Suspense>
     </>
   );
@@ -62,7 +74,7 @@ export default async function PessoasPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<PessoasLoadingSkeleton />}>
-        <PessoasContent q={params.q} tipo={params.tipo} />
+        <PessoasContent q={params.q} tipo={params.tipo} page={params.page} />
       </Suspense>
     </DashboardShell>
   );

@@ -3,6 +3,7 @@
 import {
   DIAGRAMA_ESTADO_VERSION,
   isDiagramaEstadoSalvo,
+  sanitizeDiagramaEstado,
   type DiagramaEstadoSalvo,
   type DiagramaEstadoSalvoEdge,
   type DiagramaEstadoSalvoNode,
@@ -13,7 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/supabase/errors";
 import {
   buscarVinculosDaEntidade,
-  getEntidadeResumo,
+  getEntidadesResumoBatch,
 } from "@/lib/supabase/vinculos";
 import type { EntidadeTipo } from "@/lib/types";
 import type { VinculoDiagramItem } from "@/lib/vinculos-types";
@@ -37,7 +38,10 @@ function parseVinculoIdFromEdge(edgeId: string): string | null {
   return edgeId.slice("vinculo__".length) || null;
 }
 
-/** Monta o snapshot a partir do estado atual do canvas. */
+/**
+ * Snapshot estrutural apenas — sem título/nome/foto/restrito.
+ * Rótulos são sempre resolvidos ao vivo na restauração (respeitando RLS).
+ */
 export function serializeDiagramaEstado(input: {
   entidadeTipo: EntidadeTipo;
   entidadeId: string;
@@ -54,11 +58,6 @@ export function serializeDiagramaEstado(input: {
       data: {
         entidadeTipo: node.data.entidadeTipo,
         entidadeId: node.data.entidadeId,
-        titulo: node.data.titulo,
-        subtitulo: node.data.subtitulo ?? null,
-        foto_perfil_path: node.data.foto_perfil_path ?? null,
-        foto_url: node.data.foto_url ?? null,
-        restrito: Boolean(node.data.restrito),
         expanded: Boolean(node.data.expanded),
         isRoot: Boolean(node.data.isRoot),
         refSources: [...(node.data.refSources ?? [])],
@@ -78,7 +77,6 @@ export function serializeDiagramaEstado(input: {
       source: e.source,
       target: e.target,
       type: "straight" as const,
-      label: typeof e.label === "string" ? e.label : null,
       data: {
         refSources: [...(e.data?.refSources ?? [])],
       },
@@ -110,6 +108,11 @@ export async function saveDiagramaVisualizacao(input: {
     return { data: null, error: "Informe um nome para a visualização." };
   }
 
+  const estado = sanitizeDiagramaEstado(input.estado);
+  if (!estado) {
+    return { data: null, error: "Estado do diagrama inválido." };
+  }
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from("diagrama_visualizacoes_salvas")
@@ -117,10 +120,12 @@ export async function saveDiagramaVisualizacao(input: {
       nome,
       entidade_inicial_tipo: input.entidadeTipo,
       entidade_inicial_id: input.entidadeId,
-      estado_json: input.estado,
+      estado_json: estado,
       usuario_cadastro: auth.user.id,
     })
-    .select("*")
+    .select(
+      "id, nome, entidade_inicial_tipo, entidade_inicial_id, usuario_cadastro, data_cadastro",
+    )
     .single();
 
   if (error) {
@@ -132,13 +137,14 @@ export async function saveDiagramaVisualizacao(input: {
 
   return {
     data: {
-      ...(data as DiagramaVisualizacaoSalva),
-      estado_json: input.estado,
+      ...(data as Omit<DiagramaVisualizacaoSalva, "estado_json">),
+      estado_json: estado,
     },
     error: null,
   };
 }
 
+/** Listagem sem estado_json — evita vazar snapshot completo na rede. */
 export async function listDiagramaVisualizacoes(filter?: {
   entidadeTipo?: EntidadeTipo;
   entidadeId?: string;
@@ -150,7 +156,7 @@ export async function listDiagramaVisualizacoes(filter?: {
   let query = supabase
     .from("diagrama_visualizacoes_salvas")
     .select(
-      "id, nome, entidade_inicial_tipo, entidade_inicial_id, estado_json, usuario_cadastro, data_cadastro",
+      "id, nome, entidade_inicial_tipo, entidade_inicial_id, usuario_cadastro, data_cadastro",
     )
     .order("data_cadastro", { ascending: false });
 
@@ -170,7 +176,7 @@ export async function listDiagramaVisualizacoes(filter?: {
     };
   }
 
-  const rows = (data ?? []) as DiagramaVisualizacaoSalva[];
+  const rows = (data ?? []) as Omit<DiagramaVisualizacaoSalva, "estado_json">[];
   const userIds = rows
     .map((r) => r.usuario_cadastro)
     .filter((id): id is string => Boolean(id));
@@ -190,13 +196,52 @@ export async function listDiagramaVisualizacoes(filter?: {
   return {
     data: rows.map((r) => ({
       ...r,
-      estado_json: isDiagramaEstadoSalvo(r.estado_json)
-        ? r.estado_json
-        : (r.estado_json as DiagramaEstadoSalvo),
       usuario_nome: r.usuario_cadastro
         ? (names[r.usuario_cadastro] ?? null)
         : null,
     })),
+    error: null,
+  };
+}
+
+/** Carrega uma visualização com estado_json já sanitizado (sem rótulos). */
+export async function getDiagramaVisualizacao(
+  id: string,
+): Promise<{ data: DiagramaVisualizacaoSalva | null; error: string | null }> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("diagrama_visualizacoes_salvas")
+    .select(
+      "id, nome, entidade_inicial_tipo, entidade_inicial_id, estado_json, usuario_cadastro, data_cadastro",
+    )
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    return {
+      data: null,
+      error: friendlyError(error.message, "Erro ao carregar visualização."),
+    };
+  }
+  if (!data) {
+    return { data: null, error: "Visualização não encontrada." };
+  }
+
+  const estado = sanitizeDiagramaEstado(data.estado_json);
+  if (!estado) {
+    return { data: null, error: "Formato de visualização inválido." };
+  }
+
+  return {
+    data: {
+      id: data.id as string,
+      nome: data.nome as string,
+      entidade_inicial_tipo: data.entidade_inicial_tipo as EntidadeTipo,
+      entidade_inicial_id: data.entidade_inicial_id as string,
+      estado_json: estado,
+      usuario_cadastro: (data.usuario_cadastro as string | null) ?? null,
+      data_cadastro: data.data_cadastro as string,
+    },
     error: null,
   };
 }
@@ -230,35 +275,68 @@ export type DiagramaRestoreResult = {
 };
 
 /**
- * Reconstrói o diagrama a partir do snapshot, descartando nós/arestas
- * que não existem mais nos dados reais.
+ * Reconstrói o diagrama a partir do snapshot estrutural.
+ * Títulos/fotos vêm sempre de getEntidadesResumoBatch (RLS ao vivo).
  */
 export async function restoreDiagramaEstado(
-  estado: DiagramaEstadoSalvo,
+  estadoInput: DiagramaEstadoSalvo | unknown,
 ): Promise<{ data: DiagramaRestoreResult | null; error: string | null }> {
-  if (!isDiagramaEstadoSalvo(estado)) {
+  const estado = sanitizeDiagramaEstado(estadoInput);
+  if (!estado || !isDiagramaEstadoSalvo(estado)) {
     return { data: null, error: "Formato de visualização inválido." };
   }
 
   const supabase = createClient();
 
-  // 1) Validar entidades (resumo ao vivo).
+  // 1) Rótulos ao vivo em lote — nunca usar texto pré-armazenado.
+  const entidadeNodes = estado.nodes.filter((n) => n.type === "entidade");
+  const resumos = await getEntidadesResumoBatch(
+    entidadeNodes.map((n) => ({
+      tipo: n.data.entidadeTipo,
+      id: n.data.entidadeId,
+    })),
+  );
+
   const keptNodes: DiagramNode[] = [];
-  for (const saved of estado.nodes) {
-    if (saved.type !== "entidade") continue;
-    const resumo = await getEntidadeResumo(
-      saved.data.entidadeTipo,
-      saved.data.entidadeId,
-    );
-    if (!resumo) continue;
+  for (const saved of entidadeNodes) {
+    const tipo = saved.data.entidadeTipo;
+    const id = saved.data.entidadeId;
+    const resumo = resumos.get(`${tipo}:${id}`) ?? null;
+
+    if (!resumo) {
+      // Documento/caso inacessível (RLS): nó redigido. Outros tipos: removidos.
+      if (tipo !== "documento" && tipo !== "caso") continue;
+
+      const node: Node<EntidadeNodeData, "entidade"> = {
+        id: saved.id,
+        type: "entidade",
+        position: { x: saved.position.x, y: saved.position.y },
+        data: {
+          entidadeTipo: tipo,
+          entidadeId: id,
+          titulo:
+            tipo === "documento" ? "Documento restrito" : "Caso restrito",
+          subtitulo: null,
+          foto_perfil_path: null,
+          foto_url: null,
+          restrito: true,
+          loading: false,
+          expanded: false,
+          isRoot: Boolean(saved.data.isRoot),
+          refSources: [...(saved.data.refSources ?? [])],
+        },
+      };
+      keptNodes.push(node);
+      continue;
+    }
 
     const node: Node<EntidadeNodeData, "entidade"> = {
       id: saved.id,
       type: "entidade",
       position: { x: saved.position.x, y: saved.position.y },
       data: {
-        entidadeTipo: saved.data.entidadeTipo,
-        entidadeId: saved.data.entidadeId,
+        entidadeTipo: tipo,
+        entidadeId: id,
         titulo: resumo.titulo,
         subtitulo: resumo.subtitulo ?? null,
         foto_perfil_path: resumo.foto_perfil_path ?? null,
@@ -275,16 +353,16 @@ export async function restoreDiagramaEstado(
 
   const keptNodeIds = new Set(keptNodes.map((n) => n.id));
 
-  // 2) Validar vínculos ainda existentes.
+  // 2) Validar vínculos e obter tipo_vinculo ao vivo (sem label no JSON).
   const candidateEdgeIds = estado.edges
     .map((e) => parseVinculoIdFromEdge(e.id))
     .filter((id): id is string => Boolean(id));
 
-  const existingVinculoIds = new Set<string>();
+  const vinculoTipoById = new Map<string, string | null>();
   if (candidateEdgeIds.length > 0) {
     const { data: vinculos, error } = await supabase
       .from("vinculos")
-      .select("id")
+      .select("id, tipo_vinculo")
       .in("id", candidateEdgeIds);
 
     if (error) {
@@ -294,14 +372,17 @@ export async function restoreDiagramaEstado(
       };
     }
     for (const row of vinculos ?? []) {
-      existingVinculoIds.add(row.id as string);
+      vinculoTipoById.set(
+        row.id as string,
+        (row.tipo_vinculo as string | null) ?? null,
+      );
     }
   }
 
   const keptEdges: DiagramEdge[] = [];
   for (const saved of estado.edges) {
     const vinculoId = parseVinculoIdFromEdge(saved.id);
-    if (!vinculoId || !existingVinculoIds.has(vinculoId)) continue;
+    if (!vinculoId || !vinculoTipoById.has(vinculoId)) continue;
     if (!keptNodeIds.has(saved.source) || !keptNodeIds.has(saved.target)) {
       continue;
     }
@@ -315,7 +396,7 @@ export async function restoreDiagramaEstado(
       source: saved.source,
       target: saved.target,
       type: "straight",
-      label: saved.label ?? formatTipoVinculoLabel(null),
+      label: formatTipoVinculoLabel(vinculoTipoById.get(vinculoId) ?? null),
       data: { refSources },
       labelStyle: {
         fill: "var(--cor-texto-secundario)",
@@ -335,7 +416,6 @@ export async function restoreDiagramaEstado(
     });
   }
 
-  // Limpa refSources órfãos nos nós.
   for (const node of keptNodes) {
     if (!isEntidadeNode(node)) continue;
     node.data.refSources = node.data.refSources.filter((id) =>

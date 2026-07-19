@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { ListPagination } from "@/components/shared/ListPagination";
 import { Button, Input, Select } from "@/components/ui/Form";
 import {
   AUDITORIA_ACOES,
@@ -238,17 +239,7 @@ export function AuditoriaTable({
   page: number;
   pageSize: number;
 }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [selected, setSelected] = useState<AuditoriaRow | null>(null);
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  function goToPage(next: number) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (next <= 1) params.delete("page");
-    else params.set("page", String(next));
-    router.push(`/auditoria${params.toString() ? `?${params}` : ""}`);
-  }
 
   if (rows.length === 0) {
     return (
@@ -330,32 +321,12 @@ export function AuditoriaTable({
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-        <p>
-          {total} registro{total === 1 ? "" : "s"} · página {page} de{" "}
-          {totalPages}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            className="text-xs"
-            disabled={page <= 1}
-            onClick={() => goToPage(page - 1)}
-          >
-            Anterior
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="text-xs"
-            disabled={page >= totalPages}
-            onClick={() => goToPage(page + 1)}
-          >
-            Próxima
-          </Button>
-        </div>
-      </div>
+      <ListPagination
+        basePath="/auditoria"
+        total={total}
+        page={page}
+        pageSize={pageSize}
+      />
 
       {selected ? (
         <DiffModal row={selected} onClose={() => setSelected(null)} />

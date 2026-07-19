@@ -6,10 +6,16 @@ import {
 } from "@/components/comunicacoes/ComunicacoesTable";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizePage } from "@/lib/pagination";
 import { listComunicacoes } from "@/lib/supabase/comunicacoes-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string; tipo?: string; status?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    tipo?: string;
+    status?: string;
+    page?: string;
+  }>;
 };
 
 function LoadingSkeleton() {
@@ -26,12 +32,20 @@ async function Content({
   q,
   tipo,
   status,
+  page,
 }: {
   q?: string;
   tipo?: string;
   status?: string;
+  page?: string;
 }) {
-  const { data, error } = await listComunicacoes({ q, tipo, status });
+  const { data, total, page: currentPage, pageSize, error } =
+    await listComunicacoes({
+      q,
+      tipo,
+      status,
+      page: normalizePage(page),
+    });
   return (
     <>
       {error ? (
@@ -43,9 +57,14 @@ async function Content({
         </ErrorBanner>
       ) : null}
       <Suspense fallback={null}>
-        <ComunicacoesFilters comunicacoes={data} />
+        <ComunicacoesFilters total={total} />
       </Suspense>
-      <ComunicacoesTable comunicacoes={data} />
+      <ComunicacoesTable
+        comunicacoes={data}
+        total={total}
+        page={currentPage}
+        pageSize={pageSize}
+      />
     </>
   );
 }
@@ -65,7 +84,12 @@ export default async function ComunicacoesPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} tipo={params.tipo} status={params.status} />
+        <Content
+          q={params.q}
+          tipo={params.tipo}
+          status={params.status}
+          page={params.page}
+        />
       </Suspense>
     </DashboardShell>
   );

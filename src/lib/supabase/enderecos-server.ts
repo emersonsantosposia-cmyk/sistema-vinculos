@@ -1,15 +1,34 @@
+import {
+  LIST_PAGE_SIZE,
+  normalizePage,
+  pageRange,
+  type PaginatedListResult,
+} from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
 import type { Endereco } from "@/lib/types";
 
 export async function listEnderecos(filters: {
   q?: string;
-}): Promise<{ data: Endereco[]; error: string | null }> {
+  page?: number;
+}): Promise<PaginatedListResult<Endereco>> {
+  const pageSize = LIST_PAGE_SIZE;
+  const page = normalizePage(filters.page);
+  const { from, to } = pageRange(page, pageSize);
+  const empty: PaginatedListResult<Endereco> = {
+    data: [],
+    total: 0,
+    page,
+    pageSize,
+    error: null,
+  };
+
   const supabase = await createClient();
   let query = supabase
     .from("enderecos")
-    .select("*")
-    .order("data_cadastro", { ascending: false });
+    .select("*", { count: "exact" })
+    .order("data_cadastro", { ascending: false })
+    .range(from, to);
 
   if (filters.q?.trim()) {
     const term = filters.q.trim().replace(/[%_,]/g, "");
@@ -20,14 +39,21 @@ export async function listEnderecos(filters: {
     }
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) {
     return {
-      data: [],
+      ...empty,
       error: friendlyError(error.message, "Erro ao listar endereços."),
     };
   }
-  return { data: (data ?? []) as Endereco[], error: null };
+  const rows = (data ?? []) as Endereco[];
+  return {
+    data: rows,
+    total: count ?? rows.length,
+    page,
+    pageSize,
+    error: null,
+  };
 }
 
 export async function getEnderecoById(

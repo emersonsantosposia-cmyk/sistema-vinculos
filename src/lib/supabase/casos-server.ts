@@ -1,3 +1,9 @@
+import {
+  LIST_PAGE_SIZE,
+  normalizePage,
+  pageRange,
+  type PaginatedListResult,
+} from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
 import { isUnidade } from "@/lib/perfis";
@@ -6,12 +12,25 @@ import type { Caso } from "@/lib/types";
 export async function listCasos(filters: {
   q?: string;
   unidade?: string;
-}): Promise<{ data: Caso[]; error: string | null }> {
+  page?: number;
+}): Promise<PaginatedListResult<Caso>> {
+  const pageSize = LIST_PAGE_SIZE;
+  const page = normalizePage(filters.page);
+  const { from, to } = pageRange(page, pageSize);
+  const empty: PaginatedListResult<Caso> = {
+    data: [],
+    total: 0,
+    page,
+    pageSize,
+    error: null,
+  };
+
   const supabase = await createClient();
   let query = supabase
     .from("casos")
-    .select("*")
-    .order("data_cadastro", { ascending: false });
+    .select("*", { count: "exact" })
+    .order("data_cadastro", { ascending: false })
+    .range(from, to);
 
   if (filters.unidade && isUnidade(filters.unidade)) {
     query = query.eq("unidade", filters.unidade);
@@ -24,14 +43,21 @@ export async function listCasos(filters: {
     }
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) {
     return {
-      data: [],
+      ...empty,
       error: friendlyError(error.message, "Erro ao listar casos."),
     };
   }
-  return { data: (data ?? []) as Caso[], error: null };
+  const rows = (data ?? []) as Caso[];
+  return {
+    data: rows,
+    total: count ?? rows.length,
+    page,
+    pageSize,
+    error: null,
+  };
 }
 
 export async function getCasoById(

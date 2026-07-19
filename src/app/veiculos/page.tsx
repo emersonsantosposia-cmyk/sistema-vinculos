@@ -6,10 +6,11 @@ import {
   VeiculosFilters,
   VeiculosTable,
 } from "@/components/veiculos/VeiculosTable";
+import { normalizePage } from "@/lib/pagination";
 import { listVeiculos } from "@/lib/supabase/veiculos-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 };
 
 function LoadingSkeleton() {
@@ -22,8 +23,11 @@ function LoadingSkeleton() {
   );
 }
 
-async function Content({ q }: { q?: string }) {
-  const { data, error } = await listVeiculos({ q });
+async function Content({ q, page }: { q?: string; page?: string }) {
+  const { data, total, page: currentPage, pageSize, error } = await listVeiculos({
+    q,
+    page: normalizePage(page),
+  });
   return (
     <>
       {error ? (
@@ -35,9 +39,14 @@ async function Content({ q }: { q?: string }) {
         </ErrorBanner>
       ) : null}
       <Suspense fallback={null}>
-        <VeiculosFilters veiculos={data} />
+        <VeiculosFilters total={total} />
       </Suspense>
-      <VeiculosTable veiculos={data} />
+      <VeiculosTable
+        veiculos={data}
+        total={total}
+        page={currentPage}
+        pageSize={pageSize}
+      />
     </>
   );
 }
@@ -57,7 +66,7 @@ export default async function VeiculosPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} />
+        <Content q={params.q} page={params.page} />
       </Suspense>
     </DashboardShell>
   );

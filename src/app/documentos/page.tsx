@@ -7,12 +7,18 @@ import {
   DocumentosTable,
 } from "@/components/documentos/DocumentosTable";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizePage } from "@/lib/pagination";
 import { canChooseUnidade } from "@/lib/perfis";
 import { getCurrentPerfil } from "@/lib/supabase/perfis-server";
 import { listDocumentos } from "@/lib/supabase/documentos-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string; tipo?: string; unidade?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    tipo?: string;
+    unidade?: string;
+    page?: string;
+  }>;
 };
 
 function LoadingSkeleton() {
@@ -29,17 +35,20 @@ async function Content({
   q,
   tipo,
   unidade,
+  page,
 }: {
   q?: string;
   tipo?: string;
   unidade?: string;
+  page?: string;
 }) {
   const { perfil } = await getCurrentPerfil();
   const showUnidadeFilter = canChooseUnidade(perfil);
-  const { data, error } = await listDocumentos({
+  const { data, total, page: currentPage, pageSize, error } = await listDocumentos({
     q,
     tipo,
     unidade: showUnidadeFilter ? unidade : undefined,
+    page: normalizePage(page),
   });
   return (
     <>
@@ -53,11 +62,16 @@ async function Content({
       ) : null}
       <Suspense fallback={null}>
         <DocumentosFilters
-          documentos={data}
+          total={total}
           showUnidadeFilter={showUnidadeFilter}
         />
       </Suspense>
-      <DocumentosTable documentos={data} />
+      <DocumentosTable
+        documentos={data}
+        total={total}
+        page={currentPage}
+        pageSize={pageSize}
+      />
     </>
   );
 }
@@ -80,7 +94,12 @@ export default async function DocumentosPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} tipo={params.tipo} unidade={params.unidade} />
+        <Content
+          q={params.q}
+          tipo={params.tipo}
+          unidade={params.unidade}
+          page={params.page}
+        />
       </Suspense>
     </DashboardShell>
   );

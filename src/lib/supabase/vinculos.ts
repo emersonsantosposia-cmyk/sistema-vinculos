@@ -238,147 +238,197 @@ export async function searchEntidades(
   }
 }
 
+function resumoKey(tipo: EntidadeTipo, id: string): string {
+  return `${tipo}:${id}`;
+}
+
+type ResumoRef = { tipo: EntidadeTipo; id: string };
+
+/**
+ * Resolve resumos em lote: no máximo uma query por tipo de entidade
+ * (`.in('id', …)`), independente de quantos IDs existam no grupo.
+ */
+export async function getEntidadesResumoBatch(
+  refs: ResumoRef[],
+): Promise<Map<string, EntidadeOpcao>> {
+  const result = new Map<string, EntidadeOpcao>();
+  if (refs.length === 0) return result;
+
+  const byTipo = new Map<EntidadeTipo, Set<string>>();
+  for (const ref of refs) {
+    if (!ref.id) continue;
+    let set = byTipo.get(ref.tipo);
+    if (!set) {
+      set = new Set();
+      byTipo.set(ref.tipo, set);
+    }
+    set.add(ref.id);
+  }
+
+  const supabase = createClient();
+
+  await Promise.all(
+    [...byTipo.entries()].map(async ([tipo, idSet]) => {
+      const ids = [...idSet];
+      if (ids.length === 0) return;
+
+      switch (tipo) {
+        case "pessoa": {
+          const { data } = await supabase
+            .from("pessoas")
+            .select("id, nome, cpf, tipo, pessoas_fotos(url_arquivo, tipo)")
+            .in("id", ids);
+          for (const row of data ?? []) {
+            result.set(resumoKey(tipo, row.id), {
+              id: row.id,
+              titulo: pickTitle(row.nome),
+              subtitulo: row.cpf || row.tipo,
+              foto_perfil_path: pickPerfilPath(
+                row.pessoas_fotos as Array<{
+                  url_arquivo: string | null;
+                  tipo: string | null;
+                }> | null,
+              ),
+            });
+          }
+          break;
+        }
+        case "empresa": {
+          const { data } = await supabase
+            .from("empresas")
+            .select("id, nome_fantasia, razao_social, cnpj")
+            .in("id", ids);
+          for (const row of data ?? []) {
+            result.set(resumoKey(tipo, row.id), {
+              id: row.id,
+              titulo: pickTitle(row.nome_fantasia, row.razao_social),
+              subtitulo: row.cnpj || row.razao_social,
+            });
+          }
+          break;
+        }
+        case "endereco": {
+          const { data } = await supabase
+            .from("enderecos")
+            .select("id, nome, logradouro, numero, cidade, estado")
+            .in("id", ids);
+          for (const row of data ?? []) {
+            result.set(resumoKey(tipo, row.id), {
+              id: row.id,
+              titulo: pickTitle(
+                row.nome,
+                [row.logradouro, row.cidade].filter(Boolean).join(", "),
+              ),
+              subtitulo: [
+                [row.logradouro, row.numero].filter(Boolean).join(", "),
+                [row.cidade, row.estado].filter(Boolean).join(" · "),
+              ]
+                .filter(Boolean)
+                .join(", "),
+            });
+          }
+          break;
+        }
+        case "veiculo": {
+          const { data } = await supabase
+            .from("veiculos")
+            .select("id, placa, marca, modelo, cor, foto_url")
+            .in("id", ids);
+          for (const row of data ?? []) {
+            result.set(resumoKey(tipo, row.id), {
+              id: row.id,
+              titulo: pickTitle(
+                formatPlaca(row.placa) !== "—"
+                  ? formatPlaca(row.placa)
+                  : undefined,
+                [row.marca, row.modelo].filter(Boolean).join(" "),
+              ),
+              subtitulo: [row.marca, row.modelo, row.cor]
+                .filter(Boolean)
+                .join(" · "),
+              foto_url: row.foto_url,
+            });
+          }
+          break;
+        }
+        case "documento": {
+          const { data } = await supabase
+            .from("documentos")
+            .select("id, nome, tipo")
+            .in("id", ids);
+          for (const row of data ?? []) {
+            result.set(resumoKey(tipo, row.id), {
+              id: row.id,
+              titulo: pickTitle(row.nome, row.tipo),
+              subtitulo: row.tipo,
+            });
+          }
+          break;
+        }
+        case "caso": {
+          const { data } = await supabase
+            .from("casos")
+            .select("id, numero, nome")
+            .in("id", ids);
+          for (const row of data ?? []) {
+            result.set(resumoKey(tipo, row.id), {
+              id: row.id,
+              titulo: pickTitle(row.nome, row.numero),
+              subtitulo: row.numero,
+            });
+          }
+          break;
+        }
+        case "comunicacao": {
+          const { data } = await supabase
+            .from("comunicacoes")
+            .select("id, tipo, valor, operadora_provedor, status")
+            .in("id", ids);
+          for (const row of data ?? []) {
+            result.set(resumoKey(tipo, row.id), {
+              id: row.id,
+              titulo: pickTitle(row.valor),
+              subtitulo: [
+                labelComunicacaoTipo(row.tipo),
+                row.operadora_provedor,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            });
+          }
+          break;
+        }
+        case "orcrim": {
+          const { data } = await supabase
+            .from("orcrims")
+            .select("id, nome, sigla, estado_origem")
+            .in("id", ids);
+          for (const row of data ?? []) {
+            result.set(resumoKey(tipo, row.id), {
+              id: row.id,
+              titulo: pickTitle(row.nome),
+              subtitulo: [row.sigla, row.estado_origem]
+                .filter(Boolean)
+                .join(" · "),
+            });
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    }),
+  );
+
+  return result;
+}
+
 export async function getEntidadeResumo(
   tipo: EntidadeTipo,
   id: string,
 ): Promise<EntidadeOpcao | null> {
-  const supabase = createClient();
-
-  switch (tipo) {
-    case "pessoa": {
-      const { data } = await supabase
-        .from("pessoas")
-        .select("id, nome, cpf, tipo, pessoas_fotos(url_arquivo, tipo)")
-        .eq("id", id)
-        .maybeSingle();
-      if (!data) return null;
-      return {
-        id: data.id,
-        titulo: pickTitle(data.nome),
-        subtitulo: data.cpf || data.tipo,
-        foto_perfil_path: pickPerfilPath(
-          data.pessoas_fotos as Array<{
-            url_arquivo: string | null;
-            tipo: string | null;
-          }> | null,
-        ),
-      };
-    }
-    case "empresa": {
-      const { data } = await supabase
-        .from("empresas")
-        .select("id, nome_fantasia, razao_social, cnpj")
-        .eq("id", id)
-        .maybeSingle();
-      if (!data) return null;
-      return {
-        id: data.id,
-        titulo: pickTitle(data.nome_fantasia, data.razao_social),
-        subtitulo: data.cnpj || data.razao_social,
-      };
-    }
-    case "endereco": {
-      const { data } = await supabase
-        .from("enderecos")
-        .select("id, nome, logradouro, numero, cidade, estado")
-        .eq("id", id)
-        .maybeSingle();
-      if (!data) return null;
-      return {
-        id: data.id,
-        titulo: pickTitle(
-          data.nome,
-          [data.logradouro, data.cidade].filter(Boolean).join(", "),
-        ),
-        subtitulo: [
-          [data.logradouro, data.numero].filter(Boolean).join(", "),
-          [data.cidade, data.estado].filter(Boolean).join(" · "),
-        ]
-          .filter(Boolean)
-          .join(", "),
-      };
-    }
-    case "veiculo": {
-      const { data } = await supabase
-        .from("veiculos")
-        .select("id, placa, marca, modelo, cor, foto_url")
-        .eq("id", id)
-        .maybeSingle();
-      if (!data) return null;
-      return {
-        id: data.id,
-        titulo: pickTitle(
-          formatPlaca(data.placa) !== "—" ? formatPlaca(data.placa) : undefined,
-          [data.marca, data.modelo].filter(Boolean).join(" "),
-        ),
-        subtitulo: [data.marca, data.modelo, data.cor]
-          .filter(Boolean)
-          .join(" · "),
-        foto_url: data.foto_url,
-      };
-    }
-    case "documento": {
-      const { data } = await supabase
-        .from("documentos")
-        .select("id, nome, tipo")
-        .eq("id", id)
-        .maybeSingle();
-      if (!data) return null;
-      return {
-        id: data.id,
-        titulo: pickTitle(data.nome, data.tipo),
-        subtitulo: data.tipo,
-      };
-    }
-    case "caso": {
-      const { data } = await supabase
-        .from("casos")
-        .select("id, numero, nome")
-        .eq("id", id)
-        .maybeSingle();
-      if (!data) return null;
-      return {
-        id: data.id,
-        titulo: pickTitle(data.nome, data.numero),
-        subtitulo: data.numero,
-      };
-    }
-    case "comunicacao": {
-      const { data } = await supabase
-        .from("comunicacoes")
-        .select("id, tipo, valor, operadora_provedor, status")
-        .eq("id", id)
-        .maybeSingle();
-      if (!data) return null;
-      return {
-        id: data.id,
-        titulo: pickTitle(data.valor),
-        subtitulo: [
-          labelComunicacaoTipo(data.tipo),
-          data.operadora_provedor,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      };
-    }
-    case "orcrim": {
-      const { data } = await supabase
-        .from("orcrims")
-        .select("id, nome, sigla, estado_origem")
-        .eq("id", id)
-        .maybeSingle();
-      if (!data) return null;
-      return {
-        id: data.id,
-        titulo: pickTitle(data.nome),
-        subtitulo: [data.sigla, data.estado_origem]
-          .filter(Boolean)
-          .join(" · "),
-      };
-    }
-    default:
-      return null;
-  }
+  const map = await getEntidadesResumoBatch([{ tipo, id }]);
+  return map.get(resumoKey(tipo, id)) ?? null;
 }
 
 export async function listVinculosDaEntidade(
@@ -423,36 +473,44 @@ export async function listVinculosDaEntidade(
     (a, b) =>
       new Date(b.data_cadastro).getTime() - new Date(a.data_cadastro).getTime(),
   );
-  const cards: VinculoCard[] = [];
-  const userIds = rows
-    .map((r) => r.usuario_cadastro)
-    .filter((id): id is string => Boolean(id));
-  const names = await resolveUserDisplayNames(userIds);
 
-  for (const row of rows) {
+  const outros: ResumoRef[] = rows.map((row) => {
     const isOrigem =
       row.entidade_origem_tipo === entidadeTipo &&
       row.entidade_origem_id === entidadeId;
-    const outroTipo = isOrigem
-      ? row.entidade_destino_tipo
-      : row.entidade_origem_tipo;
-    const outroId = isOrigem
-      ? row.entidade_destino_id
-      : row.entidade_origem_id;
+    return {
+      tipo: isOrigem ? row.entidade_destino_tipo : row.entidade_origem_tipo,
+      id: isOrigem ? row.entidade_destino_id : row.entidade_origem_id,
+    };
+  });
 
-    const resumo = await getEntidadeResumo(outroTipo, outroId);
+  const [names, resumos] = await Promise.all([
+    resolveUserDisplayNames(
+      rows
+        .map((r) => r.usuario_cadastro)
+        .filter((id): id is string => Boolean(id)),
+    ),
+    getEntidadesResumoBatch(outros),
+  ]);
+
+  const cards: VinculoCard[] = rows.map((row, index) => {
+    const { tipo: outroTipo, id: outroId } = outros[index]!;
+    const resumo = resumos.get(resumoKey(outroTipo, outroId)) ?? null;
     const restrito =
       !resumo && (outroTipo === "documento" || outroTipo === "caso");
 
-    cards.push({
+    return {
       id: row.id,
       tipo_vinculo: row.tipo_vinculo,
-      fundamentacao: row.observacao,
+      // Não vazar fundamentação quando o outro lado é doc/caso inacessível.
+      fundamentacao: restrito ? null : row.observacao,
       usuario_cadastro: row.usuario_cadastro,
       data_cadastro: row.data_cadastro,
-      usuario_nome: row.usuario_cadastro
-        ? (names[row.usuario_cadastro] ?? null)
-        : null,
+      usuario_nome: restrito
+        ? null
+        : row.usuario_cadastro
+          ? (names[row.usuario_cadastro] ?? null)
+          : null,
       outroTipo,
       outroId,
       titulo: restrito
@@ -464,8 +522,8 @@ export async function listVinculosDaEntidade(
       restrito,
       foto_perfil_path: restrito ? null : (resumo?.foto_perfil_path ?? null),
       foto_url: restrito ? null : (resumo?.foto_url ?? null),
-    });
-  }
+    };
+  });
 
   return { data: cards, error: null };
 }

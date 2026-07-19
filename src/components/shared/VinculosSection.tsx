@@ -202,18 +202,20 @@ function VinculoCardBox({
           style={{ left: menu.x, top: menu.y }}
           role="menu"
         >
-          <button
-            type="button"
-            role="menuitem"
-            className="block w-full px-3 py-1.5 text-left text-sm text-gold hover:bg-panel-hover disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => {
-              setMenu(null);
-              onEditar(card);
-            }}
-            disabled={pending}
-          >
-            Editar
-          </button>
+          {!isRestrito ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-1.5 text-left text-sm text-gold hover:bg-panel-hover disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => {
+                setMenu(null);
+                onEditar(card);
+              }}
+              disabled={pending}
+            >
+              Editar
+            </button>
+          ) : null}
           <button
             type="button"
             role="menuitem"
@@ -281,30 +283,43 @@ function VinculoDetalheModal({
         </div>
 
         <dl className="mt-4 space-y-3 border-t border-border pt-3">
-          <div>
-            <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
-              Usuário
-            </dt>
-            <dd className="mt-0.5 text-sm text-foreground">
-              {card.usuario_nome?.trim() || "Não informado"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
-              Data de criação
-            </dt>
-            <dd className="mt-0.5 text-sm text-foreground">
-              {formatDateTime(card.data_cadastro)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
-              Fundamentação
-            </dt>
-            <dd className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
-              {card.fundamentacao?.trim() || "—"}
-            </dd>
-          </div>
+          {card.restrito ? (
+            <div>
+              <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+                Acesso
+              </dt>
+              <dd className="mt-0.5 text-sm text-muted italic">
+                Sem permissão para ver fundamentação ou metadados deste vínculo.
+              </dd>
+            </div>
+          ) : (
+            <>
+              <div>
+                <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+                  Usuário
+                </dt>
+                <dd className="mt-0.5 text-sm text-foreground">
+                  {card.usuario_nome?.trim() || "Não informado"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+                  Data de criação
+                </dt>
+                <dd className="mt-0.5 text-sm text-foreground">
+                  {formatDateTime(card.data_cadastro)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">
+                  Fundamentação
+                </dt>
+                <dd className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
+                  {card.fundamentacao?.trim() || "—"}
+                </dd>
+              </div>
+            </>
+          )}
         </dl>
 
         <div className="mt-4 flex justify-end">

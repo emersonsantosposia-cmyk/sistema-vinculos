@@ -1,4 +1,10 @@
 import { isPessoaTipo } from "@/lib/format";
+import {
+  LIST_PAGE_SIZE,
+  normalizePage,
+  pageRange,
+  type PaginatedListResult,
+} from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Pessoa,
@@ -32,12 +38,25 @@ function pickPerfilPath(
 export async function listPessoas(filters: {
   q?: string;
   tipo?: string;
-}): Promise<{ data: PessoaListItem[]; error: string | null }> {
+  page?: number;
+}): Promise<PaginatedListResult<PessoaListItem>> {
+  const pageSize = LIST_PAGE_SIZE;
+  const page = normalizePage(filters.page);
+  const { from, to } = pageRange(page, pageSize);
+  const empty: PaginatedListResult<PessoaListItem> = {
+    data: [],
+    total: 0,
+    page,
+    pageSize,
+    error: null,
+  };
+
   const supabase = await createClient();
   let query = supabase
     .from("pessoas")
-    .select("*, pessoas_fotos(url_arquivo, tipo)")
-    .order("data_cadastro", { ascending: false });
+    .select("*, pessoas_fotos(url_arquivo, tipo)", { count: "exact" })
+    .order("data_cadastro", { ascending: false })
+    .range(from, to);
 
   if (filters.tipo && isPessoaTipo(filters.tipo)) {
     query = query.eq("tipo", filters.tipo);
@@ -50,10 +69,10 @@ export async function listPessoas(filters: {
     }
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) {
     return {
-      data: [],
+      ...empty,
       error: friendlyError(error.message, "Erro ao listar pessoas."),
     };
   }
@@ -72,6 +91,9 @@ export async function listPessoas(filters: {
       ...(pessoa as Pessoa),
       foto_perfil_path: pickPerfilPath(pessoas_fotos),
     })),
+    total: count ?? rows.length,
+    page,
+    pageSize,
     error: null,
   };
 }

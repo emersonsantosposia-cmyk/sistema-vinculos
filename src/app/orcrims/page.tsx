@@ -6,10 +6,11 @@ import {
   OrcrimsTable,
 } from "@/components/orcrims/OrcrimsTable";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizePage } from "@/lib/pagination";
 import { listOrcrims } from "@/lib/supabase/orcrims-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string; estado?: string }>;
+  searchParams: Promise<{ q?: string; estado?: string; page?: string }>;
 };
 
 function LoadingSkeleton() {
@@ -22,8 +23,20 @@ function LoadingSkeleton() {
   );
 }
 
-async function Content({ q, estado }: { q?: string; estado?: string }) {
-  const { data, error } = await listOrcrims({ q, estado });
+async function Content({
+  q,
+  estado,
+  page,
+}: {
+  q?: string;
+  estado?: string;
+  page?: string;
+}) {
+  const { data, total, page: currentPage, pageSize, error } = await listOrcrims({
+    q,
+    estado,
+    page: normalizePage(page),
+  });
   return (
     <>
       {error ? (
@@ -35,9 +48,14 @@ async function Content({ q, estado }: { q?: string; estado?: string }) {
         </ErrorBanner>
       ) : null}
       <Suspense fallback={null}>
-        <OrcrimsFilters orcrims={data} />
+        <OrcrimsFilters total={total} />
       </Suspense>
-      <OrcrimsTable orcrims={data} />
+      <OrcrimsTable
+        orcrims={data}
+        total={total}
+        page={currentPage}
+        pageSize={pageSize}
+      />
     </>
   );
 }
@@ -54,7 +72,7 @@ export default async function OrcrimsPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} estado={params.estado} />
+        <Content q={params.q} estado={params.estado} page={params.page} />
       </Suspense>
     </DashboardShell>
   );

@@ -1,15 +1,34 @@
+import {
+  LIST_PAGE_SIZE,
+  normalizePage,
+  pageRange,
+  type PaginatedListResult,
+} from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
 import type { Veiculo } from "@/lib/types";
 
 export async function listVeiculos(filters: {
   q?: string;
-}): Promise<{ data: Veiculo[]; error: string | null }> {
+  page?: number;
+}): Promise<PaginatedListResult<Veiculo>> {
+  const pageSize = LIST_PAGE_SIZE;
+  const page = normalizePage(filters.page);
+  const { from, to } = pageRange(page, pageSize);
+  const empty: PaginatedListResult<Veiculo> = {
+    data: [],
+    total: 0,
+    page,
+    pageSize,
+    error: null,
+  };
+
   const supabase = await createClient();
   let query = supabase
     .from("veiculos")
-    .select("*")
-    .order("data_cadastro", { ascending: false });
+    .select("*", { count: "exact" })
+    .order("data_cadastro", { ascending: false })
+    .range(from, to);
 
   if (filters.q?.trim()) {
     const term = filters.q.trim().replace(/[%_,]/g, "");
@@ -20,14 +39,21 @@ export async function listVeiculos(filters: {
     }
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) {
     return {
-      data: [],
+      ...empty,
       error: friendlyError(error.message, "Erro ao listar veículos."),
     };
   }
-  return { data: (data ?? []) as Veiculo[], error: null };
+  const rows = (data ?? []) as Veiculo[];
+  return {
+    data: rows,
+    total: count ?? rows.length,
+    page,
+    pageSize,
+    error: null,
+  };
 }
 
 export async function getVeiculoById(
