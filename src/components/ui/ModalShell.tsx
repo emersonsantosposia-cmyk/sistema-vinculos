@@ -83,8 +83,15 @@ export function ModalShell({
           <p className="mt-0.5 text-xs text-muted">{description}</p>
         ) : null}
       </div>
-      <Button type="button" variant="ghost" onClick={onClose}>
-        Fechar
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onClose}
+        aria-label="Fechar"
+        title="Fechar"
+        className="h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 px-0 text-base leading-none sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 sm:text-sm"
+      >
+        <span aria-hidden>×</span>
       </Button>
     </div>
   );

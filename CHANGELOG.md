@@ -15,6 +15,7 @@
 - cabeçalho de listagens no mobile (<640px): busca colapsável em ícone e ações (“Nova …”, Importar, etc.) na segunda linha, sem rolagem horizontal
 - diagrama de vínculos no mobile: toque no corpo do nó só expande/recolhe; ícone “i” abre o painel Resumo e o painel não reabre sozinho após fechar
 - `Button` padrão com alvo de toque ≥44px no mobile (&lt;640px); filtros, paginação, observações e ações que usavam `h-8`/`h-7` alinhados
+- fechar do `ModalShell` (e lightbox) com alvo 44×44 no mobile; diálogos de visualização do diagrama migrados para `ModalShell`
 ## [1.2.0] - 2026-07-18
 
 ### Adicionado

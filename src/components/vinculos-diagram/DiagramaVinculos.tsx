@@ -82,6 +82,8 @@ import {
 } from "@/lib/supabase/vinculos";
 import type { EntidadeTipo } from "@/lib/types";
 import type { VinculoDiagramItem } from "@/lib/vinculos-types";
+import { Button, Input, Label } from "@/components/ui/Form";
+import { ModalShell } from "@/components/ui/ModalShell";
 
 export type ExpandDepth = 1 | 2 | 3;
 
@@ -1560,166 +1562,131 @@ function DiagramaVinculosInner({
       </div>
 
       {saveOpen ? (
-        <div
-          className="fixed inset-0 z-[70] flex items-stretch justify-center p-2 sm:items-center sm:p-4 bg-[color:var(--cor-fundo-overlay)]"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="salvar-viz-titulo"
-          onClick={() => !ioPending && setSaveOpen(false)}
-        >
-          <div
-            className="max-h-full w-full max-w-sm space-y-3 overflow-y-auto rounded-md border border-border bg-panel p-4 shadow-[var(--cor-sombra-modal)] sm:max-h-[min(80vh,32rem)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2
-              id="salvar-viz-titulo"
-              className="text-sm font-bold tracking-[0.12em] text-gold uppercase"
-            >
-              Salvar visualização
-            </h2>
-            <p className="text-xs text-muted">
-              Guarde o estado atual do diagrama (nós, posições e pins) para
-              retomar depois ou compartilhar com outro analista.
-            </p>
-            <div>
-              <label
-                htmlFor="salvar-viz-nome"
-                className="mb-1 block text-xs font-medium tracking-wide text-muted-strong uppercase"
-              >
-                Nome
-              </label>
-              <input
-                id="salvar-viz-nome"
-                type="text"
-                value={saveNome}
-                onChange={(e) => setSaveNome(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveVisualizacao();
-                }}
-                placeholder='Ex.: Rede em torno do Caso Operação Lança'
-                autoFocus
-                disabled={ioPending}
-                className="h-8 w-full rounded border border-field-border bg-field px-2.5 text-sm text-foreground outline-none placeholder:text-muted focus:border-gold"
-              />
-            </div>
-            {saveError ? (
-              <p className="text-xs text-danger-fg">{saveError}</p>
-            ) : null}
-            <div className="flex justify-end gap-2">
-              <button
+        <ModalShell
+          title="Salvar visualização"
+          description="Guarde o estado atual do diagrama (nós, posições e pins) para retomar depois ou compartilhar com outro analista."
+          onClose={() => {
+            if (!ioPending) setSaveOpen(false);
+          }}
+          closeOnBackdrop={!ioPending}
+          zClass="z-[70]"
+          labelledBy="salvar-viz-titulo"
+          footer={
+            <>
+              <Button
                 type="button"
+                variant="secondary"
                 disabled={ioPending}
                 onClick={() => setSaveOpen(false)}
-                className="rounded border border-[var(--cor-borda)] px-3 py-1.5 text-xs font-medium text-muted-strong uppercase"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 disabled={ioPending}
                 onClick={handleSaveVisualizacao}
-                className="rounded border border-[var(--cor-borda-destaque)] bg-[var(--cor-card-fundo)] px-3 py-1.5 text-xs font-medium tracking-wide text-[var(--cor-destaque-dourado)] uppercase"
               >
                 {ioPending ? "Salvando…" : "Salvar"}
-              </button>
-            </div>
+              </Button>
+            </>
+          }
+        >
+          <div>
+            <Label htmlFor="salvar-viz-nome">Nome</Label>
+            <Input
+              id="salvar-viz-nome"
+              type="text"
+              value={saveNome}
+              onChange={(e) => setSaveNome(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveVisualizacao();
+              }}
+              placeholder="Ex.: Rede em torno do Caso Operação Lança"
+              autoFocus
+              disabled={ioPending}
+            />
           </div>
-        </div>
+          {saveError ? (
+            <p className="mt-3 text-xs text-danger-fg">{saveError}</p>
+          ) : null}
+        </ModalShell>
       ) : null}
 
       {openListOpen ? (
-        <div
-          className="fixed inset-0 z-[70] flex items-stretch justify-center p-2 sm:items-center sm:p-4 bg-[color:var(--cor-fundo-overlay)]"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="abrir-viz-titulo"
-          onClick={() => !ioPending && setOpenListOpen(false)}
+        <ModalShell
+          title="Visualizações salvas"
+          description="Desta entidade. Qualquer analista pode abrir; só o autor ou um administrador pode excluir."
+          onClose={() => {
+            if (!ioPending) setOpenListOpen(false);
+          }}
+          closeOnBackdrop={!ioPending}
+          zClass="z-[70]"
+          size="lg"
+          labelledBy="abrir-viz-titulo"
+          footer={
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={ioPending}
+              onClick={() => setOpenListOpen(false)}
+            >
+              Fechar
+            </Button>
+          }
         >
-          <div
-            className="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-md border border-border bg-panel shadow-[var(--cor-sombra-modal)] sm:max-h-[min(80vh,32rem)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="border-b border-border px-4 py-3">
-              <h2
-                id="abrir-viz-titulo"
-                className="text-sm font-bold tracking-[0.12em] text-gold uppercase"
-              >
-                Visualizações salvas
-              </h2>
-              <p className="mt-0.5 text-xs text-muted">
-                Desta entidade. Qualquer analista pode abrir; só o autor ou um
-                administrador pode excluir.
-              </p>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-              {listLoading ? (
-                <p className="px-2 py-6 text-center text-sm text-muted">
-                  Carregando…
-                </p>
-              ) : listError ? (
-                <p className="px-2 py-4 text-center text-sm text-danger-fg">
-                  {listError}
-                </p>
-              ) : savedList.length === 0 ? (
-                <p className="px-2 py-6 text-center text-sm text-muted">
-                  Nenhuma visualização salva para esta entidade.
-                </p>
-              ) : (
-                <ul className="space-y-1">
-                  {savedList.map((row) => (
-                    <li
-                      key={row.id}
-                      className="flex items-start gap-2 rounded px-2 py-2 hover:bg-[color:var(--cor-card-fundo-hover)]"
-                    >
-                      <button
-                        type="button"
-                        disabled={ioPending}
-                        onClick={() => handleLoadVisualizacao(row)}
-                        className="min-w-0 flex-1 text-left"
-                      >
-                        <span className="block truncate text-sm font-medium text-foreground">
-                          {row.nome}
-                        </span>
-                        <span className="mt-0.5 block text-[11px] text-muted">
-                          {row.usuario_nome ?? "Usuário"}
-                          {" · "}
-                          {formatDateTime(row.data_cadastro)}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={ioPending}
-                        title="Excluir (autor ou administrador)"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `Excluir a visualização “${row.nome}”?`,
-                            )
-                          ) {
-                            handleDeleteVisualizacao(row.id);
-                          }
-                        }}
-                        className="shrink-0 rounded px-2 py-1 text-[11px] text-muted hover:text-danger-fg"
-                      >
-                        Excluir
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="flex justify-end border-t border-border px-4 py-2.5">
-              <button
-                type="button"
-                disabled={ioPending}
-                onClick={() => setOpenListOpen(false)}
-                className="rounded border border-[var(--cor-borda)] px-3 py-1.5 text-xs font-medium text-muted-strong uppercase"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
+          {listLoading ? (
+            <p className="py-6 text-center text-sm text-muted">Carregando…</p>
+          ) : listError ? (
+            <p className="py-4 text-center text-sm text-danger-fg">{listError}</p>
+          ) : savedList.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted">
+              Nenhuma visualização salva para esta entidade.
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {savedList.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-start gap-2 rounded px-1 py-1 hover:bg-[color:var(--cor-card-fundo-hover)]"
+                >
+                  <button
+                    type="button"
+                    disabled={ioPending}
+                    onClick={() => handleLoadVisualizacao(row)}
+                    className="min-h-[44px] min-w-0 flex-1 py-2 text-left sm:min-h-0 sm:py-1"
+                  >
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {row.nome}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-muted">
+                      {row.usuario_nome ?? "Usuário"}
+                      {" · "}
+                      {formatDateTime(row.data_cadastro)}
+                    </span>
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={ioPending}
+                    title="Excluir (autor ou administrador)"
+                    className="shrink-0 text-[11px] text-muted hover:text-danger-fg"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Excluir a visualização “${row.nome}”?`,
+                        )
+                      ) {
+                        handleDeleteVisualizacao(row.id);
+                      }
+                    }}
+                  >
+                    Excluir
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ModalShell>
       ) : null}
     </div>
     </DiagramaNodeActionsProvider>
