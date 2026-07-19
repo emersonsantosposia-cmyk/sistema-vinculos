@@ -9,6 +9,7 @@ import {
   type PerfilUsuario,
 } from "@/lib/perfis";
 import { createClient } from "@/lib/supabase/client";
+import { limparSessaoAtiva } from "@/lib/sessao";
 
 function ChangePasswordModal({
   email,
@@ -243,6 +244,7 @@ export function UserMenu() {
   function handleLogout() {
     setMenuOpen(false);
     startTransition(async () => {
+      limparSessaoAtiva();
       const supabase = createClient();
       await supabase.auth.signOut();
       router.push("/login");

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, useTransition } from "react";
 import { Button, Input, Label } from "@/components/ui/Form";
 import { createClient } from "@/lib/supabase/client";
+import { marcarSessaoAtiva, mensagemMotivoSessao } from "@/lib/sessao";
 
 function LoginFormInner() {
   const router = useRouter();
@@ -12,6 +13,7 @@ function LoginFormInner() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const motivoMsg = mensagemMotivoSessao(searchParams.get("motivo"));
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,6 +32,9 @@ function LoginFormInner() {
         );
         return;
       }
+      // Marca a aba atual ANTES de navegar, para o SessionGuard não
+      // interpretar o primeiro load pós-login como "aba reaberta".
+      marcarSessaoAtiva();
       const next = searchParams.get("next");
       const dest =
         next && next.startsWith("/") && !next.startsWith("//")
@@ -72,6 +77,15 @@ function LoginFormInner() {
           público.
         </p>
       </div>
+
+      {motivoMsg ? (
+        <p
+          className="rounded border border-[var(--cor-borda-destaque)] bg-[color:var(--cor-alerta-fundo)] px-2 py-1.5 text-xs text-muted-strong"
+          role="status"
+        >
+          {motivoMsg}
+        </p>
+      ) : null}
 
       {error ? (
         <p className="rounded border border-danger-border bg-danger-bg px-2 py-1.5 text-xs text-danger-fg">
