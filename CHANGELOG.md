@@ -1,4 +1,14 @@
 # Changelog
+## [1.2.1] - 2026-07-19
+
+### Adicionado
+- nada foi adcionado
+
+### Alterado
+- paginação da lista de entidades
+
+### Corrigido
+- erros apontados pela auditoria
 markdown
 ## [1.2.0] - 2026-07-18
 
