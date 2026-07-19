@@ -1,4 +1,9 @@
 # Changelog
+## [1.3.0] - 2026-07-19
+
+### Adicionado
+- Responsavidade
+
 ## [1.2.1] - 2026-07-19
 
 ### Alterado
