@@ -376,6 +376,9 @@ option {
 }
 
 .leaflet-container {
+  /* Contain Leaflet pane/control z-indexes (up to ~1000) so they
+     cannot paint above app overlays that use lower z-index (e.g. z-50). */
+  z-index: 0;
   background: var(--cor-card-fundo-suave);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }

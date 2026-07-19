@@ -87,7 +87,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex flex-col bg-[var(--cor-fundo-primaria)]"
+          className="fixed inset-0 z-[1100] flex flex-col bg-[var(--cor-fundo-primaria)]"
           role="dialog"
           aria-modal="true"
           aria-label="Diagrama de vínculos em tela cheia"
