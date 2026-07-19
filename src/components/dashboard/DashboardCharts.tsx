@@ -208,7 +208,7 @@ function TimeFilters({
 }) {
   const tudoActive = value.scope === "tudo";
   const selectClass =
-    "w-full min-w-0 rounded border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] px-2 py-2 text-xs tracking-normal text-[color:var(--dash-gold)] normal-case outline-none focus:border-[color:var(--dash-gold)] disabled:opacity-60 sm:min-w-[5.5rem] sm:w-auto sm:py-1.5";
+    "h-11 min-h-[44px] w-full min-w-0 rounded border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] px-2 text-xs tracking-normal text-[color:var(--dash-gold)] normal-case outline-none focus:border-[color:var(--dash-gold)] disabled:opacity-60 sm:h-auto sm:min-h-0 sm:min-w-[5.5rem] sm:w-auto sm:py-1.5";
 
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
@@ -216,7 +216,7 @@ function TimeFilters({
         type="button"
         disabled={disabled}
         onClick={() => onChange(DASHBOARD_TIME_TUDO)}
-        className={`min-h-[40px] w-full rounded border px-3 py-2 text-[11px] tracking-[0.14em] uppercase transition-colors disabled:opacity-60 sm:min-h-0 sm:w-auto sm:py-1.5 ${
+        className={`inline-flex h-11 min-h-[44px] w-full items-center justify-center rounded border px-3 text-[11px] tracking-[0.14em] uppercase transition-colors disabled:opacity-60 sm:h-auto sm:min-h-0 sm:w-auto sm:py-1.5 ${
           tudoActive
             ? "border-[color:var(--dash-gold)] bg-[color:var(--dash-gold)] font-semibold text-gold-ink"
             : "border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] text-[color:var(--dash-muted-strong)] hover:border-[color:var(--dash-gold)] hover:text-[color:var(--dash-gold)]"
@@ -307,7 +307,7 @@ function UnidadeFilters({
             type="button"
             disabled={disabled}
             onClick={() => onChange(opt)}
-            className={`min-h-[36px] rounded border px-2.5 py-1.5 text-[10px] tracking-[0.12em] uppercase transition-colors disabled:opacity-60 sm:min-h-0 sm:py-1 ${
+            className={`inline-flex h-11 min-h-[44px] items-center rounded border px-2.5 text-xs tracking-[0.12em] uppercase transition-colors disabled:opacity-60 sm:h-auto sm:min-h-0 sm:py-1 sm:text-[10px] ${
               active
                 ? "border-[color:var(--dash-gold)] bg-[color:var(--dash-gold)] font-semibold text-gold-ink"
                 : "border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] text-[color:var(--dash-muted-strong)] hover:border-[color:var(--dash-gold)] hover:text-[color:var(--dash-gold)]"

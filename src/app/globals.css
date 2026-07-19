@@ -327,7 +327,7 @@ main,
   transition: background-color 150ms ease;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   .btn-acao {
     height: 2rem;
     min-height: 0;
@@ -358,7 +358,7 @@ main,
     color 150ms ease;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   .btn-acao-secundario {
     height: 2rem;
     min-height: 0;

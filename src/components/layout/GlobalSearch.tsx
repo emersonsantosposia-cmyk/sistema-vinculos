@@ -278,7 +278,7 @@ export function GlobalSearch({
             });
           }}
           onKeyDown={onKeyDown}
-          className="campo-institucional h-8 w-full rounded pl-8 pr-3 text-sm"
+          className="campo-institucional h-11 min-h-[44px] w-full rounded pl-8 pr-3 text-sm sm:h-8 sm:min-h-0"
         />
       </div>
     </div>
@@ -297,7 +297,7 @@ export function GlobalSearch({
       {!mobileExpanded ? (
         <button
           type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded border border-border bg-panel text-muted-strong hover:bg-panel-hover hover:text-gold sm:hidden"
+          className="inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded border border-border bg-panel text-muted-strong hover:bg-panel-hover hover:text-gold sm:hidden"
           aria-label="Abrir busca global"
           onClick={() => onMobileExpandedChange?.(true)}
         >
@@ -326,7 +326,7 @@ export function GlobalSearch({
         {mobileExpanded ? (
           <button
             type="button"
-            className="inline-flex h-8 shrink-0 items-center justify-center rounded border border-border bg-panel px-2 text-xs text-muted-strong hover:bg-panel-hover sm:hidden"
+            className="inline-flex h-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded border border-border bg-panel px-3 text-xs text-muted-strong hover:bg-panel-hover sm:hidden"
             aria-label="Fechar busca"
             onClick={() => {
               setOpen(false);

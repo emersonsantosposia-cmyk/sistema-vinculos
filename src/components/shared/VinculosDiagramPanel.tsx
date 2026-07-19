@@ -130,10 +130,10 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
               <button
                 type="button"
                 onClick={() => setPhase("closed")}
-                className="flex h-9 w-9 items-center justify-center rounded border border-[var(--cor-borda)] bg-panel text-lg leading-none text-muted transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-foreground"
+                className="inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded border border-[var(--cor-borda)] bg-panel text-lg leading-none text-muted transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-foreground sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
                 aria-label="Fechar diagrama"
               >
-                X
+                ×
               </button>
             </div>
           </header>

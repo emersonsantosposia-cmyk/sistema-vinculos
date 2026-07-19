@@ -16,6 +16,11 @@
 - diagrama de vínculos no mobile: toque no corpo do nó só expande/recolhe; ícone “i” abre o painel Resumo e o painel não reabre sozinho após fechar
 - `Button` padrão com alvo de toque ≥44px no mobile (&lt;640px); filtros, paginação, observações e ações que usavam `h-8`/`h-7` alinhados
 - fechar do `ModalShell` (e lightbox) com alvo 44×44 no mobile; diálogos de visualização do diagrama migrados para `ModalShell`
+- chrome mobile (hambúrguer, drawer, busca global, avatar, ThemeToggle, itens do menu do usuário) com alvo de toque ≥44px
+- diagrama: fechar do Resumo, fechar tela cheia e linhas do painel Ferramentas com alvo ≥44px no mobile (FAB inalterado)
+- dashboard mobile: “Por que Lince?” e filtros/chips dos gráficos com alvo ≥44px e texto legível
+- segunda linha de ações do cabeçalho mobile (`DashboardShell`) com `min-h-[44px]`
+- cabeçalho com múltiplas ações: segunda linha também no tablet (&lt;1024px), evitando corte em ~768px
 ## [1.2.0] - 2026-07-18
 
 ### Adicionado

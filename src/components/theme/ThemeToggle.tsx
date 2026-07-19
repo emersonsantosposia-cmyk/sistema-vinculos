@@ -39,6 +39,9 @@ type Props = {
   compact?: boolean;
 };
 
+const toggleBase =
+  "inline-flex min-h-[44px] items-center justify-center gap-2 rounded border border-border bg-panel text-xs text-muted-strong transition-colors hover:border-border-strong hover:text-gold sm:min-h-0 sm:py-1.5";
+
 export function ThemeToggle({ className = "", compact = false }: Props) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -54,11 +57,15 @@ export function ThemeToggle({ className = "", compact = false }: Props) {
     setTheme(isDark ? "light" : "dark");
   }
 
+  const sizeClass = compact
+    ? "h-11 w-11 min-w-[44px] px-0 sm:h-[34px] sm:w-auto sm:min-w-0 sm:px-2.5"
+    : "h-11 min-w-[44px] px-2.5 sm:h-[34px] sm:min-w-0";
+
   if (!mounted) {
     return (
       <button
         type="button"
-        className={`inline-flex h-[34px] items-center gap-2 rounded border border-border bg-panel px-2.5 py-1.5 text-xs text-muted-strong ${className}`}
+        className={`${toggleBase} ${sizeClass} ${className}`}
         aria-hidden
         tabIndex={-1}
         disabled
@@ -73,7 +80,7 @@ export function ThemeToggle({ className = "", compact = false }: Props) {
     <button
       type="button"
       onClick={handleToggle}
-      className={`inline-flex items-center gap-2 rounded border border-border bg-panel px-2.5 py-1.5 text-xs text-muted-strong transition-colors hover:border-border-strong hover:text-gold ${className}`}
+      className={`${toggleBase} ${sizeClass} ${className}`}
       title={isDark ? "Alternar para tema claro" : "Alternar para tema escuro"}
       aria-label={isDark ? "Ativar tema claro" : "Ativar tema escuro"}
     >

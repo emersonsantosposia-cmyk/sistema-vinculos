@@ -44,10 +44,10 @@ export function EntidadeResumoPanel({ entidade, onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="rounded px-1.5 py-0.5 text-xs text-muted hover:bg-panel-hover hover:text-foreground"
+          className="inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded text-sm text-muted hover:bg-panel-hover hover:text-foreground sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 sm:text-xs"
           aria-label="Fechar painel"
         >
-          X
+          ×
         </button>
       </div>
 

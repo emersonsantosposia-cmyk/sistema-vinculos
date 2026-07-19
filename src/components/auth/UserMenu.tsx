@@ -255,13 +255,13 @@ export function UserMenu() {
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex max-w-[240px] items-center gap-2 rounded border border-border bg-panel p-1 text-left hover:bg-panel-hover sm:px-2.5 sm:py-1.5"
+          className="flex h-11 w-11 min-h-[44px] min-w-[44px] max-w-[240px] items-center justify-center gap-2 overflow-hidden rounded-full border border-border bg-panel text-left hover:bg-panel-hover sm:h-auto sm:w-auto sm:min-h-0 sm:min-w-0 sm:justify-start sm:overflow-visible sm:rounded sm:px-2.5 sm:py-1.5"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
           aria-label={`Menu do usuário: ${nome}`}
         >
           <span
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded bg-panel-soft text-[10px] font-semibold tracking-wide text-gold"
+            className="inline-flex size-full items-center justify-center rounded-full bg-panel-soft text-[10px] font-semibold tracking-wide text-gold sm:size-7 sm:rounded"
             aria-hidden
           >
             {iniciais(nome)}
@@ -300,7 +300,7 @@ export function UserMenu() {
             <button
               type="button"
               role="menuitem"
-              className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-panel-hover"
+              className="flex min-h-[44px] w-full items-center px-3 text-left text-sm text-foreground hover:bg-panel-hover sm:min-h-0 sm:py-2"
               onClick={() => {
                 setMenuOpen(false);
                 setPasswordOpen(true);
@@ -311,7 +311,7 @@ export function UserMenu() {
             <button
               type="button"
               role="menuitem"
-              className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-panel-hover"
+              className="flex min-h-[44px] w-full items-center px-3 text-left text-sm text-foreground hover:bg-panel-hover sm:min-h-0 sm:py-2"
               onClick={() => {
                 setMenuOpen(false);
                 setAboutOpen(true);
@@ -322,7 +322,7 @@ export function UserMenu() {
             <button
               type="button"
               role="menuitem"
-              className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-panel-hover disabled:opacity-50"
+              className="flex min-h-[44px] w-full items-center px-3 text-left text-sm text-foreground hover:bg-panel-hover disabled:opacity-50 sm:min-h-0 sm:py-2"
               disabled={pending || !email}
               onClick={handleLogout}
             >

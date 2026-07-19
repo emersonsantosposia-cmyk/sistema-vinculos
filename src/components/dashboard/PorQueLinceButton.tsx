@@ -62,7 +62,7 @@ export function PorQueLinceButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded border border-transparent px-2 py-1 text-[10px] tracking-[0.14em] text-[color:var(--dash-muted)] uppercase transition-colors hover:border-[color:var(--dash-border)] hover:text-[color:var(--dash-gold)] sm:text-[11px]"
+        className="inline-flex h-11 min-h-[44px] items-center gap-1.5 rounded border border-transparent px-2.5 text-xs tracking-[0.14em] text-[color:var(--dash-muted)] uppercase transition-colors hover:border-[color:var(--dash-border)] hover:text-[color:var(--dash-gold)] sm:h-auto sm:min-h-0 sm:px-2 sm:py-1 sm:text-[11px]"
         aria-haspopup="dialog"
       >
         <span

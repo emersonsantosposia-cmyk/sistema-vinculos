@@ -17,10 +17,10 @@ const LEGEND_TIPOS: EntidadeTipo[] = [
 ];
 
 const toolBtnClass =
-  "rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-2 text-left text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50 sm:py-1.5";
+  "inline-flex min-h-[44px] items-center rounded border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] px-2.5 py-2 text-left text-[11px] font-medium tracking-wide text-muted-strong uppercase shadow-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-[var(--cor-destaque-dourado)] disabled:opacity-50 sm:min-h-0 sm:py-1.5";
 
 const toolBtnActiveClass =
-  "rounded border border-[var(--cor-destaque-dourado)] bg-[color:var(--cor-alerta-fundo)] px-2.5 py-2 text-left text-[11px] font-medium tracking-wide text-[var(--cor-destaque-dourado)] uppercase shadow-sm transition-colors disabled:opacity-50 sm:py-1.5";
+  "inline-flex min-h-[44px] items-center rounded border border-[var(--cor-destaque-dourado)] bg-[color:var(--cor-alerta-fundo)] px-2.5 py-2 text-left text-[11px] font-medium tracking-wide text-[var(--cor-destaque-dourado)] uppercase shadow-sm transition-colors disabled:opacity-50 sm:min-h-0 sm:py-1.5";
 
 export type DiagramToolbarProps = {
   narrow: boolean;
