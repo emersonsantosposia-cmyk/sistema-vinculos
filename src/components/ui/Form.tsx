@@ -94,7 +94,7 @@ export function Button({
 
   return (
     <button
-      className={`inline-flex h-8 items-center justify-center gap-1.5 rounded px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`inline-flex h-11 min-h-[44px] items-center justify-center gap-1.5 rounded px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-h-0 ${variants[variant]} ${className}`}
       {...props}
     />
   );

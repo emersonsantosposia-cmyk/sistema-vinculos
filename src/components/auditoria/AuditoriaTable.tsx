@@ -134,22 +134,22 @@ export function AuditoriaFilters({ usuarios }: { usuarios: FilterUser[] }) {
             onChange={(e) => setAte(e.target.value)}
           />
         </ListFilterField>
-        <button
+        <Button
           type="button"
+          variant="secondary"
           disabled={pending}
           onClick={() => apply(true)}
-          className="h-8 rounded border border-border bg-panel px-3 text-sm font-medium text-muted-strong hover:bg-panel-hover hover:text-gold-bright disabled:opacity-50"
         >
           Filtrar
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
           disabled={pending}
           onClick={clear}
-          className="h-8 rounded px-2 text-sm text-muted hover:text-gold-bright disabled:opacity-50"
         >
           Limpar
-        </button>
+        </Button>
       </ListFiltersBar>
     </div>
   );

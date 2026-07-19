@@ -18,7 +18,7 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
-import { Input, Select } from "@/components/ui/Form";
+import { Button, Input, Select } from "@/components/ui/Form";
 import { formatDate, UFS } from "@/lib/format";
 import type { Orcrim } from "@/lib/types";
 
@@ -83,14 +83,14 @@ export function OrcrimsFilters({ total }: FiltersProps) {
           ))}
         </Select>
       </ListFilterField>
-      <button
+      <Button
         type="button"
+        variant="secondary"
         disabled={pending}
         onClick={() => apply(q, estado)}
-        className="h-8 rounded border border-border bg-panel px-3 text-sm font-medium text-muted-strong hover:bg-panel-hover hover:text-gold-bright disabled:opacity-50"
       >
         Filtrar
-      </button>
+      </Button>
       <ListFilterTotal>
         {total} registro{total === 1 ? "" : "s"} no total
       </ListFilterTotal>

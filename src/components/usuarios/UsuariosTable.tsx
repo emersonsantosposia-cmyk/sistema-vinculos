@@ -89,14 +89,14 @@ export function UsuariosFilters() {
           <option value="inativo">Inativo</option>
         </Select>
       </ListFilterField>
-      <button
+      <Button
         type="button"
+        variant="secondary"
         disabled={pending}
         onClick={apply}
-        className="h-8 rounded border border-border bg-panel px-3 text-sm font-medium text-muted-strong hover:bg-panel-hover hover:text-gold-bright disabled:opacity-50"
       >
         Filtrar
-      </button>
+      </Button>
     </ListFiltersBar>
   );
 }

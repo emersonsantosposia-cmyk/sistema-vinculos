@@ -760,7 +760,7 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button
             type="submit"
-            className="h-11 min-h-[44px] w-full sm:h-8 sm:min-h-0 sm:w-auto"
+            className="w-full sm:w-auto"
             disabled={
               pending ||
               !fundamentacao.trim() ||

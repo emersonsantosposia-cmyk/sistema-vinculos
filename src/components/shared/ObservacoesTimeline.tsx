@@ -189,7 +189,7 @@ export function ObservacoesTimeline({ entidadeTipo, entidadeId }: Props) {
           )}
           <Button
             type="submit"
-            className="h-11 min-h-[44px] w-full sm:h-8 sm:min-h-0 sm:w-auto"
+            className="w-full sm:w-auto"
             disabled={pending || !mensagem.trim()}
           >
             {pending && !itemPendingId ? "Salvando…" : "Adicionar observação"}
@@ -228,7 +228,7 @@ export function ObservacoesTimeline({ entidadeTipo, entidadeId }: Props) {
                       <Button
                         type="button"
                         variant="secondary"
-                        className="h-7 px-2.5 text-[11px]"
+                        className="px-2.5 text-[11px]"
                         onClick={() => startEdit(item)}
                         disabled={pending || Boolean(editingId)}
                       >
@@ -237,7 +237,7 @@ export function ObservacoesTimeline({ entidadeTipo, entidadeId }: Props) {
                       <Button
                         type="button"
                         variant="danger"
-                        className="h-7 px-2.5 text-[11px]"
+                        className="px-2.5 text-[11px]"
                         onClick={() => handleDelete(item.id)}
                         disabled={pending || Boolean(editingId)}
                       >
@@ -260,7 +260,7 @@ export function ObservacoesTimeline({ entidadeTipo, entidadeId }: Props) {
                       <Button
                         type="button"
                         variant="secondary"
-                        className="h-7 px-2.5 text-[11px]"
+                        className="px-2.5 text-[11px]"
                         onClick={cancelEdit}
                         disabled={itemBusy}
                       >
@@ -268,7 +268,7 @@ export function ObservacoesTimeline({ entidadeTipo, entidadeId }: Props) {
                       </Button>
                       <Button
                         type="button"
-                        className="h-7 px-2.5 text-[11px]"
+                        className="px-2.5 text-[11px]"
                         onClick={() => handleSaveEdit(item.id)}
                         disabled={itemBusy || !editTexto.trim()}
                       >

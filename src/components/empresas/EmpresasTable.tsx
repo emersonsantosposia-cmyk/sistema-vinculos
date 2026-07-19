@@ -17,7 +17,7 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
-import { Input } from "@/components/ui/Form";
+import { Button, Input } from "@/components/ui/Form";
 import { formatCnpj, formatDate } from "@/lib/format";
 import type { Empresa } from "@/lib/types";
 
@@ -61,14 +61,14 @@ export function EmpresasFilters({ total }: FiltersProps) {
           }}
         />
       </ListFilterSearch>
-      <button
+      <Button
         type="button"
+        variant="secondary"
         disabled={pending}
         onClick={() => apply(q)}
-        className="h-8 rounded border border-border bg-panel px-3 text-sm font-medium text-muted-strong hover:bg-panel-hover hover:text-gold-bright disabled:opacity-50"
       >
         Filtrar
-      </button>
+      </Button>
       <ListFilterTotal>
         {total} registro{total === 1 ? "" : "s"} no total
       </ListFilterTotal>

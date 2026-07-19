@@ -19,7 +19,7 @@ import {
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
-import { Input, Select } from "@/components/ui/Form";
+import { Button, Input, Select } from "@/components/ui/Form";
 import { formatCpf, formatDate, formatIdade, labelPessoaTipo } from "@/lib/format";
 import type { PessoaListItem } from "@/lib/types";
 import { PESSOA_TIPOS } from "@/lib/types";
@@ -104,15 +104,15 @@ export function PessoasFilters({
             ))}
           </Select>
         </ListFilterField>
-        <button
+        <Button
           type="button"
+          variant="secondary"
           disabled={pending}
           onClick={() => apply(q, tipo)}
-          className="h-8 rounded border border-border bg-panel px-3 text-sm font-medium text-muted-strong hover:bg-panel-hover hover:text-gold-bright disabled:opacity-50"
         >
           {pending ? "Filtrando…" : "Filtrar"}
-        </button>
-        <label className="flex h-8 cursor-pointer items-center gap-2 rounded border border-border bg-panel px-2.5 text-xs text-muted-strong">
+        </Button>
+        <label className="flex h-11 min-h-[44px] cursor-pointer items-center gap-2 rounded border border-border bg-panel px-2.5 text-xs text-muted-strong sm:h-8 sm:min-h-0">
           <input
             type="checkbox"
             className="accent-[var(--cor-destaque-dourado)]"
