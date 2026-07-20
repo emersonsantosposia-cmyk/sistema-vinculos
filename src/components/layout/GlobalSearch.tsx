@@ -54,7 +54,7 @@ function flatResults(grouped: Map<BuscaEntidadeTipo, BuscaResultado[]>) {
 
 type PanelLayout = {
   position: "absolute" | "fixed";
-  top?: number;
+  top?: number | string;
   left?: number;
   width?: number;
   maxHeight: number;
@@ -80,6 +80,7 @@ export function GlobalSearch({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [panelLayout, setPanelLayout] = useState<PanelLayout>({
     position: "absolute",
+    top: "calc(100% + 4px)",
     maxHeight: 384,
   });
 
@@ -149,8 +150,11 @@ export function GlobalSearch({
       const isNarrow = window.matchMedia("(max-width: 639px)").matches;
 
       if (!isNarrow) {
+        // `top` explícito é obrigatório: sem ele, flex+items-center usa a
+        // posição estática e centraliza o painel por cima do input.
         setPanelLayout({
           position: "absolute",
+          top: "calc(100% + 4px)",
           maxHeight: Math.min(384, Math.max(spaceBelow, 120)),
         });
         return;
@@ -350,9 +354,7 @@ export function GlobalSearch({
             maxHeight: panelLayout.maxHeight,
           }}
           className={`z-50 overflow-auto rounded border border-border bg-panel shadow-[var(--cor-sombra-dropdown)] ${
-            panelLayout.position === "absolute"
-              ? "right-0 left-0 mt-1"
-              : ""
+            panelLayout.position === "absolute" ? "right-0 left-0" : ""
           }`}
         >
           {pending && results.length === 0 ? (
