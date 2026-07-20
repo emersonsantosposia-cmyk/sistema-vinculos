@@ -4,9 +4,9 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { EnderecoMapa } from "@/components/enderecos/EnderecoMapa";
 import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { EnderecoDeleteButton } from "@/components/shared/EntityDeletes";
+import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
-import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatCep, formatEnderecoResumo } from "@/lib/format";
 import { getEnderecoById } from "@/lib/supabase/enderecos-server";
@@ -72,8 +72,10 @@ export default async function EnderecoDetailPage({ params }: Props) {
         </div>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
+      <EntidadeDetailLayout
+        entidadeTipo="endereco"
+        entidadeId={endereco.id}
+        dados={
           <Panel title="Dados cadastrais">
             <dl className="grid gap-3 sm:grid-cols-2">
               <Field label="Nome" value={endereco.nome || "—"} />
@@ -98,25 +100,25 @@ export default async function EnderecoDetailPage({ params }: Props) {
               />
             </dl>
           </Panel>
-          <Panel title="Mapa">
-            <EnderecoMapa
-              latitude={endereco.latitude}
-              longitude={endereco.longitude}
-              label={titulo}
-            />
-          </Panel>
-          <VinculosDiagramPanel entidadeTipo="endereco" entidadeId={endereco.id} />
-
-          <Panel title="Vínculos">
-            <VinculosSection entidadeTipo="endereco" entidadeId={endereco.id} />
-          </Panel>
-        </div>
-        <div>
+        }
+        extras={
+          <>
+            <Panel title="Mapa">
+              <EnderecoMapa
+                latitude={endereco.latitude}
+                longitude={endereco.longitude}
+                label={titulo}
+              />
+            </Panel>
+            <VinculosDiagramPanel entidadeTipo="endereco" entidadeId={endereco.id} />
+          </>
+        }
+        observacoes={
           <Panel title="Observações">
             <ObservacoesTimeline entidadeTipo="endereco" entidadeId={endereco.id} />
           </Panel>
-        </div>
-      </div>
+        }
+      />
     </DashboardShell>
   );
 }

@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { OrcrimDeleteButton } from "@/components/shared/EntityDeletes";
+import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
-import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { getOrcrimById } from "@/lib/supabase/orcrims-server";
 
@@ -60,8 +60,10 @@ export default async function OrcrimDetailPage({ params }: Props) {
         </div>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
+      <EntidadeDetailLayout
+        entidadeTipo="orcrim"
+        entidadeId={orcrim.id}
+        dados={
           <Panel title="Dados cadastrais">
             <dl className="grid gap-3 sm:grid-cols-2">
               <Field label="Nome" value={orcrim.nome} />
@@ -82,21 +84,19 @@ export default async function OrcrimDetailPage({ params }: Props) {
               />
             </dl>
           </Panel>
+        }
+        extras={
           <VinculosDiagramPanel entidadeTipo="orcrim" entidadeId={orcrim.id} />
-
-          <Panel title="Vínculos">
-            <VinculosSection entidadeTipo="orcrim" entidadeId={orcrim.id} />
-          </Panel>
-        </div>
-        <div>
+        }
+        observacoes={
           <Panel title="Observações">
             <ObservacoesTimeline
               entidadeTipo="orcrim"
               entidadeId={orcrim.id}
             />
           </Panel>
-        </div>
-      </div>
+        }
+      />
     </DashboardShell>
   );
 }

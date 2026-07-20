@@ -1,11 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import {
   Button,
   Input,
   Label,
+  Panel,
   Select,
   Textarea,
 } from "@/components/ui/Form";
@@ -40,6 +51,11 @@ type Props = {
 
 type FormMode = "create" | "edit";
 
+/** Altura fixa da grade desktop: 4 linhas de cards + 3 gaps (gap-2). */
+const PESSOAS_CARD_H = "h-[7.5rem]";
+const PESSOAS_GRADE_MAX_H =
+  "max-h-[calc(4*7.5rem+3*0.5rem)]";
+
 function resolveTipoSelectValue(tipo: string | null | undefined): {
   select: string;
   custom: string;
@@ -57,16 +73,20 @@ function VinculoCardBox({
   onRemover,
   onEditar,
   onDetalhe,
+  variant = "default",
 }: {
   card: VinculoCard;
   pending: boolean;
   onRemover: (id: string) => void;
   onEditar: (card: VinculoCard) => void;
   onDetalhe: (card: VinculoCard) => void;
+  /** Grade compacta desktop: só avatar + nome. */
+  variant?: "default" | "compact";
 }) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const isPessoa = card.outroTipo === "pessoa";
+  const isCompact = variant === "compact" && isPessoa;
   const isVeiculo = card.outroTipo === "veiculo";
   const isRestrito = Boolean(card.restrito);
   const showSubtitulo =
@@ -109,18 +129,55 @@ function VinculoCardBox({
   }
 
   const cardContent = isRestrito ? (
-    <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-      <div className="min-w-0 flex-1 overflow-hidden">
-        <p className="truncate text-[11px] font-medium normal-case text-gold">
+    isCompact ? (
+      <div className="flex h-full flex-col items-center gap-1 text-center">
+        <p className="line-clamp-1 w-full text-[10px] font-medium normal-case leading-tight text-gold">
           {tipoLabel}
         </p>
-        <p className="mt-0.5 truncate text-[11px] text-muted">
-          {entidadeTipoLabel}
-        </p>
-        <p className="mt-0.5 truncate text-sm font-medium text-muted-strong italic">
+        <PessoaAvatar nome={card.titulo} size="compact" />
+        <p className="line-clamp-2 w-full text-[11px] leading-tight font-medium text-muted-strong italic">
           {card.titulo}
         </p>
       </div>
+    ) : (
+      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <p className="truncate text-[11px] font-medium normal-case text-gold">
+            {tipoLabel}
+          </p>
+          <p className="mt-0.5 truncate text-[11px] text-muted">
+            {entidadeTipoLabel}
+          </p>
+          <p className="mt-0.5 truncate text-sm font-medium text-muted-strong italic">
+            {card.titulo}
+          </p>
+        </div>
+      </div>
+    )
+  ) : isCompact ? (
+    <div className="flex h-full flex-col items-center gap-1 text-center">
+      <button
+        type="button"
+        className="line-clamp-1 w-full text-[10px] font-medium normal-case leading-tight text-gold hover:text-gold-bright hover:underline"
+        onClick={() => onDetalhe(card)}
+        title="Ver detalhes do vínculo"
+      >
+        {tipoLabel}
+      </button>
+      <Link
+        href={entidadeHref}
+        className="flex min-h-0 flex-1 flex-col items-center gap-1"
+        title={`Abrir ${ENTIDADE_LABELS[card.outroTipo].toLowerCase()}`}
+      >
+        <PessoaAvatar
+          path={card.foto_perfil_path}
+          nome={card.titulo}
+          size="compact"
+        />
+        <span className="line-clamp-2 w-full text-[11px] leading-tight font-medium text-foreground hover:text-gold">
+          {card.titulo}
+        </span>
+      </Link>
     </div>
   ) : isPessoa ? (
     <div className="flex flex-1 flex-col items-center gap-3 text-center">
@@ -187,9 +244,11 @@ function VinculoCardBox({
     <>
       <div
         className={
-          isPessoa
-            ? "flex h-full flex-col rounded border border-border bg-panel px-4 py-4 transition-colors hover:border-border-strong"
-            : "rounded border border-border bg-panel px-3 py-2.5 transition-colors hover:border-border-strong"
+          isCompact
+            ? `flex ${PESSOAS_CARD_H} flex-col rounded border border-border bg-panel px-1.5 py-1.5 transition-colors hover:border-border-strong`
+            : isPessoa
+              ? "flex h-full flex-col rounded border border-border bg-panel px-4 py-4 transition-colors hover:border-border-strong"
+              : "rounded border border-border bg-panel px-3 py-2.5 transition-colors hover:border-border-strong"
         }
         onContextMenu={openMenu}
       >
@@ -203,6 +262,19 @@ function VinculoCardBox({
           style={{ left: menu.x, top: menu.y }}
           role="menu"
         >
+          {isCompact && !isRestrito ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-panel-hover"
+              onClick={() => {
+                setMenu(null);
+                onDetalhe(card);
+              }}
+            >
+              Detalhes
+            </button>
+          ) : null}
           {!isRestrito ? (
             <button
               type="button"
@@ -315,7 +387,39 @@ function VinculoDetalheModal({
   );
 }
 
-export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
+type VinculosContextValue = {
+  loading: boolean;
+  error: string | null;
+  pending: boolean;
+  cardsPorTipo: Map<EntidadeTipo, VinculoCard[]>;
+  abertos: Set<EntidadeTipo>;
+  formOpen: boolean;
+  formMode: FormMode;
+  editandoId: string | null;
+  destinoTipo: EntidadeTipo;
+  toggleSecao: (tipo: EntidadeTipo) => void;
+  abrirFormulario: (tipo: EntidadeTipo) => void;
+  abrirEdicao: (card: VinculoCard) => void;
+  handleRemover: (id: string) => void;
+  setDetalhe: (card: VinculoCard | null) => void;
+  renderVinculoForm: (mode: FormMode) => ReactNode;
+};
+
+const VinculosContext = createContext<VinculosContextValue | null>(null);
+
+function useVinculosContext() {
+  const ctx = useContext(VinculosContext);
+  if (!ctx) {
+    throw new Error("useVinculosContext deve ser usado dentro de VinculosProvider");
+  }
+  return ctx;
+}
+
+export function VinculosProvider({
+  entidadeTipo,
+  entidadeId,
+  children,
+}: Props & { children: ReactNode }) {
   const [cards, setCards] = useState<VinculoCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -778,6 +882,57 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
     );
   }
 
+  const value: VinculosContextValue = {
+    loading,
+    error,
+    pending,
+    cardsPorTipo,
+    abertos,
+    formOpen,
+    formMode,
+    editandoId,
+    destinoTipo,
+    toggleSecao,
+    abrirFormulario,
+    abrirEdicao,
+    handleRemover,
+    setDetalhe,
+    renderVinculoForm,
+  };
+
+  return (
+    <VinculosContext.Provider value={value}>
+      {children}
+      {detalhe ? (
+        <VinculoDetalheModal
+          card={detalhe}
+          onClose={() => setDetalhe(null)}
+        />
+      ) : null}
+    </VinculosContext.Provider>
+  );
+}
+
+/** Subseções de vínculos (pessoas ocultas no desktop — vão para PessoasVinculadasPanel). */
+export function VinculosSectionBody() {
+  const {
+    loading,
+    error,
+    pending,
+    cardsPorTipo,
+    abertos,
+    formOpen,
+    formMode,
+    editandoId,
+    destinoTipo,
+    toggleSecao,
+    abrirFormulario,
+    abrirEdicao,
+    handleRemover,
+    setDetalhe,
+    renderVinculoForm,
+  } = useVinculosContext();
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted">
@@ -801,10 +956,15 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
             const aberto = abertos.has(tipo);
             const mostrandoFormCriacao =
               formOpen && formMode === "create" && destinoTipo === tipo;
+            const isPessoa = tipo === "pessoa";
             return (
               <section
                 key={tipo}
-                className="overflow-hidden rounded border border-border bg-panel"
+                className={
+                  isPessoa
+                    ? "overflow-hidden rounded border border-border bg-panel lg:hidden"
+                    : "overflow-hidden rounded border border-border bg-panel"
+                }
               >
                 <button
                   type="button"
@@ -851,8 +1011,8 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
                     ) : (
                       <div
                         className={
-                          tipo === "pessoa"
-                            ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                          isPessoa
+                            ? "grid gap-3 sm:grid-cols-2"
                             : "grid gap-2"
                         }
                       >
@@ -863,7 +1023,7 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
                             <div
                               key={card.id}
                               className={
-                                tipo === "pessoa" ? "col-span-full" : undefined
+                                isPessoa ? "col-span-full" : undefined
                               }
                             >
                               {renderVinculoForm("edit")}
@@ -888,13 +1048,100 @@ export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
           })}
         </div>
       )}
-
-      {detalhe ? (
-        <VinculoDetalheModal
-          card={detalhe}
-          onClose={() => setDetalhe(null)}
-        />
-      ) : null}
     </div>
+  );
+}
+
+/**
+ * Painel desktop (≥1024px) de pessoas vinculadas: grade 4×4 com scroll
+ * interno se houver mais de 16. Já expandido (sem accordion).
+ */
+export function PessoasVinculadasPanel() {
+  const {
+    loading,
+    pending,
+    cardsPorTipo,
+    formOpen,
+    formMode,
+    editandoId,
+    destinoTipo,
+    abrirFormulario,
+    abrirEdicao,
+    handleRemover,
+    setDetalhe,
+    renderVinculoForm,
+  } = useVinculosContext();
+
+  const items = cardsPorTipo.get("pessoa") ?? [];
+  const mostrandoFormCriacao =
+    formOpen && formMode === "create" && destinoTipo === "pessoa";
+  const editandoPessoa =
+    formOpen &&
+    formMode === "edit" &&
+    editandoId != null &&
+    items.some((c) => c.id === editandoId);
+
+  return (
+    <Panel
+      title="Pessoas vinculadas"
+      actions={
+        <Button
+          type="button"
+          variant="secondary"
+          className="text-xs"
+          onClick={() => abrirFormulario("pessoa")}
+          disabled={pending || loading}
+        >
+          + Adicionar
+        </Button>
+      }
+    >
+      {loading ? (
+        <p className="py-4 text-center text-sm text-muted">
+          Carregando vínculos…
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {mostrandoFormCriacao || editandoPessoa
+            ? renderVinculoForm(mostrandoFormCriacao ? "create" : "edit")
+            : null}
+
+          {items.length === 0 && !mostrandoFormCriacao ? (
+            <p className="py-1 text-xs text-muted">
+              Nenhum vínculo cadastrado
+            </p>
+          ) : items.length > 0 ? (
+            <div
+              className={`grid grid-cols-4 gap-2 overflow-y-auto pr-0.5 ${PESSOAS_GRADE_MAX_H}`}
+            >
+              {items.map((card) =>
+                formOpen &&
+                formMode === "edit" &&
+                editandoId === card.id ? null : (
+                  <VinculoCardBox
+                    key={card.id}
+                    card={card}
+                    pending={pending}
+                    onRemover={handleRemover}
+                    onEditar={abrirEdicao}
+                    onDetalhe={setDetalhe}
+                    variant="compact"
+                  />
+                ),
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+/** Uso avulso (sem layout de detalhe). */
+export function VinculosSection({ entidadeTipo, entidadeId }: Props) {
+  return (
+    <VinculosProvider entidadeTipo={entidadeTipo} entidadeId={entidadeId}>
+      <VinculosSectionBody />
+    </VinculosProvider>
   );
 }

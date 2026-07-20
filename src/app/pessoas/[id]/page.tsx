@@ -5,9 +5,9 @@ import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
 import { PessoaDeleteButton } from "@/components/pessoas/PessoaDeleteButton";
 import { PessoaFotosGaleria } from "@/components/pessoas/PessoaFotosGaleria";
 import { CadastroMeta } from "@/components/shared/CadastroMeta";
+import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
-import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatCpf, formatNascimentoComIdade, formatNomeCurto, labelPessoaTipo } from "@/lib/format";
 import { getPessoaById } from "@/lib/supabase/pessoas-server";
@@ -79,8 +79,10 @@ export default async function PessoaDetailPage({ params }: Props) {
         </div>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
+      <EntidadeDetailLayout
+        entidadeTipo="pessoa"
+        entidadeId={pessoa.id}
+        dados={
           <Panel title="Dados cadastrais">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="flex flex-col items-center gap-2">
@@ -113,62 +115,60 @@ export default async function PessoaDetailPage({ params }: Props) {
               </dl>
             </div>
           </Panel>
+        }
+        extras={
+          <>
+            <Panel title="Redes sociais">
+              {redes.length === 0 ? (
+                <p className="text-sm text-muted">Nenhuma rede cadastrada.</p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {redes.map((rede) => (
+                    <li
+                      key={rede.id}
+                      className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0"
+                    >
+                      <span className="text-sm font-medium text-muted-strong">
+                        {rede.rede || "Rede"}
+                      </span>
+                      {rede.link ? (
+                        <a
+                          href={
+                            rede.link.startsWith("http")
+                              ? rede.link
+                              : `https://${rede.link}`
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm text-muted underline-offset-2 hover:underline"
+                        >
+                          {rede.link}
+                        </a>
+                      ) : (
+                        <span className="text-sm text-muted">sem link</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
 
-          <Panel title="Redes sociais">
-            {redes.length === 0 ? (
-              <p className="text-sm text-muted">Nenhuma rede cadastrada.</p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {redes.map((rede) => (
-                  <li
-                    key={rede.id}
-                    className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0"
-                  >
-                    <span className="text-sm font-medium text-muted-strong">
-                      {rede.rede || "Rede"}
-                    </span>
-                    {rede.link ? (
-                      <a
-                        href={
-                          rede.link.startsWith("http")
-                            ? rede.link
-                            : `https://${rede.link}`
-                        }
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm text-muted underline-offset-2 hover:underline"
-                      >
-                        {rede.link}
-                      </a>
-                    ) : (
-                      <span className="text-sm text-muted">sem link</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
+            <Panel title="Galeria de fotos">
+              <PessoaFotosGaleria fotos={fotos} />
+            </Panel>
 
-          <Panel title="Galeria de fotos">
-            <PessoaFotosGaleria fotos={fotos} />
-          </Panel>
-
-          <VinculosDiagramPanel entidadeTipo="pessoa" entidadeId={pessoa.id} />
-
-          <Panel title="Vínculos">
-            <VinculosSection entidadeTipo="pessoa" entidadeId={pessoa.id} />
-          </Panel>
-        </div>
-
-        <div>
+            <VinculosDiagramPanel entidadeTipo="pessoa" entidadeId={pessoa.id} />
+          </>
+        }
+        observacoes={
           <Panel title="Observações">
             <ObservacoesTimeline
               entidadeTipo="pessoa"
               entidadeId={pessoa.id}
             />
           </Panel>
-        </div>
-      </div>
+        }
+      />
     </DashboardShell>
   );
 }

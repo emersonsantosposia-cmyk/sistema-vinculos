@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { DocumentoDeleteButton } from "@/components/shared/EntityDeletes";
+import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
-import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatDate, labelDocumentoTipo } from "@/lib/format";
 import { getDocumentoById } from "@/lib/supabase/documentos-server";
@@ -75,8 +75,10 @@ export default async function DocumentoDetailPage({ params }: Props) {
         </div>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
+      <EntidadeDetailLayout
+        entidadeTipo="documento"
+        entidadeId={documento.id}
+        dados={
           <Panel title="Dados cadastrais">
             <dl className="grid gap-3 sm:grid-cols-2">
               <Field label="Unidade" value={documento.unidade || "—"} />
@@ -124,27 +126,22 @@ export default async function DocumentoDetailPage({ params }: Props) {
               />
             </dl>
           </Panel>
+        }
+        extras={
           <VinculosDiagramPanel
             entidadeTipo="documento"
             entidadeId={documento.id}
           />
-
-          <Panel title="Vínculos">
-            <VinculosSection
-              entidadeTipo="documento"
-              entidadeId={documento.id}
-            />
-          </Panel>
-        </div>
-        <div>
+        }
+        observacoes={
           <Panel title="Observações">
             <ObservacoesTimeline
               entidadeTipo="documento"
               entidadeId={documento.id}
             />
           </Panel>
-        </div>
-      </div>
+        }
+      />
     </DashboardShell>
   );
 }

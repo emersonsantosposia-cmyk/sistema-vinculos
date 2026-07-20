@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { VeiculoDeleteButton } from "@/components/shared/EntityDeletes";
+import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
-import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { VeiculoFoto } from "@/components/veiculos/VeiculoFoto";
 import { formatPlaca } from "@/lib/format";
@@ -66,8 +66,10 @@ export default async function VeiculoDetailPage({ params }: Props) {
         </div>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
+      <EntidadeDetailLayout
+        entidadeTipo="veiculo"
+        entidadeId={veiculo.id}
+        dados={
           <Panel title="Dados cadastrais">
             <dl className="grid gap-3 sm:grid-cols-2">
               <Field label="Placa" value={formatPlaca(veiculo.placa)} />
@@ -94,27 +96,27 @@ export default async function VeiculoDetailPage({ params }: Props) {
               />
             </dl>
           </Panel>
-          <Panel title="Foto ilustrativa">
-            <VeiculoFoto
-              path={veiculo.foto_url}
-              alt={`${veiculo.marca ?? ""} ${veiculo.modelo ?? ""}`.trim()}
-            />
-          </Panel>
-          <VinculosDiagramPanel entidadeTipo="veiculo" entidadeId={veiculo.id} />
-
-          <Panel title="Vínculos">
-            <VinculosSection entidadeTipo="veiculo" entidadeId={veiculo.id} />
-          </Panel>
-        </div>
-        <div>
+        }
+        extras={
+          <>
+            <Panel title="Foto ilustrativa">
+              <VeiculoFoto
+                path={veiculo.foto_url}
+                alt={`${veiculo.marca ?? ""} ${veiculo.modelo ?? ""}`.trim()}
+              />
+            </Panel>
+            <VinculosDiagramPanel entidadeTipo="veiculo" entidadeId={veiculo.id} />
+          </>
+        }
+        observacoes={
           <Panel title="Observações">
             <ObservacoesTimeline
               entidadeTipo="veiculo"
               entidadeId={veiculo.id}
             />
           </Panel>
-        </div>
-      </div>
+        }
+      />
     </DashboardShell>
   );
 }

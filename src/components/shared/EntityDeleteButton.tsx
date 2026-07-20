@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Form";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 type Props = {
   label?: string;
@@ -11,6 +12,10 @@ type Props = {
   onDelete: () => Promise<{ error: string | null }>;
 };
 
+/**
+ * Exclusão de entidade principal — só administradores veem o botão.
+ * A proteção real é RLS; isto evita UX de erro de permissão.
+ */
 export function EntityDeleteButton({
   label = "Excluir",
   confirmMessage,
@@ -18,8 +23,13 @@ export function EntityDeleteButton({
   onDelete,
 }: Props) {
   const router = useRouter();
+  const isAdmin = useIsAdmin();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  if (isAdmin !== true) {
+    return null;
+  }
 
   function handleDelete() {
     if (!window.confirm(confirmMessage)) return;

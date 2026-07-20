@@ -91,13 +91,17 @@ export function EnderecoForm({ initial }: Props) {
     }
   }
 
-  async function geocodeNow(showHint = true): Promise<{
-    lat: number | null;
-    lng: number | null;
-  }> {
+  async function geocodeNow(options?: {
+    showHint?: boolean;
+    /** Botão explícito: sempre consulta de novo. Submit: só se faltar coord. */
+    force?: boolean;
+  }): Promise<{ lat: number | null; lng: number | null }> {
+    const showHint = options?.showHint ?? true;
+    const force = options?.force ?? false;
+
     const existingLat = parseCoord(latitude);
     const existingLng = parseCoord(longitude);
-    if (existingLat != null && existingLng != null) {
+    if (!force && existingLat != null && existingLng != null) {
       return { lat: existingLat, lng: existingLng };
     }
 
@@ -106,6 +110,11 @@ export function EnderecoForm({ initial }: Props) {
       Boolean(cidade.trim() || estado || cep.replace(/\D/g, ""));
 
     if (!hasAddress) {
+      if (showHint) {
+        setGeoHint(
+          "Informe logradouro/cidade/CEP antes de obter as coordenadas.",
+        );
+      }
       return { lat: null, lng: null };
     }
 
@@ -122,14 +131,22 @@ export function EnderecoForm({ initial }: Props) {
     setGeoLoading(false);
 
     if (geoError || !data) {
-      if (showHint) setGeoHint(geoError ?? "Não foi possível geocodificar.");
+      // Não preenche coordenadas falsas; mantém o que o usuário já tinha.
+      if (showHint) {
+        setGeoHint(
+          geoError ??
+            "Não foi possível localizar as coordenadas deste endereço automaticamente; você pode ajustar manualmente.",
+        );
+      }
       return { lat: null, lng: null };
     }
 
-    setLatitude(String(data.latitude));
-    setLongitude(String(data.longitude));
+    setLatitude(data.latitude.toFixed(6));
+    setLongitude(data.longitude.toFixed(6));
     if (showHint) {
-      setGeoHint(`Coordenadas preenchidas: ${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}`);
+      setGeoHint(
+        `Coordenadas preenchidas: ${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}`,
+      );
     }
     return { lat: data.latitude, lng: data.longitude };
   }
@@ -148,7 +165,7 @@ export function EnderecoForm({ initial }: Props) {
         (logradouro.trim() || cidade.trim() || cep.replace(/\D/g, ""))
       ) {
         setStatus("Geocodificando endereço…");
-        const geo = await geocodeNow(true);
+        const geo = await geocodeNow({ showHint: true, force: false });
         lat = geo.lat;
         lng = geo.lng;
       }
@@ -321,7 +338,7 @@ export function EnderecoForm({ initial }: Props) {
               id="latitude"
               value={latitude}
               onChange={(e) => setLatitude(e.target.value)}
-              placeholder="-23.5505"
+              placeholder="Ex.: -20.469700"
               inputMode="decimal"
               disabled={pending}
             />
@@ -333,7 +350,7 @@ export function EnderecoForm({ initial }: Props) {
               id="longitude"
               value={longitude}
               onChange={(e) => setLongitude(e.target.value)}
-              placeholder="-46.6333"
+              placeholder="Ex.: -54.620100"
               inputMode="decimal"
               disabled={pending}
             />
@@ -346,13 +363,23 @@ export function EnderecoForm({ initial }: Props) {
                 type="button"
                 variant="secondary"
                 disabled={pending || geoLoading}
-                onClick={() => void geocodeNow(true)}
+                onClick={() => void geocodeNow({ showHint: true, force: true })}
               >
                 {geoLoading ? "Buscando…" : "Obter coordenadas do endereço"}
               </Button>
             </div>
             {geoHint ? (
-              <p className="mb-2 text-xs text-muted">{geoHint}</p>
+              <p
+                className={`mb-2 text-xs ${
+                  geoHint.startsWith("Coordenadas preenchidas") ||
+                  geoHint.startsWith("Posição ajustada") ||
+                  geoHint.startsWith("Buscando")
+                    ? "text-muted"
+                    : "text-warning-fg"
+                }`}
+              >
+                {geoHint}
+              </p>
             ) : null}
             <MapPicker
               latitude={latNum}

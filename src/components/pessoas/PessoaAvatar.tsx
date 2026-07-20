@@ -22,6 +22,8 @@ function PlaceholderIcon({ className = "" }: { className?: string }) {
 const sizeClass = {
   sm: "h-8 w-8",
   md: "h-12 w-12",
+  /** Grade desktop de pessoas vinculadas (4 por linha). */
+  compact: "h-11 w-11",
   card: "h-24 w-24",
   lg: "h-28 w-28 sm:h-36 sm:w-36",
 } as const;
@@ -29,6 +31,7 @@ const sizeClass = {
 const placeholderIconClass = {
   sm: "h-4 w-4",
   md: "h-6 w-6",
+  compact: "h-5 w-5",
   card: "h-10 w-10",
   lg: "h-14 w-14",
 } as const;

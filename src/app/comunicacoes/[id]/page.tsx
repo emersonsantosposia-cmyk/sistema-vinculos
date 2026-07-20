@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { ComunicacaoDeleteButton } from "@/components/shared/EntityDeletes";
+import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
-import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import {
   comunicacaoMostraOperadora,
@@ -72,8 +72,10 @@ export default async function ComunicacaoDetailPage({ params }: Props) {
         </div>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
+      <EntidadeDetailLayout
+        entidadeTipo="comunicacao"
+        entidadeId={comunicacao.id}
+        dados={
           <Panel title="Dados cadastrais">
             <dl className="grid gap-3 sm:grid-cols-2">
               <Field
@@ -107,27 +109,22 @@ export default async function ComunicacaoDetailPage({ params }: Props) {
               />
             </dl>
           </Panel>
+        }
+        extras={
           <VinculosDiagramPanel
             entidadeTipo="comunicacao"
             entidadeId={comunicacao.id}
           />
-
-          <Panel title="Vínculos">
-            <VinculosSection
-              entidadeTipo="comunicacao"
-              entidadeId={comunicacao.id}
-            />
-          </Panel>
-        </div>
-        <div>
+        }
+        observacoes={
           <Panel title="Observações">
             <ObservacoesTimeline
               entidadeTipo="comunicacao"
               entidadeId={comunicacao.id}
             />
           </Panel>
-        </div>
-      </div>
+        }
+      />
     </DashboardShell>
   );
 }

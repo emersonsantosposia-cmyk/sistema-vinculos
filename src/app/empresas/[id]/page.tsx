@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { EmpresaDeleteButton } from "@/components/shared/EntityDeletes";
+import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
-import { VinculosSection } from "@/components/shared/VinculosSection";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatCnpj } from "@/lib/format";
 import { getEmpresaById } from "@/lib/supabase/empresas-server";
@@ -65,8 +65,10 @@ export default async function EmpresaDetailPage({ params }: Props) {
         </div>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
+      <EntidadeDetailLayout
+        entidadeTipo="empresa"
+        entidadeId={empresa.id}
+        dados={
           <Panel title="Dados cadastrais">
             <dl className="grid gap-3 sm:grid-cols-2">
               <Field
@@ -85,21 +87,19 @@ export default async function EmpresaDetailPage({ params }: Props) {
               />
             </dl>
           </Panel>
+        }
+        extras={
           <VinculosDiagramPanel entidadeTipo="empresa" entidadeId={empresa.id} />
-
-          <Panel title="Vínculos">
-            <VinculosSection entidadeTipo="empresa" entidadeId={empresa.id} />
-          </Panel>
-        </div>
-        <div>
+        }
+        observacoes={
           <Panel title="Observações">
             <ObservacoesTimeline
               entidadeTipo="empresa"
               entidadeId={empresa.id}
             />
           </Panel>
-        </div>
-      </div>
+        }
+      />
     </DashboardShell>
   );
 }
