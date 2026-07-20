@@ -127,6 +127,34 @@ function VinculoCardBox({
     setMenu({ x: e.clientX, y: e.clientY });
   }
 
+  function linkAbsoluto(): string {
+    if (typeof window === "undefined") return entidadeHref;
+    return new URL(entidadeHref, window.location.origin).href;
+  }
+
+  function abrirEmNovaAba() {
+    setMenu(null);
+    window.open(entidadeHref, "_blank", "noopener,noreferrer");
+  }
+
+  function abrirEmNovaJanela() {
+    setMenu(null);
+    window.open(
+      entidadeHref,
+      "_blank",
+      "noopener,noreferrer,width=1100,height=800",
+    );
+  }
+
+  async function copiarEndereco() {
+    setMenu(null);
+    try {
+      await navigator.clipboard.writeText(linkAbsoluto());
+    } catch {
+      // Fallback silencioso se clipboard estiver bloqueado.
+    }
+  }
+
   const cardContent = isRestrito ? (
     isCompact ? (
       <div className="flex h-full flex-col items-center gap-1 text-center">
@@ -257,10 +285,42 @@ function VinculoCardBox({
       {menu ? (
         <div
           ref={menuRef}
-          className="fixed z-50 min-w-[9.5rem] rounded border border-border bg-panel py-1 shadow-[var(--cor-sombra-dropdown)]"
+          className="fixed z-50 min-w-[11rem] rounded border border-border bg-panel py-1 shadow-[var(--cor-sombra-dropdown)]"
           style={{ left: menu.x, top: menu.y }}
           role="menu"
         >
+          {!isRestrito ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-panel-hover"
+                onClick={abrirEmNovaAba}
+              >
+                Abrir em nova aba
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-panel-hover"
+                onClick={abrirEmNovaJanela}
+              >
+                Abrir em nova janela
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-panel-hover"
+                onClick={() => void copiarEndereco()}
+              >
+                Copiar endereço do link
+              </button>
+              <div
+                className="my-1 border-t border-border"
+                role="separator"
+              />
+            </>
+          ) : null}
           {isCompact && !isRestrito ? (
             <button
               type="button"

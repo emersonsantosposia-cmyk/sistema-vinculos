@@ -8,7 +8,7 @@ import {
   resolveLoginEmail,
 } from "@/lib/auth/login-email";
 import { createClient } from "@/lib/supabase/client";
-import { marcarSessaoAtiva, mensagemMotivoSessao } from "@/lib/sessao";
+import { mensagemMotivoSessao } from "@/lib/sessao";
 
 function LoginFormInner() {
   const router = useRouter();
@@ -52,9 +52,6 @@ function LoginFormInner() {
         );
         return;
       }
-      // Marca a aba atual ANTES de navegar, para o SessionGuard não
-      // interpretar o primeiro load pós-login como "aba reaberta".
-      marcarSessaoAtiva();
       const next = searchParams.get("next");
       const dest =
         next && next.startsWith("/") && !next.startsWith("//")

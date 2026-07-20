@@ -6,11 +6,8 @@ import { Button } from "@/components/ui/Form";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { createClient } from "@/lib/supabase/client";
 import {
-  limparSessaoAtiva,
-  marcarSessaoAtiva,
   SESSAO_AVISO_ANTES_MS,
   sessaoAvisoAposMs,
-  temSessaoAtivaMarcador,
 } from "@/lib/sessao";
 
 type Props = {
@@ -18,18 +15,15 @@ type Props = {
 };
 
 /**
- * Segurança de sessão (apenas área autenticada / DashboardShell):
- * - Aviso aos 4m30s + logout por inatividade aos 5 min
- * - Forçar novo login após fechar aba (marcador sessionStorage)
+ * Segurança de sessão (área autenticada / DashboardShell):
+ * aviso aos 4m30s + logout por inatividade aos 5 min.
  *
- * Importante: NÃO ler sessionStorage/window na renderização inicial —
- * isso causaria hydration mismatch. Toda verificação roda em useEffect.
+ * Multi-aba é permitido: a sessão Supabase (cookies) é compartilhada
+ * entre abas; não há mais logout ao abrir/fechar abas.
  */
 export function SessionGuard({ children }: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  /** Só fica true após o bootstrap no cliente (pós-hidratação). */
-  const [sessionChecked, setSessionChecked] = useState(false);
   const [warningOpen, setWarningOpen] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(
     Math.ceil(SESSAO_AVISO_ANTES_MS / 1000),
@@ -59,24 +53,20 @@ export function SessionGuard({ children }: Props) {
     clearCountdown();
   }, [clearCountdown]);
 
-  const forceLogout = useCallback(
-    async (motivo: "inatividade" | "aba") => {
-      if (loggingOutRef.current) return;
-      loggingOutRef.current = true;
-      clearIdleTimers();
-      setWarningOpen(false);
-      limparSessaoAtiva();
-      try {
-        const supabase = createClient();
-        await supabase.auth.signOut();
-      } catch {
-        // Prossegue para o login mesmo se o signOut falhar.
-      }
-      router.replace(`/login?motivo=${motivo}`);
-      router.refresh();
-    },
-    [clearIdleTimers, router],
-  );
+  const forceLogout = useCallback(async () => {
+    if (loggingOutRef.current) return;
+    loggingOutRef.current = true;
+    clearIdleTimers();
+    setWarningOpen(false);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Prossegue para o login mesmo se o signOut falhar.
+    }
+    router.replace("/login?motivo=inatividade");
+    router.refresh();
+  }, [clearIdleTimers, router]);
 
   const openWarning = useCallback(() => {
     if (loggingOutRef.current) return;
@@ -96,7 +86,7 @@ export function SessionGuard({ children }: Props) {
       window.clearTimeout(logoutTimerRef.current);
     }
     logoutTimerRef.current = window.setTimeout(() => {
-      void forceLogout("inatividade");
+      void forceLogout();
     }, leadMs);
   }, [clearCountdown, forceLogout]);
 
@@ -115,49 +105,11 @@ export function SessionGuard({ children }: Props) {
     scheduleIdleCycle();
   }, [scheduleIdleCycle]);
 
-  // Parte 2.2 — só no navegador, depois da hidratação.
   useEffect(() => {
-    let cancelled = false;
-
-    async function bootstrap() {
-      if (temSessaoAtivaMarcador()) {
-        marcarSessaoAtiva();
-        if (!cancelled) setSessionChecked(true);
-        return;
-      }
-
-      // Sem marcador: nova aba após fechar a anterior.
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (cancelled) return;
-
-      if (user) {
-        await forceLogout("aba");
-        return;
-      }
-
-      marcarSessaoAtiva();
-      setSessionChecked(true);
-    }
-
-    void bootstrap();
-    return () => {
-      cancelled = true;
-    };
-  }, [forceLogout]);
-
-  // Parte 1 — inatividade + aviso + reset em navegação interna (pathname).
-  useEffect(() => {
-    if (!sessionChecked) return;
-
     scheduleIdleCycle();
 
     const onActivity = () => {
       if (loggingOutRef.current) return;
-      // Qualquer interação (inclusive com o aviso aberto) reinicia a sessão.
       continueSession();
     };
     const opts: AddEventListenerOptions = { capture: true, passive: true };
@@ -177,31 +129,8 @@ export function SessionGuard({ children }: Props) {
       window.removeEventListener("click", onActivity, opts);
       clearIdleTimers();
     };
-  }, [sessionChecked, scheduleIdleCycle, continueSession, clearIdleTimers, pathname]);
+  }, [scheduleIdleCycle, continueSession, clearIdleTimers, pathname]);
 
-  // Parte 2.3 — reforço best-effort no fechamento da aba.
-  useEffect(() => {
-    if (!sessionChecked) return;
-
-    function onPageHide(event: PageTransitionEvent) {
-      // Best-effort. O mecanismo CONFIÁVEL é a Parte 2.2 (sessionStorage).
-      // NÃO chamamos signOut aqui: pagehide também dispara em F5.
-      if (event.persisted) return;
-      try {
-        if (typeof navigator.sendBeacon === "function") {
-          navigator.sendBeacon("/api/auth/sessao-abandono");
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    window.addEventListener("pagehide", onPageHide);
-    return () => window.removeEventListener("pagehide", onPageHide);
-  }, [sessionChecked]);
-
-  // Servidor e 1ª renderização do cliente: sempre os mesmos children
-  // (sem ler sessionStorage). Logout/redirect só após useEffect.
   return (
     <>
       {children}

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   DiagramaVinculos,
   type ExpandDepth,
 } from "@/components/vinculos-diagram/DiagramaVinculos";
 import type { EntidadeTipo } from "@/lib/types";
+import { ENTIDADE_HREFS } from "@/lib/vinculos-types";
 
 type Props = {
   entidadeTipo: EntidadeTipo;
@@ -33,13 +34,51 @@ const DEPTH_OPTIONS: { value: ExpandDepth; label: string; hint: string }[] = [
   },
 ];
 
+function diagramaPath(entidadeTipo: EntidadeTipo, entidadeId: string): string {
+  return `${ENTIDADE_HREFS[entidadeTipo]}/${entidadeId}?diagrama=1`;
+}
+
+function syncDiagramaQuery(open: boolean) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (open) url.searchParams.set("diagrama", "1");
+  else url.searchParams.delete("diagrama");
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState(null, "", next);
+}
+
 export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
   const [phase, setPhase] = useState<OverlayPhase>("closed");
   const [resetToken, setResetToken] = useState(0);
   const [expandDepth, setExpandDepth] = useState<ExpandDepth>(1);
   const [pendingDepth, setPendingDepth] = useState<ExpandDepth>(1);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const open = phase !== "closed";
+  const pathComDiagrama = diagramaPath(entidadeTipo, entidadeId);
+
+  const openSetup = useCallback(() => {
+    setResetToken(0);
+    setPendingDepth(1);
+    setPhase("setup");
+    syncDiagramaQuery(true);
+  }, []);
+
+  const closeOverlay = useCallback(() => {
+    setPhase("closed");
+    syncDiagramaQuery(false);
+  }, []);
+
+  // Abre o diagrama se a URL já trouxer ?diagrama=1 (ex.: nova aba).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("diagrama") === "1") {
+      setResetToken(0);
+      setPendingDepth(1);
+      setPhase("setup");
+    }
+  }, [entidadeTipo, entidadeId]);
 
   useEffect(() => {
     if (!open) return;
@@ -48,7 +87,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
     document.body.style.overflow = "hidden";
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setPhase("closed");
+      if (event.key === "Escape") closeOverlay();
     }
 
     window.addEventListener("keydown", onKeyDown);
@@ -56,17 +95,49 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [open, closeOverlay]);
+
+  useEffect(() => {
+    if (!menu) return;
+
+    function close() {
+      setMenu(null);
+    }
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+
+    function onPointerDown(e: MouseEvent) {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      close();
+    }
+
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [menu]);
+
+  function openContextMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY });
+  }
+
+  function linkAbsoluto(): string {
+    return new URL(pathComDiagrama, window.location.origin).href;
+  }
 
   return (
     <>
       <button
         type="button"
-        onClick={() => {
-          setResetToken(0);
-          setPendingDepth(1);
-          setPhase("setup");
-        }}
+        onClick={openSetup}
+        onContextMenu={openContextMenu}
         className="group flex w-full items-center justify-between gap-3 rounded-lg border border-[var(--cor-borda-destaque)] bg-[color:var(--cor-alerta-fundo)] px-4 py-3 text-left transition-colors hover:bg-[color:var(--cor-card-fundo-hover)]"
       >
         <span>
@@ -84,6 +155,64 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
           Abrir
         </span>
       </button>
+
+      {menu ? (
+        <div
+          ref={menuRef}
+          className="fixed z-50 min-w-[11rem] rounded border border-border bg-panel py-1 shadow-[var(--cor-sombra-dropdown)]"
+          style={{ left: menu.x, top: menu.y }}
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-panel-hover"
+            onClick={() => {
+              setMenu(null);
+              openSetup();
+            }}
+          >
+            Abrir
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-panel-hover"
+            onClick={() => {
+              setMenu(null);
+              window.open(pathComDiagrama, "_blank", "noopener,noreferrer");
+            }}
+          >
+            Abrir em nova aba
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-panel-hover"
+            onClick={() => {
+              setMenu(null);
+              window.open(
+                pathComDiagrama,
+                "_blank",
+                "noopener,noreferrer,width=1200,height=860",
+              );
+            }}
+          >
+            Abrir em nova janela
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-panel-hover"
+            onClick={() => {
+              setMenu(null);
+              void navigator.clipboard.writeText(linkAbsoluto()).catch(() => {});
+            }}
+          >
+            Copiar endereço do link
+          </button>
+        </div>
+      ) : null}
 
       {open ? (
         <div
@@ -129,7 +258,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
               ) : null}
               <button
                 type="button"
-                onClick={() => setPhase("closed")}
+                onClick={closeOverlay}
                 className="inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded border border-[var(--cor-borda)] bg-panel text-lg leading-none text-muted transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-foreground sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
                 aria-label="Fechar diagrama"
               >
@@ -203,7 +332,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
                   <button
                     type="button"
                     className="btn-acao-secundario"
-                    onClick={() => setPhase("closed")}
+                    onClick={closeOverlay}
                   >
                     Cancelar
                   </button>
