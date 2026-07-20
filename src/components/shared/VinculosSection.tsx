@@ -24,7 +24,6 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
 import { VeiculoAvatar } from "@/components/veiculos/VeiculoAvatar";
 import { formatDateTime } from "@/lib/format";
-import { createClient } from "@/lib/supabase/client";
 import {
   createVinculo,
   deleteVinculo,
@@ -429,11 +428,6 @@ export function VinculosProvider({
   const [detalhe, setDetalhe] = useState<VinculoCard | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const [usuarioAtualNome, setUsuarioAtualNome] = useState<string>("Carregando…");
-  const [dataCriacaoPreview, setDataCriacaoPreview] = useState(
-    () => new Date().toISOString(),
-  );
-
   const [destinoTipo, setDestinoTipo] = useState<EntidadeTipo>("pessoa");
   const [busca, setBusca] = useState("");
   const [opcoes, setOpcoes] = useState<EntidadeOpcao[]>([]);
@@ -456,23 +450,6 @@ export function VinculosProvider({
     }
     return map;
   }, [cards]);
-
-  useEffect(() => {
-    const supabase = createClient();
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        setUsuarioAtualNome("Usuário não identificado");
-        return;
-      }
-      setUsuarioAtualNome(
-        (user.user_metadata?.full_name as string | undefined) ||
-          (user.user_metadata?.name as string | undefined) ||
-          user.email?.split("@")[0] ||
-          user.email ||
-          "Você",
-      );
-    });
-  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -537,7 +514,6 @@ export function VinculosProvider({
     setFundamentacao("");
     setEditandoId(null);
     setFormMode("create");
-    setDataCriacaoPreview(new Date().toISOString());
   }
 
   function abrirFormulario(tipo: EntidadeTipo) {
@@ -564,7 +540,6 @@ export function VinculosProvider({
     setTipoVinculo(tipoVals.select);
     setTipoVinculoCustom(tipoVals.custom);
     setFundamentacao(card.fundamentacao ?? "");
-    setDataCriacaoPreview(card.data_cadastro);
     setError(null);
     setFormOpen(true);
     setAbertos((prev) => new Set(prev).add(card.outroTipo));
@@ -654,12 +629,6 @@ export function VinculosProvider({
     });
   }
 
-  const formUsuarioLabel =
-    formMode === "edit"
-      ? cards.find((c) => c.id === editandoId)?.usuario_nome ||
-        usuarioAtualNome
-      : usuarioAtualNome;
-
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -692,7 +661,7 @@ export function VinculosProvider({
             <p className="mt-0.5 text-xs text-muted">
               {mode === "edit"
                 ? "Altere o tipo de vínculo ou a fundamentação."
-                : "Tipo de destino pré-selecionado. Busque e escolha o registro."}
+                : "Busque e escolha o registro a vincular."}
             </p>
           </div>
           <Button
@@ -704,46 +673,6 @@ export function VinculosProvider({
             Cancelar
           </Button>
         </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label>Usuário</Label>
-            <Input value={formUsuarioLabel} readOnly disabled />
-          </div>
-          <div>
-            <Label>Data de criação</Label>
-            <Input
-              value={formatDateTime(dataCriacaoPreview)}
-              readOnly
-              disabled
-            />
-          </div>
-        </div>
-
-        {mode === "create" ? (
-          <div>
-            <Label htmlFor="destino_tipo">Tipo da entidade</Label>
-            <Select
-              id="destino_tipo"
-              value={destinoTipo}
-              onChange={(e) => {
-                const next = e.target.value as EntidadeTipo;
-                setDestinoTipo(next);
-                setSelecionada(null);
-                setBusca("");
-                setOpcoes([]);
-                setAbertos((prev) => new Set(prev).add(next));
-              }}
-              disabled={pending}
-            >
-              {ENTIDADE_TIPOS.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {ENTIDADE_LABELS[tipo]}
-                </option>
-              ))}
-            </Select>
-          </div>
-        ) : null}
 
         <div>
           {selecionada ? (
@@ -772,7 +701,9 @@ export function VinculosProvider({
             </>
           ) : (
             <>
-              <Label htmlFor="busca_entidade">Buscar entidade</Label>
+              <Label htmlFor="busca_entidade">
+                Buscar {ENTIDADE_LABELS[destinoTipo].toLowerCase()}
+              </Label>
               <Input
                 id="busca_entidade"
                 value={busca}

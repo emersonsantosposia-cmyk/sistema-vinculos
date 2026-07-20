@@ -106,6 +106,13 @@ export default async function CasoDetailPage({ params }: Props) {
                 <Field label="Nome" value={caso.nome || "—"} />
               </div>
               <div className="sm:col-span-2">
+                <Field label="Descrição">
+                  <p className="whitespace-pre-wrap">
+                    {caso.descricao?.trim() || "—"}
+                  </p>
+                </Field>
+              </div>
+              <div className="sm:col-span-2">
                 <Field label="Link do CRONOS">
                   {caso.link_cronos ? (
                     <a

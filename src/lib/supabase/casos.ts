@@ -12,6 +12,7 @@ import type { Caso, CasoStatus } from "@/lib/types";
 export type CasoInput = {
   numero?: string | null;
   nome?: string | null;
+  descricao?: string | null;
   data_abertura?: string | null;
   status?: CasoStatus | null;
   data_encerramento?: string | null;
@@ -44,6 +45,7 @@ export async function createCaso(
     .insert({
       numero: emptyToNull(input.numero),
       nome: emptyToNull(input.nome),
+      descricao: emptyToNull(input.descricao),
       data_abertura: emptyToNull(input.data_abertura),
       status,
       data_encerramento:
@@ -75,6 +77,9 @@ export async function updateCaso(
   const payload: Record<string, unknown> = {};
   if (input.numero !== undefined) payload.numero = emptyToNull(input.numero);
   if (input.nome !== undefined) payload.nome = emptyToNull(input.nome);
+  if (input.descricao !== undefined) {
+    payload.descricao = emptyToNull(input.descricao);
+  }
   if (input.data_abertura !== undefined) {
     payload.data_abertura = emptyToNull(input.data_abertura);
   }

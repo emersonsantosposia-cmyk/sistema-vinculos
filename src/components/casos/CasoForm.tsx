@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { Button, FormActions, Input, Label, Select } from "@/components/ui/Form";
+import { Button, FormActions, Input, Label, Select, Textarea } from "@/components/ui/Form";
 import {
   canChooseUnidade,
   defaultUnidadeForPerfil,
@@ -38,6 +38,7 @@ export function CasoForm({ initial }: Props) {
   );
   const [numero, setNumero] = useState(initial?.numero ?? "");
   const [nome, setNome] = useState(initial?.nome ?? "");
+  const [descricao, setDescricao] = useState(initial?.descricao ?? "");
   const [dataAbertura, setDataAbertura] = useState(
     toDateInputValue(initial?.data_abertura),
   );
@@ -101,6 +102,7 @@ export function CasoForm({ initial }: Props) {
         unidade,
         numero,
         nome,
+        descricao,
         data_abertura: dataAbertura,
         status,
         data_encerramento:
@@ -218,6 +220,17 @@ export function CasoForm({ initial }: Props) {
               id="nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="descricao">Descrição</Label>
+            <Textarea
+              id="descricao"
+              rows={5}
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Descreva o caso (opcional)"
               disabled={pending}
             />
           </div>

@@ -131,6 +131,7 @@ export type Caso = {
   id: string;
   numero: string | null;
   nome: string | null;
+  descricao: string | null;
   data_abertura: string | null;
   status: CasoStatus;
   data_encerramento: string | null;

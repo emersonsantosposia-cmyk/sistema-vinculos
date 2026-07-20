@@ -3,22 +3,42 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, useTransition } from "react";
 import { Button, Input, Label } from "@/components/ui/Form";
+import {
+  getEmailDomain,
+  resolveLoginEmail,
+} from "@/lib/auth/login-email";
 import { createClient } from "@/lib/supabase/client";
 import { marcarSessaoAtiva, mensagemMotivoSessao } from "@/lib/sessao";
 
 function LoginFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const motivoMsg = mensagemMotivoSessao(searchParams.get("motivo"));
+  const emailDomain = getEmailDomain();
+  const showDomainSuffix = Boolean(emailDomain) && !login.includes("@");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
       setError(null);
+
+      if (!login.trim()) {
+        setError("Informe o usuário.");
+        return;
+      }
+
+      const email = resolveLoginEmail(login);
+      if (!email.includes("@")) {
+        setError(
+          "Domínio de e-mail não configurado. Defina NEXT_PUBLIC_EMAIL_DOMAIN.",
+        );
+        return;
+      }
+
       const supabase = createClient();
       const { error: signError } = await supabase.auth.signInWithPassword({
         email,
@@ -27,7 +47,7 @@ function LoginFormInner() {
       if (signError) {
         setError(
           signError.message === "Invalid login credentials"
-            ? "E-mail ou senha inválidos."
+            ? "Usuário ou senha inválidos."
             : signError.message,
         );
         return;
@@ -94,16 +114,47 @@ function LoginFormInner() {
       ) : null}
 
       <div>
-        <Label htmlFor="email">E-mail</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="username"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={pending}
-        />
+        <Label htmlFor="login">Usuário</Label>
+        {showDomainSuffix ? (
+          <div className="flex overflow-hidden rounded border border-field-border bg-field focus-within:border-gold">
+            <input
+              id="login"
+              type="text"
+              autoComplete="username"
+              inputMode="text"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              placeholder="nome.sobrenome"
+              required
+              disabled={pending}
+              className="min-h-[44px] h-11 w-full flex-1 border-0 bg-transparent px-2.5 text-sm text-foreground outline-none placeholder:text-muted sm:h-8 sm:min-h-0 disabled:opacity-60"
+            />
+            <span
+              className="flex shrink-0 items-center border-l border-field-border bg-panel-soft px-2.5 text-sm text-muted select-none"
+              aria-hidden
+            >
+              @{emailDomain}
+            </span>
+          </div>
+        ) : (
+          <Input
+            id="login"
+            type="text"
+            autoComplete="username"
+            inputMode="text"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={login}
+            onChange={(e) => setLogin(e.target.value)}
+            placeholder="usuario@dominio"
+            required
+            disabled={pending}
+          />
+        )}
       </div>
       <div>
         <Label htmlFor="password">Senha</Label>
