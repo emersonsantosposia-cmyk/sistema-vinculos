@@ -71,7 +71,7 @@ function BrandBlock() {
           src="/rede-lince-institucional.png"
           alt="Rede Lince · PPF"
           width={2048}
-          height={360}
+          height={460}
           className="block h-auto w-full object-contain object-center"
         />
       </div>
