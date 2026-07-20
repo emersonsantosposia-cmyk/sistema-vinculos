@@ -42,12 +42,12 @@ export function DashboardView({
       <div className="relative space-y-6 p-5 sm:p-6">
         <header className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--cor-fundo-primaria)] shadow-[var(--cor-sombra-modal)]">
           {/* Banner na proporção da arte — sem cortes (object-contain) */}
-          <div className="relative aspect-[2048/832] w-full overflow-hidden bg-black">
+          <div className="relative aspect-[2048/360] w-full overflow-hidden bg-black">
             <img
               src="/rede-lince-institucional.png"
               alt="Rede Lince — Sistema de Contrainteligência da Polícia Penal Federal (PPF)"
               width={2048}
-              height={832}
+              height={360}
               className="absolute inset-0 h-full w-full object-contain object-center"
             />
           </div>
@@ -122,7 +122,7 @@ export function DashboardFallback() {
       <div className="pointer-events-none absolute inset-0 dash-bg-layer" aria-hidden />
       <div className="relative space-y-6 p-5 sm:p-6">
         <div className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--cor-fundo-primaria)]">
-          <div className="aspect-[1024/349] w-full animate-pulse bg-[color:var(--cor-fundo-secundaria)]" />
+          <div className="aspect-[2048/360] w-full animate-pulse bg-[color:var(--cor-fundo-secundaria)]" />
           <div className="flex justify-end gap-2 border-t border-[color:var(--dash-border)] px-3 py-2">
             <div className="h-10 w-24 animate-pulse rounded bg-[color:var(--dash-panel)]" />
             <div className="h-10 w-24 animate-pulse rounded bg-[color:var(--dash-panel)]" />

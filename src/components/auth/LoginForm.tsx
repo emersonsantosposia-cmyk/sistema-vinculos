@@ -72,8 +72,8 @@ function LoginFormInner() {
           <img
             src="/rede-lince-institucional.png"
             alt="Rede Lince · PPF"
-            width={420}
-            height={238}
+            width={2048}
+            height={360}
             className="block h-auto w-full object-contain object-center"
           />
         </div>
