@@ -25,6 +25,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./diagrama-vinculos.css";
+import { useRouter } from "next/navigation";
 import {
   CarregarMaisNode,
   type CarregarMaisNodeData,
@@ -35,10 +36,6 @@ import {
   DiagramPathModeBanner,
   DiagramToolbar,
 } from "@/components/vinculos-diagram/DiagramToolbar";
-import {
-  EntidadeResumoPanel,
-  type EntidadeResumoSelecionada,
-} from "@/components/vinculos-diagram/EntidadeResumoPanel";
 import {
   EntidadeVinculoNode,
   type EntidadeNodeData,
@@ -81,7 +78,7 @@ import {
   getEntidadeResumo,
 } from "@/lib/supabase/vinculos";
 import type { EntidadeTipo } from "@/lib/types";
-import type { VinculoDiagramItem } from "@/lib/vinculos-types";
+import { ENTIDADE_HREFS, type VinculoDiagramItem } from "@/lib/vinculos-types";
 import { Button, Input, Label } from "@/components/ui/Form";
 import { ModalShell } from "@/components/ui/ModalShell";
 
@@ -180,10 +177,6 @@ function DiagramaVinculosInner({
   const [bootstrapping, setBootstrapping] = useState(false);
   const [layoutVersion, setLayoutVersion] = useState(0);
   const [animating, setAnimating] = useState(false);
-  const [selecionada, setSelecionada] =
-    useState<EntidadeResumoSelecionada | null>(null);
-  const selecionadaRef = useRef(selecionada);
-  selecionadaRef.current = selecionada;
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [expandingCascade, setExpandingCascade] = useState(false);
   const expandingCascadeRef = useRef(false);
@@ -211,6 +204,7 @@ function DiagramaVinculosInner({
   const [showMinimap, setShowMinimap] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
   const isNarrow = useIsNarrow();
+  const router = useRouter();
 
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveNome, setSaveNome] = useState("");
@@ -297,7 +291,6 @@ function DiagramaVinculosInner({
       setLoadingRoot(true);
       setBootstrapping(false);
       setInitError(null);
-      setSelecionada(null);
       setContextMenu(null);
       vinculosCacheRef.current.clear();
       loadedCountRef.current.clear();
@@ -349,16 +342,6 @@ function DiagramaVinculosInner({
       setEdges([]);
       setLayoutVersion((v) => v + 1);
       setLoadingRoot(false);
-      setSelecionada({
-        entidadeTipo,
-        entidadeId,
-        titulo: resumo.titulo,
-        subtitulo: resumo.subtitulo,
-        foto_perfil_path: resumo.foto_perfil_path,
-        foto_url: resumo.foto_url,
-        restrito: false,
-        expanded: false,
-      });
     }
 
     void loadRoot();
@@ -366,36 +349,6 @@ function DiagramaVinculosInner({
       cancelled = true;
     };
   }, [entidadeTipo, entidadeId, rootId]);
-
-  const syncSelecionadaFromNode = useCallback((node: DiagramNode) => {
-    if (!isEntidadeNode(node)) return;
-    setSelecionada({
-      entidadeTipo: node.data.entidadeTipo,
-      entidadeId: node.data.entidadeId,
-      titulo: node.data.titulo,
-      subtitulo: node.data.subtitulo,
-      foto_perfil_path: node.data.foto_perfil_path,
-      foto_url: node.data.foto_url,
-      restrito: node.data.restrito,
-      expanded: node.data.expanded,
-    });
-  }, []);
-
-  /** Atualiza o painel só se já estiver aberto para o mesmo nó (não reabre após fechar). */
-  const syncSelecionadaIfOpen = useCallback(
-    (node: DiagramNode) => {
-      const current = selecionadaRef.current;
-      if (!current || !isEntidadeNode(node)) return;
-      if (
-        current.entidadeTipo !== node.data.entidadeTipo ||
-        current.entidadeId !== node.data.entidadeId
-      ) {
-        return;
-      }
-      syncSelecionadaFromNode(node);
-    },
-    [syncSelecionadaFromNode],
-  );
 
   const resetToRoot = useCallback(() => {
     const root = nodesRef.current.find((n) => n.id === rootId);
@@ -426,8 +379,7 @@ function DiagramaVinculosInner({
     setNodes([resetRoot]);
     setEdges([]);
     setLayoutVersion((v) => v + 1);
-    syncSelecionadaFromNode(resetRoot);
-  }, [rootId, syncSelecionadaFromNode]);
+  }, [rootId]);
 
   const expandWithItems = useCallback(
     (
@@ -471,9 +423,6 @@ function DiagramaVinculosInner({
         fitView: layoutOpts?.fitView,
       });
 
-      const parent = nodesRef.current.find((n) => n.id === parentId);
-      if (parent) syncSelecionadaIfOpen(parent);
-
       // Filhos descobertos neste passo (para a fronteira do próximo nível).
       // Usa o grafo já sincronizado em nodesRef após applyLayout.
       return nodesRef.current
@@ -485,7 +434,7 @@ function DiagramaVinculosInner({
         )
         .map((n) => n.id);
     },
-    [applyLayout, syncSelecionadaIfOpen],
+    [applyLayout],
   );
 
   const fetchVinculos = useCallback(async (nodeId: string) => {
@@ -636,11 +585,9 @@ function DiagramaVinculosInner({
       }
 
       applyLayout(result.nodes, result.edges);
-      const updated = result.nodes.find((n) => n.id === nodeId);
-      if (updated) syncSelecionadaIfOpen(updated);
       collapsingRef.current = false;
     },
-    [applyLayout, rootId, syncSelecionadaIfOpen],
+    [applyLayout, rootId],
   );
 
   const shakeRootNode = useCallback(() => {
@@ -710,15 +657,9 @@ function DiagramaVinculosInner({
 
       applyLayout(result.nodes, result.edges);
 
-      const root = result.nodes.find((n) => n.id === rootId);
-      if (selecionadaRef.current) {
-        if (root) syncSelecionadaFromNode(root);
-        else setSelecionada(null);
-      }
-
       collapsingRef.current = false;
     },
-    [applyLayout, rootId, shakeRootNode, syncSelecionadaFromNode],
+    [applyLayout, rootId, shakeRootNode],
   );
 
   const expandNode = useCallback(
@@ -1067,12 +1008,8 @@ function DiagramaVinculosInner({
       setEdges(result.edges);
       setLayoutVersion((v) => v + 1);
 
-      const root = result.nodes.find((n) => n.id === rootId);
-      if (root && isEntidadeNode(root)) {
-        syncSelecionadaFromNode(root);
-      }
     },
-    [initialExpandDepth, resetToken, rootId, syncSelecionadaFromNode],
+    [initialExpandDepth, resetToken, rootId],
   );
 
   const handleSaveVisualizacao = useCallback(() => {
@@ -1176,16 +1113,7 @@ function DiagramaVinculosInner({
         clearPendingClick();
         if (!isEntidadeNode(node)) return;
         if (node.data.removing || node.data.restrito || node.data.isRoot) return;
-        if (!isNarrow) syncSelecionadaFromNode(node);
         void dismissNode(node.id);
-        return;
-      }
-
-      // Ícone i (mobile): só abre o resumo — não expande/recolhe.
-      if (target?.closest("[data-info-node]")) {
-        clearPendingClick();
-        if (!isEntidadeNode(node) || node.data.removing) return;
-        syncSelecionadaFromNode(node);
         return;
       }
 
@@ -1205,7 +1133,6 @@ function DiagramaVinculosInner({
         event.preventDefault();
         event.stopPropagation();
         clearPendingClick();
-        if (!isNarrow) syncSelecionadaFromNode(node);
         if (!node.data.restrito) {
           const now = Date.now();
           const last = pathContextSelectRef.current;
@@ -1218,9 +1145,6 @@ function DiagramaVinculosInner({
       }
 
       // Mobile: toque no corpo só expande/recolhe — não abre o Resumo.
-      if (!isNarrow) {
-        syncSelecionadaFromNode(node);
-      }
       if (node.data.restrito) {
         clearPendingClick();
         return;
@@ -1254,7 +1178,6 @@ function DiagramaVinculosInner({
       isPathModifier,
       loadMore,
       pathSelectMode,
-      syncSelecionadaFromNode,
       togglePathEndpoint,
     ],
   );
@@ -1273,14 +1196,12 @@ function DiagramaVinculosInner({
       if (node.data.removing || node.data.restrito) return;
       if (isPathModifier(event)) return;
 
-      syncSelecionadaFromNode(node);
       void dismissNode(node.id);
     },
     [
       clearPendingClick,
       dismissNode,
       isPathModifier,
-      syncSelecionadaFromNode,
     ],
   );
 
@@ -1296,7 +1217,6 @@ function DiagramaVinculosInner({
           !node.data.restrito &&
           !node.data.removing
         ) {
-          syncSelecionadaFromNode(node);
           // Evita toggle duplo se o click também disparar em seguida.
           const now = Date.now();
           const last = pathContextSelectRef.current;
@@ -1314,7 +1234,6 @@ function DiagramaVinculosInner({
         setContextMenu(null);
         return;
       }
-      syncSelecionadaFromNode(node);
       setContextMenu({
         x: event.clientX,
         y: event.clientY,
@@ -1324,7 +1243,6 @@ function DiagramaVinculosInner({
     [
       clearPendingClick,
       isPathModifier,
-      syncSelecionadaFromNode,
       togglePathEndpoint,
     ],
   );
@@ -1338,14 +1256,19 @@ function DiagramaVinculosInner({
     [clearPendingClick, dismissNode],
   );
 
-  const openResumo = useCallback(
+  const openEntityPageFromContext = useCallback(
     (nodeId: string) => {
       clearPendingClick();
       setContextMenu(null);
+
       const node = nodesRef.current.find((n) => n.id === nodeId);
-      if (node) syncSelecionadaFromNode(node);
+      if (!node || !isEntidadeNode(node)) return;
+
+      const { entidadeTipo, entidadeId } = node.data;
+      const href = `${ENTIDADE_HREFS[entidadeTipo]}/${entidadeId}`;
+      void router.push(href);
     },
-    [clearPendingClick, syncSelecionadaFromNode],
+    [clearPendingClick, router],
   );
 
   const onNodeDragStop = useCallback(
@@ -1387,7 +1310,6 @@ function DiagramaVinculosInner({
   return (
     <DiagramaNodeActionsProvider
       dismissNode={requestDismiss}
-      openResumo={openResumo}
     >
       <div className={fullScreen ? "flex h-full flex-col gap-2" : "space-y-2"}>
       <p className="hidden text-xs text-muted sm:block">
@@ -1396,8 +1318,8 @@ function DiagramaVinculosInner({
         direito: mais ações.
       </p>
       <p className="text-xs text-muted sm:hidden">
-        Toque no nó: expandir/recolher. Ícone i: abrir resumo. Use Ferramentas →
-        “Selecionar nós para caminho” para marcar A/B. Pinça para zoom; um dedo
+        Toque no nó: expandir/recolher. Use Ferramentas “Selecionar nós para
+        caminho” para marcar A/B. Pinça para zoom; um dedo
         arrasta o canvas. × remove o nó.
       </p>
       <DiagramPathModeBanner active={pathSelectMode} />
@@ -1531,6 +1453,14 @@ function DiagramaVinculosInner({
                 type="button"
                 role="menuitem"
                 className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
+                onClick={() => openEntityPageFromContext(contextMenu.nodeId)}
+              >
+                ABRIR PÁGINA
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
                 onClick={() => applyFocus(contextMenu.nodeId)}
               >
                 Focar neste nó
@@ -1555,10 +1485,6 @@ function DiagramaVinculosInner({
             </div>
           ) : null}
         </div>
-        <EntidadeResumoPanel
-          entidade={selecionada}
-          onClose={() => setSelecionada(null)}
-        />
       </div>
 
       {saveOpen ? (
