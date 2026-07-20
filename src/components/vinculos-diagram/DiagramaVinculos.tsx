@@ -875,9 +875,25 @@ function DiagramaVinculosInner({
       if (d > maxDegree) maxDegree = d;
     }
 
-    const focusNeighbors = focusNodeId
-      ? getDirectNeighbors(focusNodeId, edges)
-      : null;
+    /**
+     * Foco em extremo de caminho destacado → spotlight = nós do caminho
+     * (não só vizinhos diretos). Caso contrário, foco padrão (nó + 1 hop).
+     */
+    const focusOnPathEndpoint =
+      focusNodeId != null &&
+      highlightedPath != null &&
+      (focusNodeId === pathEndpointA || focusNodeId === pathEndpointB);
+
+    const focusSpotlightNodes: Set<string> | null = (() => {
+      if (!focusNodeId) return null;
+      if (focusOnPathEndpoint && highlightedPath) {
+        return new Set(highlightedPath.nodeIds);
+      }
+      const neighbors = getDirectNeighbors(focusNodeId, edges);
+      neighbors.add(focusNodeId);
+      return neighbors;
+    })();
+
     const pathNodeSet = highlightedPath
       ? new Set(highlightedPath.nodeIds)
       : null;
@@ -888,9 +904,7 @@ function DiagramaVinculosInner({
     const nextNodes: DiagramNode[] = nodes.map((node) => {
       if (!isEntidadeNode(node)) {
         const dimmed =
-          focusNodeId != null &&
-          node.id !== focusNodeId &&
-          !(focusNeighbors?.has(node.id) ?? false);
+          focusSpotlightNodes != null && !focusSpotlightNodes.has(node.id);
         return {
           ...node,
           style: {
@@ -903,9 +917,7 @@ function DiagramaVinculosInner({
       const degree = degrees.get(node.id) ?? 0;
       const scale = degreeToScale(degree, maxDegree);
       const inFocusSpotlight =
-        !focusNodeId ||
-        node.id === focusNodeId ||
-        (focusNeighbors?.has(node.id) ?? false);
+        focusSpotlightNodes == null || focusSpotlightNodes.has(node.id);
       const onPath = pathNodeSet?.has(node.id) ?? false;
       const endpoint: "a" | "b" | null =
         node.id === pathEndpointA
@@ -920,7 +932,7 @@ function DiagramaVinculosInner({
           ...node.style,
           width: "fit-content",
           height: "fit-content",
-          opacity: focusNodeId != null && !inFocusSpotlight ? 0.25 : 1,
+          opacity: focusSpotlightNodes != null && !inFocusSpotlight ? 0.25 : 1,
           zIndex: onPath || endpoint || node.id === focusNodeId ? 12 : 1,
         },
         data: {
@@ -935,10 +947,17 @@ function DiagramaVinculosInner({
 
     const nextEdges: DiagramEdge[] = edges.map((edge) => {
       const onPath = pathEdgeSet?.has(edge.id) ?? false;
-      const touchesFocus =
-        focusNodeId != null &&
-        (edge.source === focusNodeId || edge.target === focusNodeId);
-      const dimmedByFocus = focusNodeId != null && !touchesFocus && !onPath;
+      // Foco padrão: aresta toca o nó focado; caminho destacado permanece visível.
+      // Foco em extremo de caminho: só arestas do caminho.
+      const dimmedByFocus =
+        focusSpotlightNodes != null &&
+        (focusOnPathEndpoint
+          ? !onPath
+          : !(
+              edge.source === focusNodeId ||
+              edge.target === focusNodeId ||
+              onPath
+            ));
 
       if (onPath) {
         return {
