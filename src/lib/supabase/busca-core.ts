@@ -102,6 +102,7 @@ function campoLabel(campo: string): string {
     status: "status",
     fonte: "fonte",
     observacao_geral: "observação",
+    mensagem: "mensagem",
     sigla: "sigla",
     estado_origem: "estado de origem",
     descricao: "descrição",
