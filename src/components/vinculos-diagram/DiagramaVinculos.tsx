@@ -135,6 +135,12 @@ type ContextMenuState = {
   nodeId: string;
 };
 
+type LinkSubmenuState = {
+  x: number;
+  y: number;
+  href: string;
+};
+
 function FitViewOnChange({ version }: { version: number }) {
   const { fitView } = useReactFlow();
 
@@ -178,6 +184,8 @@ function DiagramaVinculosInner({
   const [layoutVersion, setLayoutVersion] = useState(0);
   const [animating, setAnimating] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [linkSubmenu, setLinkSubmenu] = useState<LinkSubmenuState | null>(null);
+  const contextMenusRef = useRef<HTMLDivElement | null>(null);
   const [expandingCascade, setExpandingCascade] = useState(false);
   const expandingCascadeRef = useRef(false);
 
@@ -513,6 +521,7 @@ function DiagramaVinculosInner({
       expandingCascadeRef.current = true;
       setExpandingCascade(true);
       setContextMenu(null);
+      setLinkSubmenu(null);
 
       try {
         let frontier = [startNodeId];
@@ -782,6 +791,7 @@ function DiagramaVinculosInner({
   const applyFocus = useCallback((nodeId: string) => {
     setFocusNodeId(nodeId);
     setContextMenu(null);
+    setLinkSubmenu(null);
   }, []);
 
   /**
@@ -1125,6 +1135,7 @@ function DiagramaVinculosInner({
   const onNodeClick = useCallback(
     (event: MouseEvent, node: DiagramNode) => {
       setContextMenu(null);
+      setLinkSubmenu(null);
 
       const target = event.target as HTMLElement | null;
       // Ícone × — remoção explícita, sem debounce.
@@ -1258,6 +1269,7 @@ function DiagramaVinculosInner({
         y: event.clientY,
         nodeId: node.id,
       });
+      setLinkSubmenu(null);
     },
     [
       clearPendingClick,
@@ -1275,20 +1287,67 @@ function DiagramaVinculosInner({
     [clearPendingClick, dismissNode],
   );
 
+  const entityHrefFromNodeId = useCallback((nodeId: string): string | null => {
+    const node = nodesRef.current.find((n) => n.id === nodeId);
+    if (!node || !isEntidadeNode(node)) return null;
+    const { entidadeTipo, entidadeId } = node.data;
+    return `${ENTIDADE_HREFS[entidadeTipo]}/${entidadeId}`;
+  }, []);
+
   const openEntityPageFromContext = useCallback(
     (nodeId: string) => {
       clearPendingClick();
       setContextMenu(null);
+      setLinkSubmenu(null);
 
-      const node = nodesRef.current.find((n) => n.id === nodeId);
-      if (!node || !isEntidadeNode(node)) return;
-
-      const { entidadeTipo, entidadeId } = node.data;
-      const href = `${ENTIDADE_HREFS[entidadeTipo]}/${entidadeId}`;
+      const href = entityHrefFromNodeId(nodeId);
+      if (!href) return;
       void router.push(href);
     },
-    [clearPendingClick, router],
+    [clearPendingClick, entityHrefFromNodeId, router],
   );
+
+  const openLinkSubmenuFromAbrirPagina = useCallback(
+    (event: MouseEvent, nodeId: string) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const href = entityHrefFromNodeId(nodeId);
+      if (!href) return;
+      setLinkSubmenu({
+        x: event.clientX,
+        y: event.clientY,
+        href,
+      });
+    },
+    [entityHrefFromNodeId],
+  );
+
+  const closeLinkMenus = useCallback(() => {
+    setContextMenu(null);
+    setLinkSubmenu(null);
+  }, []);
+
+  useEffect(() => {
+    if (!contextMenu && !linkSubmenu) return;
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") closeLinkMenus();
+    }
+
+    function onPointerDown(e: globalThis.MouseEvent) {
+      if (contextMenusRef.current?.contains(e.target as globalThis.Node)) {
+        return;
+      }
+      closeLinkMenus();
+    }
+
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [contextMenu, linkSubmenu, closeLinkMenus]);
 
   const onNodeDragStop = useCallback(
     (_event: globalThis.MouseEvent | globalThis.TouchEvent, node: DiagramNode) => {
@@ -1303,6 +1362,7 @@ function DiagramaVinculosInner({
 
   const onPaneClick = useCallback(() => {
     setContextMenu(null);
+    setLinkSubmenu(null);
     clearFocus();
   }, [clearFocus]);
 
@@ -1462,45 +1522,106 @@ function DiagramaVinculosInner({
             </Panel>
           </ReactFlow>
 
-          {contextMenu ? (
-            <div
-              className="fixed z-[60] min-w-[14rem] rounded-md border border-border bg-panel py-1 shadow-lg"
-              style={{ left: contextMenu.x, top: contextMenu.y }}
-              role="menu"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
-                onClick={() => openEntityPageFromContext(contextMenu.nodeId)}
-              >
-                ABRIR PÁGINA
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
-                onClick={() => applyFocus(contextMenu.nodeId)}
-              >
-                Focar neste nó
-              </button>
-              <p className="px-3 py-1.5 text-[10px] font-medium tracking-wide text-muted uppercase">
-                Expandir a partir daqui
-              </p>
-              {([1, 2, 3] as const).map((depth) => (
-                <button
-                  key={depth}
-                  type="button"
-                  role="menuitem"
-                  disabled={expandingCascade}
-                  className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)] disabled:opacity-50"
-                  onClick={() => {
-                    void expandCascade(contextMenu.nodeId, depth, true);
-                  }}
+          {contextMenu || linkSubmenu ? (
+            <div ref={contextMenusRef}>
+              {contextMenu ? (
+                <div
+                  className="fixed z-[60] min-w-[14rem] rounded-md border border-border bg-panel py-1 shadow-lg"
+                  style={{ left: contextMenu.x, top: contextMenu.y }}
+                  role="menu"
                 >
-                  Expandir {depth} nível{depth > 1 ? "is" : ""}
-                </button>
-              ))}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
+                    onClick={() => openEntityPageFromContext(contextMenu.nodeId)}
+                    onContextMenu={(e) =>
+                      openLinkSubmenuFromAbrirPagina(e, contextMenu.nodeId)
+                    }
+                  >
+                    ABRIR PÁGINA
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
+                    onClick={() => applyFocus(contextMenu.nodeId)}
+                  >
+                    Focar neste nó
+                  </button>
+                  <p className="px-3 py-1.5 text-[10px] font-medium tracking-wide text-muted uppercase">
+                    Expandir a partir daqui
+                  </p>
+                  {([1, 2, 3] as const).map((depth) => (
+                    <button
+                      key={depth}
+                      type="button"
+                      role="menuitem"
+                      disabled={expandingCascade}
+                      className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)] disabled:opacity-50"
+                      onClick={() => {
+                        void expandCascade(contextMenu.nodeId, depth, true);
+                      }}
+                    >
+                      Expandir {depth} nível{depth > 1 ? "is" : ""}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {linkSubmenu ? (
+                <div
+                  className="fixed z-[61] min-w-[14rem] rounded-md border border-border bg-panel py-1 shadow-lg"
+                  style={{ left: linkSubmenu.x, top: linkSubmenu.y }}
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
+                    onClick={() => {
+                      closeLinkMenus();
+                      window.open(
+                        linkSubmenu.href,
+                        "_blank",
+                        "noopener,noreferrer",
+                      );
+                    }}
+                  >
+                    Abrir em nova guia
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
+                    onClick={() => {
+                      closeLinkMenus();
+                      window.open(
+                        linkSubmenu.href,
+                        "_blank",
+                        "noopener,noreferrer,width=1200,height=860",
+                      );
+                    }}
+                  >
+                    Abrir em nova janela
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-[color:var(--cor-card-fundo-hover)]"
+                    onClick={() => {
+                      const href = new URL(
+                        linkSubmenu.href,
+                        window.location.origin,
+                      ).href;
+                      closeLinkMenus();
+                      void navigator.clipboard.writeText(href).catch(() => {});
+                    }}
+                  >
+                    Copiar endereço do link
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

@@ -1,4 +1,17 @@
 # Changelog
+## [1.4.0] - 2020-07-20
+
+### Alterado
+- atribuição de excluir entidade para administrador
+- focar todos os nós do caminho selecionado
+- alteração nos dados de visualização da lista de pessoas
+- remoção de info duplicadas na caixa de criação de vículos
+- login sem o domínio
+- link de contexto com o botão direito
+
+### Corrigido
+- busca global de termos parecidos
+- leitura de coordenadas nos endereços
 ## [1.3.0] - 2026-07-19
 
 ### Adicionado
