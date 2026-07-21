@@ -77,13 +77,9 @@ export function DashboardShell({
                   mobileSearchOpen ? "hidden" : "flex"
                 }`}
               >
-                <img
-                  src="/rede-lince-institucional.png"
-                  alt="Rede Lince"
-                  width={96}
-                  height={28}
-                  className="h-7 w-auto max-w-[5.5rem] object-contain object-left"
-                />
+                <span className="max-w-[9rem] truncate text-[10px] font-semibold tracking-[0.14em] text-gold uppercase">
+                  Sistema de contrainteligência
+                </span>
               </div>
 
               <h2

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Banner - Prévia</title>
+    <style>
+      html,
+      body {
+        width: 2048px;
+        height: 460px;
+        margin: 0;
+        padding: 0;
+        background: #000;
+      }
+      .banner {
+        position: relative;
+        width: 2048px;
+        height: 460px;
+        overflow: hidden;
+        background: #000;
+      }
+      .bg {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        height: 100%;
+        width: 240%;
+        transform: translateX(-50%);
+        object-fit: cover;
+        object-position: center;
+      }
+      .logo {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        pointer-events: none;
+      }
+      .logo--lince {
+        left: -0.8%;
+        height: 44%;
+        width: auto;
+        max-width: 22%;
+      }
+      .logo--ppf {
+        right: -0.8%;
+        height: 48%;
+        width: auto;
+        max-width: 24%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="banner" role="img" aria-label="Sistema de contrainteligência">
+      <!-- Fundo com recorte central (remove os logos laterais do próprio background) -->
+      <img
+        class="bg"
+        src="file:///C:/Users/moura/.cursor/projects/c-Users-moura-Projects-sistema-vinculos/assets/rede-lince-institucional.png"
+        alt=""
+      />
+
+      <!-- Logos com fundo vazado (vazado) -->
+      <img
+        class="logo logo--lince"
+        src="file:///C:/Users/moura/.cursor/projects/c-Users-moura-Projects-sistema-vinculos/assets/c__Users_moura_AppData_Roaming_Cursor_User_workspaceStorage_7b35688771ddcbd8d13166a35f4d4c5b_images_davinci__img1__LINCE-50ecfc15-6bc2-4708-aa2c-c8e5677dae17.png"
+        alt=""
+      />
+      <img
+        class="logo logo--ppf"
+        src="file:///C:/Users/moura/.cursor/projects/c-Users-moura-Projects-sistema-vinculos/assets/c__Users_moura_AppData_Roaming_Cursor_User_workspaceStorage_7b35688771ddcbd8d13166a35f4d4c5b_images_davinci__img1__PPF-2865840e-3fad-4f15-a00c-cd89c5ce5185.png"
+        alt=""
+      />
+    </div>
+  </body>
+</html>
+

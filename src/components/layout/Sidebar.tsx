@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
+import { InstitutionalBanner } from "@/components/layout/InstitutionalBanner";
 import { NAV_ITEMS } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/client";
 
@@ -66,15 +67,7 @@ function NavLinks({
 function BrandBlock() {
   return (
     <div className="border-b border-border px-3 py-3">
-      <div className="overflow-hidden rounded border border-border bg-[color:var(--cor-fundo-primaria)]">
-        <img
-          src="/rede-lince-institucional.png"
-          alt="Rede Lince · PPF"
-          width={2048}
-          height={460}
-          className="block h-auto w-full object-contain object-center"
-        />
-      </div>
+      <InstitutionalBanner className="rounded border border-border" />
     </div>
   );
 }

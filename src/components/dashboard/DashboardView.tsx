@@ -5,6 +5,7 @@ import {
   EntityKpiCardsSkeleton,
 } from "@/components/dashboard/EntityKpiCards";
 import { PorQueLinceButton } from "@/components/dashboard/PorQueLinceButton";
+import { InstitutionalBanner } from "@/components/layout/InstitutionalBanner";
 import {
   DASHBOARD_TIME_TUDO,
   type DashboardCasoStatusPoint,
@@ -41,16 +42,7 @@ export function DashboardView({
 
       <div className="relative space-y-6 p-5 sm:p-6">
         <header className="overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--cor-fundo-primaria)] shadow-[var(--cor-sombra-modal)]">
-          {/* Banner na proporção da arte — sem cortes (object-contain) */}
-          <div className="relative aspect-[2048/460] w-full overflow-hidden bg-black">
-            <img
-              src="/rede-lince-institucional.png"
-              alt="Rede Lince — Sistema de Contrainteligência da Polícia Penal Federal (PPF)"
-              width={2048}
-              height={460}
-              className="absolute inset-0 h-full w-full object-contain object-center"
-            />
-          </div>
+          <InstitutionalBanner />
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[color:var(--dash-border)] bg-[color:var(--dash-header)] px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">

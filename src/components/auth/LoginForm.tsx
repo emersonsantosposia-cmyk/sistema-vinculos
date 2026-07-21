@@ -8,6 +8,7 @@ import {
   resolveLoginEmail,
 } from "@/lib/auth/login-email";
 import { createClient } from "@/lib/supabase/client";
+import { InstitutionalBanner } from "@/components/layout/InstitutionalBanner";
 import { mensagemMotivoSessao } from "@/lib/sessao";
 
 function LoginFormInner() {
@@ -68,18 +69,7 @@ function LoginFormInner() {
       className="w-full max-w-sm space-y-4 rounded border border-border bg-panel p-6 shadow-[var(--cor-sombra-modal)]"
     >
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="w-full overflow-hidden rounded border border-border bg-black">
-          <img
-            src="/rede-lince-institucional.png"
-            alt="Rede Lince · PPF"
-            width={2048}
-            height={460}
-            className="block h-auto w-full object-contain object-center"
-          />
-        </div>
-        <p className="text-[10px] font-medium tracking-[0.22em] text-muted uppercase">
-          Sistema de contrainteligência
-        </p>
+        <InstitutionalBanner className="rounded border border-border" />
         <h1
           className="text-xl font-bold tracking-[0.28em] text-gold"
           style={{
