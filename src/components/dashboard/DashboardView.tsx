@@ -1,9 +1,5 @@
 import { Suspense } from "react";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
-import {
-  EntityKpiCards,
-  EntityKpiCardsSkeleton,
-} from "@/components/dashboard/EntityKpiCards";
 import { PorQueLinceButton } from "@/components/dashboard/PorQueLinceButton";
 import { InstitutionalBanner } from "@/components/layout/InstitutionalBanner";
 import {
@@ -57,8 +53,6 @@ export function DashboardView({
             </div>
           </div>
         </header>
-
-        <EntityKpiCards entities={counts.entities} />
 
         <DashboardCharts
           initialTotais={initialTotais}
@@ -120,7 +114,6 @@ export function DashboardFallback() {
             <div className="h-10 w-24 animate-pulse rounded bg-[color:var(--dash-panel)]" />
           </div>
         </div>
-        <EntityKpiCardsSkeleton />
         <div className="space-y-3">
           <div className="h-4 w-56 animate-pulse rounded bg-[color:var(--dash-border)]" />
           <div className="grid grid-cols-1 gap-3">
