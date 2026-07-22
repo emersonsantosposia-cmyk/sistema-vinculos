@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,6 +23,7 @@ import {
 import { ModalShell } from "@/components/ui/ModalShell";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
 import { VeiculoAvatar } from "@/components/veiculos/VeiculoAvatar";
+import { clampFixedMenuPosition } from "@/lib/clamp-fixed-menu";
 import { formatDateTime } from "@/lib/format";
 import {
   createVinculo,
@@ -138,7 +140,17 @@ function VinculoCardBox({
     !isRestrito &&
     (card.outroTipo === "veiculo" || card.outroTipo === "endereco") &&
     Boolean(card.subtitulo);
-  const tipoLabel = formatTipoVinculoLabel(card.tipo_perspectiva);
+  /**
+   * Na grade compacta (foto + nome do vinculado), o rótulo descreve a
+   * pessoa do card em relação à da página — não o papel da página.
+   * Demais seções mantêm tipo_perspectiva (papel da entidade aberta).
+   */
+  const tipoParaRotulo = isCompact
+    ? card.is_origem
+      ? card.tipo_b_para_a
+      : card.tipo_a_para_b
+    : card.tipo_perspectiva;
+  const tipoLabel = formatTipoVinculoLabel(tipoParaRotulo);
   const entidadeHref = `${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`;
   const entidadeTipoLabel = ENTIDADE_LABELS[card.outroTipo];
 
@@ -166,6 +178,17 @@ function VinculoCardBox({
       window.removeEventListener("mousedown", onPointerDown);
       window.removeEventListener("scroll", close, true);
     };
+  }, [menu]);
+
+  useLayoutEffect(() => {
+    if (!menu) return;
+    const el = menuRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const next = clampFixedMenuPosition(menu.x, menu.y, width, height);
+    if (next.x !== menu.x || next.y !== menu.y) {
+      setMenu(next);
+    }
   }, [menu]);
 
   function openMenu(e: React.MouseEvent) {

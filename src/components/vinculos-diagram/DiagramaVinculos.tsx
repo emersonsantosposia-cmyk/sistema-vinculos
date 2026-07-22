@@ -42,6 +42,7 @@ import {
   type EntidadeNodeData,
 } from "@/components/vinculos-diagram/EntidadeVinculoNode";
 import { ENTIDADE_COLORS, entidadeNodeId, resolveCssColor } from "@/lib/entidade-visual";
+import { clampFixedMenuPosition } from "@/lib/clamp-fixed-menu";
 import {
   computeEntidadeDegrees,
   degreeToScale,
@@ -154,22 +155,6 @@ type LinkSubmenuState = {
   y: number;
   href: string;
 };
-
-/** Mantém um menu `position: fixed` dentro da viewport (evita corte no rodapé/laterais). */
-function clampFixedMenuPosition(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  margin = 8,
-): { x: number; y: number } {
-  const maxX = Math.max(margin, window.innerWidth - width - margin);
-  const maxY = Math.max(margin, window.innerHeight - height - margin);
-  return {
-    x: Math.min(Math.max(x, margin), maxX),
-    y: Math.min(Math.max(y, margin), maxY),
-  };
-}
 
 function FitViewOnChange({ version }: { version: number }) {
   const { fitView } = useReactFlow();

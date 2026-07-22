@@ -77,7 +77,7 @@ WITH base (
 ) AS (
   VALUES
     -- PESSOA → PESSOA
-    ('pessoa', 'pessoa', 'Chefe', 'Empregado(a)', false),
+    ('pessoa', 'pessoa', 'Chefe', 'Funcionário(a)', false),
     ('pessoa', 'pessoa', 'Pai ou Mãe', 'Filho(a)', false),
     ('pessoa', 'pessoa', 'Avô(ó)', 'Neto(a)', false),
     ('pessoa', 'pessoa', 'Irmão(ã)', 'Irmão(ã)', true),

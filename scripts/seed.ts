@@ -55,7 +55,7 @@ const COMUNICACAO_TIPOS = [
 const COMUNICACAO_STATUS = ["ativo", "inativo", "desconhecido"] as const;
 
 const TIPOS_VINCULO = [
-  { direto: "chefe", inverso: "empregado" },
+  { direto: "chefe", inverso: "funcionário" },
   { direto: "sócio", inverso: "sócio" },
   { direto: "associado a", inverso: "associado a" },
   { direto: "reside em", inverso: "residência de" },

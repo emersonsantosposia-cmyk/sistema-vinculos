@@ -25,7 +25,7 @@ export function formatTipoVinculoPerspectiva(
 /**
  * Rótulo da aresta no diagrama.
  * - Um só sentido / simétrico: só o termo na direção visual.
- * - Dois sentidos distintos: "Chefe ↔ Empregado" (direção da aresta primeiro).
+ * - Dois sentidos distintos: "Chefe ↔ Funcionário" (direção da aresta primeiro).
  */
 export function formatTipoVinculoEdgeLabel(
   tipoDirecaoAresta: string | null | undefined,

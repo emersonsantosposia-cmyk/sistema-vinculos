@@ -1,13 +1,19 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Form";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { createClient } from "@/lib/supabase/client";
 import {
   SESSAO_AVISO_ANTES_MS,
-  sessaoAvisoAposMs,
+  SESSAO_IDLE_MS,
+  SESSAO_LAST_ACTIVITY_KEY,
+  clearLastActivityAt,
+  readLastActivityAt,
+  sessaoAvisoRestanteMs,
+  sessaoIdleRestanteMs,
+  writeLastActivityAt,
 } from "@/lib/sessao";
 
 type Props = {
@@ -18,12 +24,13 @@ type Props = {
  * Segurança de sessão (área autenticada / DashboardShell):
  * aviso aos 4m30s + logout por inatividade aos 5 min.
  *
- * Multi-aba é permitido: a sessão Supabase (cookies) é compartilhada
- * entre abas; não há mais logout ao abrir/fechar abas.
+ * Multi-aba é permitido (cookies compartilhados). A inatividade é medida
+ * por relógio de parede em localStorage — fecha a aba ou deixa em segundo
+ * plano não pausa a contagem; ao voltar (ou reabrir), a sessão é
+ * reavaliada e encerrada se o prazo já passou.
  */
 export function SessionGuard({ children }: Props) {
   const router = useRouter();
-  const pathname = usePathname();
   const [warningOpen, setWarningOpen] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(
     Math.ceil(SESSAO_AVISO_ANTES_MS / 1000),
@@ -33,6 +40,10 @@ export function SessionGuard({ children }: Props) {
   const logoutTimerRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const loggingOutRef = useRef(false);
+  const warningOpenRef = useRef(false);
+  const lastActivityRef = useRef<number>(Date.now());
+  const lastPersistRef = useRef<number>(0);
+  const lastRescheduleRef = useRef<number>(0);
 
   const clearCountdown = useCallback(() => {
     if (countdownIntervalRef.current != null) {
@@ -57,7 +68,9 @@ export function SessionGuard({ children }: Props) {
     if (loggingOutRef.current) return;
     loggingOutRef.current = true;
     clearIdleTimers();
+    warningOpenRef.current = false;
     setWarningOpen(false);
+    clearLastActivityAt();
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
@@ -68,49 +81,147 @@ export function SessionGuard({ children }: Props) {
     router.refresh();
   }, [clearIdleTimers, router]);
 
-  const openWarning = useCallback(() => {
+  const openWarning = useCallback(
+    (idleRestanteMs: number) => {
+      if (loggingOutRef.current) return;
+
+      const leadMs = Math.max(
+        0,
+        Math.min(SESSAO_AVISO_ANTES_MS, idleRestanteMs),
+      );
+      if (leadMs <= 0) {
+        void forceLogout();
+        return;
+      }
+
+      const deadline = Date.now() + leadMs;
+      warningOpenRef.current = true;
+      setSecondsLeft(Math.max(1, Math.ceil(leadMs / 1000)));
+      setWarningOpen(true);
+
+      clearCountdown();
+      countdownIntervalRef.current = window.setInterval(() => {
+        const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        setSecondsLeft(left);
+      }, 250);
+
+      if (logoutTimerRef.current != null) {
+        window.clearTimeout(logoutTimerRef.current);
+      }
+      logoutTimerRef.current = window.setTimeout(() => {
+        const restante = sessaoIdleRestanteMs(lastActivityRef.current);
+        if (restante > 0) {
+          // Atividade recente (esta ou outra aba) — não desloga.
+          syncFromWallClockRef.current?.();
+          return;
+        }
+        void forceLogout();
+      }, leadMs);
+    },
+    [clearCountdown, forceLogout],
+  );
+
+  /**
+   * Alinha timers ao timestamp de última atividade (relógio de parede).
+   * Seguro chamar após foco, visibilitychange, storage ou timers atrasados.
+   */
+  const syncFromWallClock = useCallback(() => {
     if (loggingOutRef.current) return;
 
-    const leadMs = SESSAO_AVISO_ANTES_MS;
-    const deadline = Date.now() + leadMs;
-    setSecondsLeft(Math.max(1, Math.ceil(leadMs / 1000)));
-    setWarningOpen(true);
-
-    clearCountdown();
-    countdownIntervalRef.current = window.setInterval(() => {
-      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      setSecondsLeft(left);
-    }, 250);
-
-    if (logoutTimerRef.current != null) {
-      window.clearTimeout(logoutTimerRef.current);
+    const stored = readLastActivityAt();
+    if (stored != null && stored > lastActivityRef.current) {
+      lastActivityRef.current = stored;
     }
-    logoutTimerRef.current = window.setTimeout(() => {
-      void forceLogout();
-    }, leadMs);
-  }, [clearCountdown, forceLogout]);
 
-  const scheduleIdleCycle = useCallback(() => {
-    if (loggingOutRef.current) return;
+    const last = lastActivityRef.current;
+    const idleRestante = sessaoIdleRestanteMs(last);
+    if (idleRestante <= 0) {
+      void forceLogout();
+      return;
+    }
+
+    const avisoRestante = sessaoAvisoRestanteMs(last);
+
+    // Já no modal de aviso: não reinicia o countdown (watchdog/foco).
+    if (avisoRestante <= 0 && warningOpenRef.current) {
+      return;
+    }
+
     clearIdleTimers();
+
+    if (avisoRestante <= 0) {
+      openWarning(idleRestante);
+      return;
+    }
+
+    warningOpenRef.current = false;
     setWarningOpen(false);
 
     warnTimerRef.current = window.setTimeout(() => {
-      openWarning();
-    }, sessaoAvisoAposMs());
-  }, [clearIdleTimers, openWarning]);
+      const againIdle = sessaoIdleRestanteMs(lastActivityRef.current);
+      if (againIdle <= 0) {
+        void forceLogout();
+        return;
+      }
+      const againAviso = sessaoAvisoRestanteMs(lastActivityRef.current);
+      if (againAviso > 0) {
+        // Timer atrasado (aba em background) mas ainda não é hora do aviso.
+        syncFromWallClockRef.current?.();
+        return;
+      }
+      openWarning(againIdle);
+    }, avisoRestante);
+  }, [clearIdleTimers, forceLogout, openWarning]);
+
+  const syncFromWallClockRef = useRef(syncFromWallClock);
+  syncFromWallClockRef.current = syncFromWallClock;
+
+  const markActivity = useCallback(
+    (opts?: { forceReschedule?: boolean }) => {
+      if (loggingOutRef.current) return;
+
+      const now = Date.now();
+      lastActivityRef.current = now;
+
+      // Persiste com throttle (storage é compartilhado entre abas).
+      if (now - lastPersistRef.current >= 1000) {
+        lastPersistRef.current = now;
+        writeLastActivityAt(now);
+      }
+
+      const force = opts?.forceReschedule || warningOpenRef.current;
+      if (!force && now - lastRescheduleRef.current < 1000) {
+        return;
+      }
+      lastRescheduleRef.current = now;
+      writeLastActivityAt(now);
+      lastPersistRef.current = now;
+      syncFromWallClock();
+    },
+    [syncFromWallClock],
+  );
 
   const continueSession = useCallback(() => {
-    if (loggingOutRef.current) return;
-    scheduleIdleCycle();
-  }, [scheduleIdleCycle]);
+    markActivity({ forceReschedule: true });
+  }, [markActivity]);
 
   useEffect(() => {
-    scheduleIdleCycle();
+    const existing = readLastActivityAt();
+    const now = Date.now();
+    if (existing != null && now - existing >= SESSAO_IDLE_MS) {
+      // Aba ficou fechada/ociosa além do limite — encerra na reabertura.
+      void forceLogout();
+      return;
+    }
+
+    lastActivityRef.current = existing ?? now;
+    writeLastActivityAt(lastActivityRef.current);
+    lastPersistRef.current = now;
+    lastRescheduleRef.current = now;
+    syncFromWallClock();
 
     const onActivity = () => {
-      if (loggingOutRef.current) return;
-      continueSession();
+      markActivity();
     };
     const opts: AddEventListenerOptions = { capture: true, passive: true };
     window.addEventListener("mousemove", onActivity, opts);
@@ -120,6 +231,36 @@ export function SessionGuard({ children }: Props) {
     window.addEventListener("touchstart", onActivity, opts);
     window.addEventListener("click", onActivity, opts);
 
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === "hidden") return;
+      // Reavalia com o relógio real (aba fechada/segundo plano não pausa).
+      syncFromWallClockRef.current?.();
+    };
+    document.addEventListener("visibilitychange", onVisibilityOrFocus);
+    window.addEventListener("focus", onVisibilityOrFocus);
+    window.addEventListener("pageshow", onVisibilityOrFocus);
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== SESSAO_LAST_ACTIVITY_KEY) return;
+      if (event.newValue == null) {
+        // Outra aba encerrou a sessão.
+        void forceLogout();
+        return;
+      }
+      const ts = Number(event.newValue);
+      if (!Number.isFinite(ts)) return;
+      if (ts > lastActivityRef.current) {
+        lastActivityRef.current = ts;
+        syncFromWallClockRef.current?.();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
+    // Rede de segurança: a cada 15s confere o relógio (timers throttled).
+    const watchdog = window.setInterval(() => {
+      syncFromWallClockRef.current?.();
+    }, 15_000);
+
     return () => {
       window.removeEventListener("mousemove", onActivity, opts);
       window.removeEventListener("mousedown", onActivity, opts);
@@ -127,9 +268,16 @@ export function SessionGuard({ children }: Props) {
       window.removeEventListener("scroll", onActivity, opts);
       window.removeEventListener("touchstart", onActivity, opts);
       window.removeEventListener("click", onActivity, opts);
+      document.removeEventListener("visibilitychange", onVisibilityOrFocus);
+      window.removeEventListener("focus", onVisibilityOrFocus);
+      window.removeEventListener("pageshow", onVisibilityOrFocus);
+      window.removeEventListener("storage", onStorage);
+      window.clearInterval(watchdog);
       clearIdleTimers();
     };
-  }, [scheduleIdleCycle, continueSession, clearIdleTimers, pathname]);
+    // Montagem única: pathname não deve reiniciar o ciclo (causava ruído).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only session lifecycle
+  }, []);
 
   return (
     <>

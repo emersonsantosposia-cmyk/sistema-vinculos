@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   DiagramaVinculos,
   type ExpandDepth,
 } from "@/components/vinculos-diagram/DiagramaVinculos";
+import { clampFixedMenuPosition } from "@/lib/clamp-fixed-menu";
 import { allEntidadeTipos, ENTIDADE_TIPOS, type EntidadeTipo } from "@/lib/types";
 import {
   ENTIDADE_HREFS,
@@ -147,6 +148,17 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
       window.removeEventListener("mousedown", onPointerDown);
       window.removeEventListener("scroll", close, true);
     };
+  }, [menu]);
+
+  useLayoutEffect(() => {
+    if (!menu) return;
+    const el = menuRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const next = clampFixedMenuPosition(menu.x, menu.y, width, height);
+    if (next.x !== menu.x || next.y !== menu.y) {
+      setMenu(next);
+    }
   }, [menu]);
 
   function openContextMenu(e: React.MouseEvent) {

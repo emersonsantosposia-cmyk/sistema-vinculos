@@ -44,7 +44,7 @@ INSERT INTO public.tipos_vinculo_sugeridos (termo_direto, termo_inverso)
 SELECT v.termo_direto, v.termo_inverso
 FROM (
   VALUES
-    ('chefe', 'empregado'),
+    ('chefe', 'funcionário'),
     ('pai', 'filho'),
     ('mãe', 'filho'),
     ('sócio', 'sócio'),

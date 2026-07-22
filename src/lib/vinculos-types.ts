@@ -50,7 +50,7 @@ export const ENTIDADE_HREFS: Record<EntidadeTipo, string> = {
 /** @deprecated Preferir tipos_vinculo_sugeridos filtrados por par de entidades. */
 export const TIPOS_VINCULO_COMUNS = [
   "Chefe",
-  "Empregado(a)",
+  "Funcionário(a)",
   "Proprietário(a)",
   "Pertence a",
   "Sócio(a)",
