@@ -44,6 +44,11 @@ export type EntidadeNodeData = {
   pathHighlight?: boolean;
   /** Extremidade A/B da seleção de caminho. */
   pathEndpoint?: "a" | "b" | null;
+  /**
+   * Cor da comunidade (anel externo). Independente da cor do tipo
+   * (avatar). Null/undefined = sem agrupamento ativo.
+   */
+  communityColor?: string | null;
 };
 
 export type EntidadeFlowNode = Node<EntidadeNodeData, "entidade">;
@@ -172,6 +177,7 @@ function EntidadeVinculoNodeComponent({
     degreeScale = 1,
     pathHighlight,
     pathEndpoint,
+    communityColor,
   } = data;
 
   const accent = restrito
@@ -189,6 +195,12 @@ function EntidadeVinculoNodeComponent({
           : isRoot
             ? "border-2 border-[var(--cor-destaque-dourado)] shadow-[0_0_18px_color-mix(in_srgb,var(--cor-destaque-dourado)_55%,transparent)] cursor-pointer"
             : "border-[var(--cor-borda)] hover:border-[var(--cor-borda-destaque)] cursor-pointer";
+
+  const communityRingStyle = communityColor
+    ? {
+        boxShadow: `0 0 0 2px ${communityColor}, 0 0 0 5px color-mix(in srgb, ${communityColor} 28%, transparent)`,
+      }
+    : undefined;
 
   const tooltip = [
     ENTIDADE_LABELS[entidadeTipo],
@@ -217,6 +229,7 @@ function EntidadeVinculoNodeComponent({
     >
       <div
         className={`group relative box-border inline-flex max-w-[280px] min-h-[44px] min-w-[168px] items-center gap-2.5 rounded-md border bg-[var(--cor-card-fundo)] p-3 transition-[box-shadow,border-color] sm:max-w-[260px] sm:min-w-[160px] sm:p-2.5 ${borderClass} ${selected && !restrito ? "ring-1 ring-[var(--cor-destaque-dourado)]/40" : ""} ${removing ? "diagrama-node-removing" : ""} ${shaking ? "diagrama-node-shake" : ""}`}
+        style={communityRingStyle}
         title={tooltip}
       >
         <Handle

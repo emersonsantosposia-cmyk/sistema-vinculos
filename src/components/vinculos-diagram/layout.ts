@@ -164,6 +164,11 @@ export type LayoutDiagramaOptions = {
    * Ignora lockedPositions.
    */
   reorganizeAll?: boolean;
+  /**
+   * Âncoras por nó (ex.: centro da comunidade). Ativa forceX/forceY
+   * direcionados para separar grupos visualmente.
+   */
+  nodeAnchors?: Map<string, { x: number; y: number }>;
 };
 
 /**
@@ -213,6 +218,18 @@ export function layoutDiagramaNodes<T extends Record<string, unknown>>(
       lockedCenters,
       options?.preferredHubId,
     );
+    const anchor = options?.nodeAnchors?.get(node.id);
+    // Com âncora de comunidade: começa perto do centro do grupo.
+    if (anchor) {
+      const j = idJitter(node.id);
+      return {
+        id: node.id,
+        w,
+        h,
+        x: anchor.x + j * 60,
+        y: anchor.y + idJitter(`${node.id}:y`) * 60,
+      };
+    }
     // Se já tem posição útil (ex. reorganizar), usa como seed.
     if (reorganizeAll && (node.position.x !== 0 || node.position.y !== 0)) {
       const c = toCenter(node.position, w, h);
@@ -231,20 +248,38 @@ export function layoutDiagramaNodes<T extends Record<string, unknown>>(
     }));
 
   const hasLocked = lockedCenters.size > 0;
-  const ticks = reorganizeAll ? 320 : hasLocked ? 90 : 260;
+  const nodeAnchors = options?.nodeAnchors;
+  const hasCommunityAnchors = Boolean(nodeAnchors && nodeAnchors.size > 0);
+  const ticks = hasCommunityAnchors
+    ? 380
+    : reorganizeAll
+      ? 320
+      : hasLocked
+        ? 90
+        : 260;
 
   const simulation = forceSimulation<SimNode>(simNodes)
     .force(
       "link",
       forceLink<SimNode, SimLink>(simLinks)
         .id((d) => d.id)
-        .distance(LINK_DISTANCE)
-        .strength(hasLocked && !reorganizeAll ? 0.55 : 0.35),
+        .distance(hasCommunityAnchors ? LINK_DISTANCE * 0.85 : LINK_DISTANCE)
+        .strength(
+          hasCommunityAnchors
+            ? 0.28
+            : hasLocked && !reorganizeAll
+              ? 0.55
+              : 0.35,
+        ),
     )
     .force(
       "charge",
       forceManyBody<SimNode>().strength(
-        hasLocked && !reorganizeAll ? CHARGE_STRENGTH * 0.85 : CHARGE_STRENGTH,
+        hasCommunityAnchors
+          ? CHARGE_STRENGTH * 1.15
+          : hasLocked && !reorganizeAll
+            ? CHARGE_STRENGTH * 0.85
+            : CHARGE_STRENGTH,
       ),
     )
     .force(
@@ -257,12 +292,33 @@ export function layoutDiagramaNodes<T extends Record<string, unknown>>(
     .force(
       "center",
       forceCenter(0, 0).strength(
-        reorganizeAll ? 0.06 : hasLocked ? 0.015 : 0.05,
+        hasCommunityAnchors
+          ? 0.02
+          : reorganizeAll
+            ? 0.06
+            : hasLocked
+              ? 0.015
+              : 0.05,
       ),
-    )
-    .force("x", forceX(0).strength(reorganizeAll ? 0.02 : 0.008))
-    .force("y", forceY(0).strength(reorganizeAll ? 0.02 : 0.008))
-    .stop();
+    );
+
+  if (hasCommunityAnchors && nodeAnchors) {
+    simulation
+      .force(
+        "x",
+        forceX<SimNode>((d) => nodeAnchors.get(d.id)?.x ?? 0).strength(0.18),
+      )
+      .force(
+        "y",
+        forceY<SimNode>((d) => nodeAnchors.get(d.id)?.y ?? 0).strength(0.18),
+      );
+  } else {
+    simulation
+      .force("x", forceX(0).strength(reorganizeAll ? 0.02 : 0.008))
+      .force("y", forceY(0).strength(reorganizeAll ? 0.02 : 0.008));
+  }
+
+  simulation.stop();
 
   for (let i = 0; i < ticks; i++) {
     simulation.tick();

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ENTIDADE_COLORS } from "@/lib/entidade-visual";
 import { ENTIDADE_LABELS } from "@/lib/vinculos-types";
 import type { EntidadeTipo } from "@/lib/types";
@@ -42,11 +42,103 @@ export type DiagramToolbarProps = {
   hasPathState: boolean;
   onSave: () => void;
   onOpenList: () => void;
+  /** Layout livre (remove cores de comunidade). */
   onReorganize: () => void;
+  /** Louvain + âncoras por comunidade. */
+  onGroupByCommunities: () => void;
   onClearFocus: () => void;
   onHighlightPath: () => void;
   onClearPath: () => void;
 };
+
+const COMMUNITY_DISCLAIMER =
+  "O agrupamento é uma hipótese visual baseada apenas nos vínculos já cadastrados. Grupos separados podem estar conectados por vínculos ainda não registrados.";
+
+function ReorganizeMenu({
+  disabled,
+  onReorganize,
+  onGroupByCommunities,
+  onAfterAction,
+}: {
+  disabled: boolean;
+  onReorganize: () => void;
+  onGroupByCommunities: () => void;
+  onAfterAction?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    function onPointerDown(e: MouseEvent) {
+      if (rootRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    }
+
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((v) => !v)}
+        className={`${toolBtnClass} w-full justify-between gap-2`}
+      >
+        <span>Reorganizar</span>
+        <span className="text-[10px] opacity-70" aria-hidden>
+          ▾
+        </span>
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute top-full right-0 z-20 mt-1 w-[min(16rem,calc(100vw-3rem))] rounded-md border border-[var(--cor-borda)] bg-[var(--cor-card-fundo)] py-1 shadow-[var(--cor-sombra-dropdown)]"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-2 text-left text-[11px] font-medium tracking-wide text-muted-strong uppercase hover:bg-[color:var(--cor-card-fundo-hover)] hover:text-[var(--cor-destaque-dourado)]"
+            onClick={() => {
+              setOpen(false);
+              onReorganize();
+              onAfterAction?.();
+            }}
+          >
+            Reorganizar
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-2 text-left text-[11px] font-medium tracking-wide text-muted-strong uppercase hover:bg-[color:var(--cor-card-fundo-hover)] hover:text-[var(--cor-destaque-dourado)]"
+            onClick={() => {
+              setOpen(false);
+              onGroupByCommunities();
+              onAfterAction?.();
+            }}
+          >
+            Agrupar por comunidades
+          </button>
+          <p className="border-t border-border px-3 py-2 text-[10px] normal-case leading-snug tracking-normal text-muted">
+            {COMMUNITY_DISCLAIMER}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function ToolButtons({
   pathSelectMode,
@@ -66,6 +158,7 @@ function ToolButtons({
   onSave,
   onOpenList,
   onReorganize,
+  onGroupByCommunities,
   onClearFocus,
   onHighlightPath,
   onClearPath,
@@ -98,14 +191,12 @@ function ToolButtons({
       >
         Abrir visualização salva
       </button>
-      <button
-        type="button"
-        onClick={wrap(onReorganize)}
+      <ReorganizeMenu
         disabled={expandingCascade || nodesCount < 2}
-        className={toolBtnClass}
-      >
-        Reorganizar automaticamente
-      </button>
+        onReorganize={onReorganize}
+        onGroupByCommunities={onGroupByCommunities}
+        onAfterAction={onAfterAction}
+      />
       {focusNodeId ? (
         <button type="button" onClick={wrap(onClearFocus)} className={toolBtnClass}>
           Remover foco

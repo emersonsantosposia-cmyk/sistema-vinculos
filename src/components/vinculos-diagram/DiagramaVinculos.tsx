@@ -64,6 +64,11 @@ import {
   DIAGRAMA_PAGE_SIZE,
   layoutDiagramaNodes,
 } from "@/components/vinculos-diagram/layout";
+import {
+  communityColorForIndex,
+  detectCommunitiesLouvain,
+  nodeAnchorsFromCommunities,
+} from "@/components/vinculos-diagram/community-detect";
 import { formatDateTime } from "@/lib/format";
 import {
   deleteDiagramaVisualizacao,
@@ -258,6 +263,7 @@ function DiagramaVinculosInner({
         preserveExisting?: boolean;
         reorganizeAll?: boolean;
         fitView?: boolean;
+        nodeAnchors?: Map<string, { x: number; y: number }>;
       },
     ) => {
       const reorganizeAll = options?.reorganizeAll === true;
@@ -302,6 +308,7 @@ function DiagramaVinculosInner({
         lockedPositions:
           !reorganizeAll && preserveExisting ? lockedPositions : undefined,
         reorganizeAll,
+        nodeAnchors: options?.nodeAnchors,
       });
       // Atualiza refs na hora — a expansão em cascata lê nodesRef/edgesRef
       // no mesmo tick, antes do re-render do React.
@@ -918,11 +925,72 @@ function DiagramaVinculosInner({
     [expandWithItems],
   );
 
+  const clearCommunityColors = useCallback((nodesList: DiagramNode[]) => {
+    return nodesList.map((n) => {
+      if (!isEntidadeNode(n)) return n;
+      if (n.data.communityColor == null) return n;
+      return {
+        ...n,
+        data: { ...n.data, communityColor: null },
+      };
+    });
+  }, []);
+
   const reorganize = useCallback(() => {
     setContextMenu(null);
-    applyLayout(nodesRef.current, edgesRef.current, {
+    setIoStatus(null);
+    const cleared = clearCommunityColors(nodesRef.current);
+    applyLayout(cleared, edgesRef.current, {
       reorganizeAll: true,
       fitView: true,
+    });
+  }, [applyLayout, clearCommunityColors]);
+
+  const groupByCommunities = useCallback(() => {
+    setContextMenu(null);
+
+    const entidadeNodes = nodesRef.current.filter(isEntidadeNode);
+    const nodeIds = entidadeNodes.map((n) => n.id);
+    const vinculoEdges = edgesRef.current
+      .filter((e) => e.id.startsWith("vinculo__"))
+      .map((e) => ({ source: e.source, target: e.target }));
+
+    const detected = detectCommunitiesLouvain(nodeIds, vinculoEdges);
+    if (!detected.ok) {
+      setIoStatus(
+        "Não foram identificados agrupamentos distintos na rede atual",
+      );
+      return;
+    }
+
+    setIoStatus(null);
+    const colored = nodesRef.current.map((n) => {
+      if (!isEntidadeNode(n)) return n;
+      const c = detected.communityByNodeId.get(n.id);
+      if (c == null) {
+        return {
+          ...n,
+          data: { ...n.data, communityColor: null },
+        };
+      }
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          communityColor: communityColorForIndex(c),
+        },
+      };
+    });
+
+    const anchors = nodeAnchorsFromCommunities(
+      detected.communityByNodeId,
+      detected.communityCount,
+    );
+
+    applyLayout(colored, edgesRef.current, {
+      reorganizeAll: true,
+      fitView: true,
+      nodeAnchors: anchors,
     });
   }, [applyLayout]);
 
@@ -1736,6 +1804,7 @@ function DiagramaVinculosInner({
                 }}
                 onOpenList={handleOpenList}
                 onReorganize={reorganize}
+                onGroupByCommunities={groupByCommunities}
                 onClearFocus={clearFocus}
                 onHighlightPath={highlightPathBetweenSelected}
                 onClearPath={clearPathSelection}
