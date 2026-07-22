@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -77,8 +78,14 @@ import {
   buscarVinculosDaEntidade,
   getEntidadeResumo,
 } from "@/lib/supabase/vinculos";
-import type { EntidadeTipo } from "@/lib/types";
-import { ENTIDADE_HREFS, type VinculoDiagramItem } from "@/lib/vinculos-types";
+import { allEntidadeTipos, type EntidadeTipo } from "@/lib/types";
+import {
+  ENTIDADE_HREFS,
+  ENTIDADE_VINCULOS_TITULOS,
+  filterVinculosByTipos,
+  isFiltroTiposCompleto,
+  type VinculoDiagramItem,
+} from "@/lib/vinculos-types";
 import { Button, Input, Label } from "@/components/ui/Form";
 import { ModalShell } from "@/components/ui/ModalShell";
 
@@ -89,6 +96,13 @@ type Props = {
   entidadeId: string;
   /** Expande a raiz automaticamente até este nível (1–3). */
   initialExpandDepth?: ExpandDepth;
+  /**
+   * Tipos de entidade permitidos na expansão (manual e em cascata).
+   * O nó raiz sempre permanece visível. Padrão: todos (sem filtro).
+   */
+  tiposFiltro?: EntidadeTipo[];
+  /** Abre a tela de configuração (níveis + tipos) em sobreposição. */
+  onReconfigureFiltro?: () => void;
   fullScreen?: boolean;
   resetToken?: number;
 };
@@ -141,6 +155,22 @@ type LinkSubmenuState = {
   href: string;
 };
 
+/** Mantém um menu `position: fixed` dentro da viewport (evita corte no rodapé/laterais). */
+function clampFixedMenuPosition(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  margin = 8,
+): { x: number; y: number } {
+  const maxX = Math.max(margin, window.innerWidth - width - margin);
+  const maxY = Math.max(margin, window.innerHeight - height - margin);
+  return {
+    x: Math.min(Math.max(x, margin), maxX),
+    y: Math.min(Math.max(y, margin), maxY),
+  };
+}
+
 function FitViewOnChange({ version }: { version: number }) {
   const { fitView } = useReactFlow();
 
@@ -159,10 +189,19 @@ function DiagramaVinculosInner({
   entidadeTipo,
   entidadeId,
   initialExpandDepth = 1,
+  tiposFiltro = allEntidadeTipos(),
+  onReconfigureFiltro,
   fullScreen = false,
   resetToken = 0,
 }: Props) {
   const rootId = entidadeNodeId(entidadeTipo, entidadeId);
+  const filtroAtivo = !isFiltroTiposCompleto(tiposFiltro);
+  const filtroLabel = useMemo(() => {
+    if (!filtroAtivo) return null;
+    return tiposFiltro.map((t) => ENTIDADE_VINCULOS_TITULOS[t]).join(", ");
+  }, [filtroAtivo, tiposFiltro]);
+  const tiposFiltroRef = useRef(tiposFiltro);
+  tiposFiltroRef.current = tiposFiltro;
   const [nodes, setNodes] = useState<DiagramNode[]>([]);
   const [edges, setEdges] = useState<DiagramEdge[]>([]);
   const nodesRef = useRef(nodes);
@@ -186,6 +225,8 @@ function DiagramaVinculosInner({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [linkSubmenu, setLinkSubmenu] = useState<LinkSubmenuState | null>(null);
   const contextMenusRef = useRef<HTMLDivElement | null>(null);
+  const contextMenuElRef = useRef<HTMLDivElement | null>(null);
+  const linkSubmenuElRef = useRef<HTMLDivElement | null>(null);
   const [expandingCascade, setExpandingCascade] = useState(false);
   const expandingCascadeRef = useRef(false);
 
@@ -459,8 +500,9 @@ function DiagramaVinculosInner({
 
       const { data, error } = await buscarVinculosDaEntidade(tipo, id);
       if (error) return null;
-      vinculosCacheRef.current.set(nodeId, data);
-      return data;
+      const filtered = filterVinculosByTipos(data, tiposFiltroRef.current);
+      vinculosCacheRef.current.set(nodeId, filtered);
+      return filtered;
     },
     [],
   );
@@ -614,7 +656,18 @@ function DiagramaVinculosInner({
             const children = await expandNodeOnly(nodeId, {
               fitView: fitAtEnd && isLast && i === frontier.length - 1,
             });
-            nextFrontier.push(...children);
+            // Só tipos do filtro avançam como ponto de partida do próximo nível.
+            const allowed = new Set(tiposFiltroRef.current);
+            for (const childId of children) {
+              const child = nodesRef.current.find((n) => n.id === childId);
+              if (
+                child &&
+                isEntidadeNode(child) &&
+                allowed.has(child.data.entidadeTipo)
+              ) {
+                nextFrontier.push(childId);
+              }
+            }
           }
           frontier = [...new Set(nextFrontier)];
           if (frontier.length === 0) break;
@@ -1472,6 +1525,47 @@ function DiagramaVinculosInner({
     };
   }, [contextMenu, linkSubmenu, closeLinkMenus]);
 
+  // Reposiciona o menu se o clique estiver perto da borda (piso/direita).
+  useLayoutEffect(() => {
+    if (!contextMenu) return;
+    const el = contextMenuElRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const next = clampFixedMenuPosition(
+      contextMenu.x,
+      contextMenu.y,
+      width,
+      height,
+    );
+    if (next.x !== contextMenu.x || next.y !== contextMenu.y) {
+      setContextMenu((prev) =>
+        prev && prev.nodeId === contextMenu.nodeId
+          ? { ...prev, x: next.x, y: next.y }
+          : prev,
+      );
+    }
+  }, [contextMenu]);
+
+  useLayoutEffect(() => {
+    if (!linkSubmenu) return;
+    const el = linkSubmenuElRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const next = clampFixedMenuPosition(
+      linkSubmenu.x,
+      linkSubmenu.y,
+      width,
+      height,
+    );
+    if (next.x !== linkSubmenu.x || next.y !== linkSubmenu.y) {
+      setLinkSubmenu((prev) =>
+        prev && prev.href === linkSubmenu.href
+          ? { ...prev, x: next.x, y: next.y }
+          : prev,
+      );
+    }
+  }, [linkSubmenu]);
+
   const onNodeDragStop = useCallback(
     (_event: globalThis.MouseEvent | globalThis.TouchEvent, node: DiagramNode) => {
       pinnedRef.current.add(node.id);
@@ -1610,6 +1704,25 @@ function DiagramaVinculosInner({
                 <DiagramLegend />
               </Panel>
             ) : null}
+            {filtroLabel ? (
+              <Panel
+                position={isNarrow ? "top-right" : "top-left"}
+                className="!m-2"
+              >
+                <button
+                  type="button"
+                  onClick={onReconfigureFiltro}
+                  disabled={!onReconfigureFiltro}
+                  title="Alterar filtro de tipos"
+                  className="max-w-[min(72vw,16rem)] rounded border border-[var(--cor-borda-destaque)] bg-[color:var(--cor-fundo-secundaria)]/95 px-2 py-1 text-left text-[10px] leading-snug text-muted shadow-sm backdrop-blur-sm transition-colors hover:border-[var(--cor-borda-destaque)] hover:text-foreground disabled:cursor-default sm:text-[11px]"
+                >
+                  <span className="font-semibold text-muted-strong">
+                    Filtro:{" "}
+                  </span>
+                  <span className="break-words">{filtroLabel}</span>
+                </button>
+              </Panel>
+            ) : null}
             <Panel position={isNarrow ? "bottom-right" : "top-right"}>
               <DiagramToolbar
                 narrow={isNarrow}
@@ -1649,6 +1762,7 @@ function DiagramaVinculosInner({
             <div ref={contextMenusRef}>
               {contextMenu ? (
                 <div
+                  ref={contextMenuElRef}
                   className="fixed z-[60] min-w-[14rem] rounded-md border border-border bg-panel py-1 shadow-lg"
                   style={{ left: contextMenu.x, top: contextMenu.y }}
                   role="menu"
@@ -1694,6 +1808,7 @@ function DiagramaVinculosInner({
 
               {linkSubmenu ? (
                 <div
+                  ref={linkSubmenuElRef}
                   className="fixed z-[61] min-w-[14rem] rounded-md border border-border bg-panel py-1 shadow-lg"
                   style={{ left: linkSubmenu.x, top: linkSubmenu.y }}
                   role="menu"

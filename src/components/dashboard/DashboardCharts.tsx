@@ -329,6 +329,7 @@ function ChartPanel({
   pending,
   error,
   children,
+  size = "compact",
 }: {
   title: string;
   subtitle: string;
@@ -337,18 +338,25 @@ function ChartPanel({
   pending: boolean;
   error: string | null;
   children: React.ReactNode;
+  /** compact = grid 2 colunas; wide = largura total */
+  size?: "compact" | "wide";
 }) {
+  const chartHeight =
+    size === "wide"
+      ? "h-56 w-full min-w-0 sm:h-52"
+      : "h-52 w-full min-w-0 sm:h-48";
+
   return (
     <section
       aria-label={title}
-      className="rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] p-3 sm:p-4"
+      className="rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] p-3 sm:p-3.5"
     >
-      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div className="mb-2.5 flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <h3 className="text-[11px] font-medium tracking-[0.2em] text-[color:var(--dash-muted-strong)] uppercase">
             {title}
           </h3>
-          <p className="mt-1 text-xs text-[color:var(--dash-muted)]">
+          <p className="mt-0.5 text-xs text-[color:var(--dash-muted)]">
             {subtitle}
           </p>
         </div>
@@ -359,12 +367,12 @@ function ChartPanel({
       </div>
 
       {error ? (
-        <div className="mb-3 rounded-md border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger-fg">
+        <div className="mb-2.5 rounded-md border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger-fg">
           {error}
         </div>
       ) : null}
 
-      <div className="relative h-80 w-full min-w-0 sm:h-72">
+      <div className={`relative ${chartHeight}`}>
         {pending ? (
           <div className="flex h-full items-end gap-2 px-2 pb-2" aria-busy="true">
             {Array.from({ length: 8 }).map((_, idx) => (
@@ -419,6 +427,7 @@ function TotaisEntidadesChart({
     <ChartPanel
       title="Total acumulado por entidade"
       subtitle="Cadastros no período selecionado (Tudo, ano ou mês)"
+      size="wide"
       filters={
         <TimeFilters value={filter} onChange={changeFilter} disabled={pending} />
       }
@@ -1023,24 +1032,30 @@ export function DashboardCharts({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3">
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <UnidadeMetricChart
+            title="Documentos por unidade"
+            subtitle="Totais de documentos no período selecionado"
+            dataKey="documentos"
+            fill={DOC_COLOR}
+            initialData={initialPorUnidade}
+          />
+          <DocTipoUnidadeChart initialData={initialPorTipo} />
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <UnidadeMetricChart
+            title="Casos por unidade"
+            subtitle="Totais de casos no período selecionado"
+            dataKey="casos"
+            fill={CASOS_COLOR}
+            initialData={initialPorUnidade}
+          />
+          <CasosStatusChart initialData={initialCasosStatus} />
+        </div>
+
         <TotaisEntidadesChart initialData={initialTotais} />
-        <UnidadeMetricChart
-          title="Documentos por unidade"
-          subtitle="Totais de documentos no período selecionado"
-          dataKey="documentos"
-          fill={DOC_COLOR}
-          initialData={initialPorUnidade}
-        />
-        <DocTipoUnidadeChart initialData={initialPorTipo} />
-        <UnidadeMetricChart
-          title="Casos por unidade"
-          subtitle="Totais de casos no período selecionado"
-          dataKey="casos"
-          fill={CASOS_COLOR}
-          initialData={initialPorUnidade}
-        />
-        <CasosStatusChart initialData={initialCasosStatus} />
       </div>
     </div>
   );

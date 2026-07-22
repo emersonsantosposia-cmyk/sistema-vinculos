@@ -116,13 +116,15 @@ export function DashboardFallback() {
         </div>
         <div className="space-y-3">
           <div className="h-4 w-56 animate-pulse rounded bg-[color:var(--dash-border)]" />
-          <div className="grid grid-cols-1 gap-3">
-            <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
-            <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
-            <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
-            <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
-            <div className="h-80 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="h-64 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
+            <div className="h-64 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
           </div>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="h-64 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
+            <div className="h-64 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
+          </div>
+          <div className="h-64 animate-pulse rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)]" />
         </div>
       </div>
     </div>

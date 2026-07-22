@@ -1,13 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   DiagramaVinculos,
   type ExpandDepth,
 } from "@/components/vinculos-diagram/DiagramaVinculos";
-import type { EntidadeTipo } from "@/lib/types";
-import { ENTIDADE_HREFS } from "@/lib/vinculos-types";
+import { allEntidadeTipos, ENTIDADE_TIPOS, type EntidadeTipo } from "@/lib/types";
+import {
+  ENTIDADE_HREFS,
+  ENTIDADE_VINCULOS_TITULOS,
+  isFiltroTiposCompleto,
+} from "@/lib/vinculos-types";
 
 type Props = {
   entidadeTipo: EntidadeTipo;
@@ -47,35 +51,57 @@ function syncDiagramaQuery(open: boolean) {
   window.history.replaceState(null, "", next);
 }
 
+function sortedTiposKey(tipos: EntidadeTipo[]): string {
+  return [...tipos].sort().join(",");
+}
+
 export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
   const [phase, setPhase] = useState<OverlayPhase>("closed");
   const [resetToken, setResetToken] = useState(0);
   const [expandDepth, setExpandDepth] = useState<ExpandDepth>(1);
   const [pendingDepth, setPendingDepth] = useState<ExpandDepth>(1);
+  const [expandTipos, setExpandTipos] = useState<EntidadeTipo[]>(() =>
+    allEntidadeTipos(),
+  );
+  const [pendingTipos, setPendingTipos] = useState<EntidadeTipo[]>(() =>
+    allEntidadeTipos(),
+  );
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [setupFromDiagram, setSetupFromDiagram] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const open = phase !== "closed";
   const pathComDiagrama = diagramaPath(entidadeTipo, entidadeId);
+  const pendingAllSelected = isFiltroTiposCompleto(pendingTipos);
+  const canOpen = pendingTipos.length > 0;
 
   const openSetup = useCallback(() => {
     setResetToken(0);
     setPendingDepth(1);
+    setPendingTipos(allEntidadeTipos());
+    setSetupFromDiagram(false);
     setPhase("setup");
     syncDiagramaQuery(true);
   }, []);
+
+  const reopenSetupFromDiagram = useCallback(() => {
+    setPendingDepth(expandDepth);
+    setPendingTipos([...expandTipos]);
+    setSetupFromDiagram(true);
+    setPhase("setup");
+  }, [expandDepth, expandTipos]);
 
   const closeOverlay = useCallback(() => {
     setPhase("closed");
     syncDiagramaQuery(false);
   }, []);
 
-  // Abre o diagrama se a URL já trouxer ?diagrama=1 (ex.: nova aba).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("diagrama") === "1") {
       setResetToken(0);
       setPendingDepth(1);
+      setPendingTipos(allEntidadeTipos());
       setPhase("setup");
     }
   }, [entidadeTipo, entidadeId]);
@@ -131,6 +157,18 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
   function linkAbsoluto(): string {
     return new URL(pathComDiagrama, window.location.origin).href;
   }
+
+  function togglePendingTipo(tipo: EntidadeTipo) {
+    setPendingTipos((prev) =>
+      prev.includes(tipo) ? prev.filter((t) => t !== tipo) : [...prev, tipo],
+    );
+  }
+
+  const diagramKey = useMemo(
+    () =>
+      `${entidadeTipo}-${entidadeId}-${resetToken}-${expandDepth}-${sortedTiposKey(expandTipos)}`,
+    [entidadeTipo, entidadeId, resetToken, expandDepth, expandTipos],
+  );
 
   return (
     <>
@@ -228,7 +266,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
               </p>
               <h2 className="text-base font-semibold text-foreground">
                 {phase === "setup"
-                  ? "Abrir automaticamente até"
+                  ? "Configurar abertura"
                   : "Exploração da rede da entidade"}
               </h2>
             </div>
@@ -239,13 +277,11 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
                 <>
                   <button
                     type="button"
-                    onClick={() => {
-                      setPendingDepth(expandDepth);
-                      setPhase("setup");
-                    }}
+                    onClick={reopenSetupFromDiagram}
                     className="btn-acao-secundario"
+                    title="Alterar níveis e tipos de entidade"
                   >
-                    Níveis iniciais
+                    Configurar
                   </button>
                   <button
                     type="button"
@@ -267,30 +303,27 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
             </div>
           </header>
 
-          <main className="min-h-0 flex-1 p-3 sm:p-4">
+          <main className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
             {phase === "setup" ? (
-              <div className="mx-auto flex h-full max-w-lg flex-col justify-center gap-6">
+              <div className="mx-auto flex min-h-full max-w-2xl flex-col justify-center gap-6 py-2">
                 <div>
                   <p className="text-sm text-muted">
-                    Escolha até quantos níveis a rede deve ser expandida antes
-                    de você continuar explorando manualmente. O padrão é{" "}
-                    <strong className="font-medium text-foreground">
-                      1 nível
-                    </strong>{" "}
-                    (vínculos diretos).
+                    Escolha até quantos níveis expandir e quais tipos de
+                    entidade incluir. O nó de origem sempre aparece. Por
+                    padrão, todos os tipos estão selecionados (sem filtro).
                   </p>
                 </div>
 
                 <fieldset className="space-y-2">
-                  <legend className="sr-only">
-                    Abrir automaticamente até
+                  <legend className="mb-1 text-xs font-semibold tracking-wide text-muted-strong uppercase">
+                    Níveis iniciais
                   </legend>
                   {DEPTH_OPTIONS.map((opt) => {
                     const active = pendingDepth === opt.value;
                     return (
                       <label
                         key={opt.value}
-                        className={`flex cursor-pointer items-start gap-3 rounded-md border px-3 py-3 transition-colors ${
+                        className={`flex min-h-[44px] cursor-pointer items-start gap-3 rounded-md border px-3 py-3 transition-colors ${
                           active
                             ? "border-[var(--cor-borda-destaque)] bg-[color:var(--cor-alerta-fundo)]"
                             : "border-border bg-panel hover:border-[var(--cor-borda-destaque)]"
@@ -302,7 +335,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
                           value={opt.value}
                           checked={active}
                           onChange={() => setPendingDepth(opt.value)}
-                          className="mt-1"
+                          className="mt-1 h-4 w-4"
                         />
                         <span>
                           <span className="block text-sm font-semibold text-foreground">
@@ -317,22 +350,86 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
                   })}
                 </fieldset>
 
+                <fieldset>
+                  <legend className="mb-2 w-full text-xs font-semibold tracking-wide text-muted-strong uppercase">
+                    Tipos de entidade
+                  </legend>
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      className="btn-acao-secundario text-xs"
+                      onClick={() => setPendingTipos(allEntidadeTipos())}
+                      disabled={pendingAllSelected}
+                    >
+                      Selecionar todos
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-acao-secundario text-xs"
+                      onClick={() => setPendingTipos([])}
+                      disabled={pendingTipos.length === 0}
+                    >
+                      Limpar seleção
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {ENTIDADE_TIPOS.map((tipo) => {
+                      const checked = pendingTipos.includes(tipo);
+                      return (
+                        <label
+                          key={tipo}
+                          className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5 transition-colors ${
+                            checked
+                              ? "border-[var(--cor-borda-destaque)] bg-[color:var(--cor-alerta-fundo)]"
+                              : "border-border bg-panel hover:border-[var(--cor-borda-destaque)]"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => togglePendingTipo(tipo)}
+                            className="h-4 w-4 shrink-0"
+                          />
+                          <span className="text-sm font-medium text-foreground">
+                            {ENTIDADE_VINCULOS_TITULOS[tipo]}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {!canOpen ? (
+                    <p className="mt-2 text-xs text-danger-fg">
+                      Selecione ao menos um tipo de entidade.
+                    </p>
+                  ) : null}
+                </fieldset>
+
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     className="btn-acao"
+                    disabled={!canOpen}
                     onClick={() => {
                       setExpandDepth(pendingDepth);
+                      setExpandTipos([...pendingTipos]);
                       setResetToken((t) => t + 1);
+                      setSetupFromDiagram(false);
                       setPhase("diagram");
                     }}
                   >
-                    Abrir diagrama
+                    {setupFromDiagram ? "Aplicar e reabrir" : "Abrir diagrama"}
                   </button>
                   <button
                     type="button"
                     className="btn-acao-secundario"
-                    onClick={closeOverlay}
+                    onClick={() => {
+                      if (setupFromDiagram) {
+                        setSetupFromDiagram(false);
+                        setPhase("diagram");
+                        return;
+                      }
+                      closeOverlay();
+                    }}
                   >
                     Cancelar
                   </button>
@@ -340,10 +437,12 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
               </div>
             ) : (
               <DiagramaVinculos
-                key={`${entidadeTipo}-${entidadeId}-${resetToken}-${expandDepth}`}
+                key={diagramKey}
                 entidadeTipo={entidadeTipo}
                 entidadeId={entidadeId}
                 initialExpandDepth={expandDepth}
+                tiposFiltro={expandTipos}
+                onReconfigureFiltro={reopenSetupFromDiagram}
                 fullScreen
                 resetToken={0}
               />

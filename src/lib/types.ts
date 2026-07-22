@@ -26,6 +26,11 @@ export const ENTIDADE_TIPOS = [
 
 export type EntidadeTipo = (typeof ENTIDADE_TIPOS)[number];
 
+/** Cópia mutável de todos os tipos (útil como seleção padrão). */
+export function allEntidadeTipos(): EntidadeTipo[] {
+  return [...ENTIDADE_TIPOS];
+}
+
 export type Pessoa = {
   id: string;
   tipo: PessoaTipo;

@@ -1,4 +1,16 @@
 # Changelog
+## [1.5.0] - 2026-07-21
+### Adicionado
+- botão de classificar e ordenar por nas listas de entidades
+- seleção de entidades para expandir o diagrama
+- tipos de vínculos em mão dupla
+
+### Alterado
+- layout dos indicadores gráficos no dashboard 
+
+### Corrigido
+- recolher e mostrar nó no diagrama
+
 ## [1.4.0] - 2020-07-20
 
 ### Alterado

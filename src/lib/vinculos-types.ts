@@ -1,4 +1,5 @@
 import type { EntidadeTipo } from "@/lib/types";
+import { ENTIDADE_TIPOS } from "@/lib/types";
 
 export const ENTIDADE_LABELS: Record<EntidadeTipo, string> = {
   pessoa: "Pessoa",
@@ -132,3 +133,22 @@ export type VinculoDiagramItem = {
   foto_perfil_path?: string | null;
   foto_url?: string | null;
 };
+
+/** True quando a seleção cobre todos os tipos (sem filtro efetivo). */
+export function isFiltroTiposCompleto(
+  tipos: readonly EntidadeTipo[],
+): boolean {
+  if (tipos.length < ENTIDADE_TIPOS.length) return false;
+  const set = new Set(tipos);
+  return ENTIDADE_TIPOS.every((t) => set.has(t));
+}
+
+/** Filtra vínculos pelo tipo da outra ponta (mantém ordem). */
+export function filterVinculosByTipos(
+  items: VinculoDiagramItem[],
+  allowed: readonly EntidadeTipo[],
+): VinculoDiagramItem[] {
+  if (isFiltroTiposCompleto(allowed)) return items;
+  const set = new Set(allowed);
+  return items.filter((v) => set.has(v.outroTipo));
+}
