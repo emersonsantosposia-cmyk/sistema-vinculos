@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ENTIDADE_COLORS } from "@/lib/entidade-visual";
 import { ENTIDADE_LABELS } from "@/lib/vinculos-types";
 import type { EntidadeTipo } from "@/lib/types";
@@ -318,24 +318,5 @@ export function DiagramLegend() {
         ))}
       </ul>
     </div>
-  );
-}
-
-export function DiagramPathModeBanner({
-  active,
-  children,
-}: {
-  active: boolean;
-  children?: ReactNode;
-}) {
-  if (!active) return null;
-  return (
-    <p
-      className="rounded border border-[var(--cor-borda-destaque)] bg-[color:var(--cor-alerta-fundo)] px-3 py-2 text-xs text-muted-strong"
-      role="status"
-    >
-      {children ??
-        "Modo caminho ativo: toque em até 2 nós para selecionar. Depois use “Destacar caminho”."}
-    </p>
   );
 }

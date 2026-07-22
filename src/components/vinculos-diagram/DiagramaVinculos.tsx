@@ -34,7 +34,6 @@ import {
 import { DiagramaNodeActionsProvider } from "@/components/vinculos-diagram/DiagramaNodeActions";
 import {
   DiagramLegend,
-  DiagramPathModeBanner,
   DiagramToolbar,
 } from "@/components/vinculos-diagram/DiagramToolbar";
 import {
@@ -236,7 +235,6 @@ function DiagramaVinculosInner({
   );
   const [highlightedPath, setHighlightedPath] =
     useState<ShortestPathResult | null>(null);
-  const [pathMessage, setPathMessage] = useState<string | null>(null);
   /** Modo toque: toques nos nós selecionam caminho em vez de expandir. */
   const [pathSelectMode, setPathSelectMode] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -343,7 +341,6 @@ function DiagramaVinculosInner({
       setPathEndpointA(null);
       setPathEndpointB(null);
       setHighlightedPath(null);
-      setPathMessage(null);
 
       const resumo = await getEntidadeResumo(entidadeTipo, entidadeId);
       if (cancelled) return;
@@ -404,7 +401,6 @@ function DiagramaVinculosInner({
     setPathEndpointA(null);
     setPathEndpointB(null);
     setHighlightedPath(null);
-    setPathMessage(null);
     const resetRoot: Node<EntidadeNodeData, "entidade"> = {
       ...root,
       position: { x: 0, y: 0 },
@@ -1014,7 +1010,6 @@ function DiagramaVinculosInner({
     setPathEndpointA(null);
     setPathEndpointB(null);
     setHighlightedPath(null);
-    setPathMessage(null);
   }, []);
 
   const applyFocus = useCallback((nodeId: string) => {
@@ -1031,7 +1026,6 @@ function DiagramaVinculosInner({
     (nodeId: string) => {
       clearPendingClick();
       setHighlightedPath(null);
-      setPathMessage(null);
 
       const { a, b } = pathEndpointsRef.current;
 
@@ -1080,9 +1074,6 @@ function DiagramaVinculosInner({
 
   const highlightPathBetweenSelected = useCallback(() => {
     if (!pathEndpointA || !pathEndpointB) {
-      setPathMessage(
-        "Selecione exatamente dois nós (Ctrl+clique no desktop, ou ative “Selecionar nós para caminho” no celular) para destacar o caminho.",
-      );
       setHighlightedPath(null);
       return;
     }
@@ -1094,17 +1085,9 @@ function DiagramaVinculosInner({
     );
     if (!result) {
       setHighlightedPath(null);
-      setPathMessage(
-        "Nenhum caminho encontrado entre os nós selecionados com os dados atualmente exibidos — tente expandir mais nós.",
-      );
       return;
     }
     setHighlightedPath(result);
-    setPathMessage(
-      result.edgeIds.length === 0
-        ? "Os dois pontos são o mesmo nó."
-        : `Caminho com ${result.nodeIds.length} nós e ${result.edgeIds.length} vínculo(s).`,
-    );
   }, [pathEndpointA, pathEndpointB]);
 
   const { displayNodes, displayEdges } = useMemo(() => {
@@ -1260,7 +1243,6 @@ function DiagramaVinculosInner({
       setPathEndpointA(null);
       setPathEndpointB(null);
       setHighlightedPath(null);
-      setPathMessage(null);
       setContextMenu(null);
       setNodes(result.nodes);
       setEdges(result.edges);
@@ -1661,29 +1643,6 @@ function DiagramaVinculosInner({
       dismissNode={requestDismiss}
     >
       <div className={fullScreen ? "flex h-full flex-col gap-2" : "space-y-2"}>
-      <p className="hidden text-xs text-muted sm:block">
-        Clique: expandir/recolher. Alt+clique: foco. Ctrl+clique (Cmd no Mac):
-        marcar até 2 nós para o caminho. Duplo clique ou ×: remover. Botão
-        direito: mais ações.
-      </p>
-      <p className="text-xs text-muted sm:hidden">
-        Toque no nó: expandir/recolher. Use Ferramentas “Selecionar nós para
-        caminho” para marcar A/B. Pinça para zoom; um dedo
-        arrasta o canvas. × remove o nó.
-      </p>
-      <DiagramPathModeBanner active={pathSelectMode} />
-      {pathMessage ? (
-        <p
-          className={`rounded border px-3 py-2 text-xs ${
-            highlightedPath
-              ? "border-[var(--cor-borda-destaque)] bg-[color:var(--cor-alerta-fundo)] text-muted-strong"
-              : "border-danger-border bg-danger-bg text-danger-fg"
-          }`}
-          role="status"
-        >
-          {pathMessage}
-        </p>
-      ) : null}
       {ioStatus ? (
         <p className="text-xs text-muted" role="status">
           {ioStatus}
