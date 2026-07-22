@@ -17,9 +17,18 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
+import { MobileSortBar, SortableTh } from "@/components/shared/ListSort";
 import { Button, Input } from "@/components/ui/Form";
 import { formatCnpj, formatDate } from "@/lib/format";
+import {
+  buildListFilterParams,
+  ENTITY_SORT_COLUMNS,
+  type SortDir,
+} from "@/lib/list-sort";
 import type { Empresa } from "@/lib/types";
+
+const BASE = "/empresas";
+const SORT_COLS = ENTITY_SORT_COLUMNS.empresas;
 
 type FiltersProps = {
   total: number;
@@ -30,6 +39,8 @@ type TableProps = {
   total: number;
   page: number;
   pageSize: number;
+  sort: string;
+  dir: SortDir;
 };
 
 export function EmpresasFilters({ total }: FiltersProps) {
@@ -39,10 +50,9 @@ export function EmpresasFilters({ total }: FiltersProps) {
   const [pending, startTransition] = useTransition();
 
   function apply(nextQ: string) {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
+    const params = buildListFilterParams(searchParams, { q: nextQ });
     startTransition(() => {
-      router.push(`/empresas${params.toString() ? `?${params}` : ""}`);
+      router.push(`${BASE}${params.toString() ? `?${params}` : ""}`);
     });
   }
 
@@ -81,6 +91,8 @@ export function EmpresasTable({
   total,
   page,
   pageSize,
+  sort,
+  dir,
 }: TableProps) {
   const rows = useMemo(() => empresas, [empresas]);
 
@@ -88,6 +100,14 @@ export function EmpresasTable({
     <EntityListView
       empty={rows.length === 0}
       emptyMessage="Nenhuma empresa encontrada com os filtros atuais."
+      before={
+        <MobileSortBar
+          columns={SORT_COLS}
+          activeSort={sort}
+          activeDir={dir}
+          basePath={BASE}
+        />
+      }
       cards={rows.map((empresa) => (
         <ListCardLink key={empresa.id} href={`/empresas/${empresa.id}`}>
           <ListCardTitle>
@@ -110,15 +130,43 @@ export function EmpresasTable({
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-              <th className="px-3 py-2.5 font-semibold">Nome fantasia</th>
-              <th className="px-3 py-2.5 font-semibold">Razão social</th>
-              <th className="px-3 py-2.5 font-semibold">CNPJ</th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                CNAE
-              </th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Cadastro
-              </th>
+              <SortableTh
+                sortKey="nome_fantasia"
+                label="Nome fantasia"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="razao_social"
+                label="Razão social"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="cnpj"
+                label="CNPJ"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="cnae_principal"
+                label="CNAE"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
+              <SortableTh
+                sortKey="data_cadastro"
+                label="Cadastro"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
             </tr>
           </thead>
           <tbody>
@@ -156,7 +204,7 @@ export function EmpresasTable({
       }
       pagination={
         <ListPagination
-          basePath="/empresas"
+          basePath={BASE}
           total={total}
           page={page}
           pageSize={pageSize}

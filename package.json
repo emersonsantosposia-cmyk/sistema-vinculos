@@ -10,6 +10,7 @@
     "cleanup:data": "tsx --env-file=.env.local scripts/speed-cleanup.ts",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "seed:cleanup": "tsx --env-file=.env.local scripts/seed-cleanup.ts",
+    "repair:fotos": "tsx --env-file=.env.local scripts/repair-pessoas-fotos.ts",
     "version:bump": "node scripts/nova-versao.js"
   },
   "dependencies": {

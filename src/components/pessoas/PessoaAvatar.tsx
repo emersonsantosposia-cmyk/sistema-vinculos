@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSignedStorageUrl } from "@/lib/supabase/storage-urls";
 import { ImageLightbox } from "@/components/shared/ImageLightbox";
 
@@ -52,10 +52,15 @@ export function PessoaAvatar({
   expandable = false,
 }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const { url, loading } = useSignedStorageUrl(BUCKET, path);
   const box = sizeClass[size];
 
-  if (path && (loading || !url)) {
+  useEffect(() => {
+    setImgFailed(false);
+  }, [path, url]);
+
+  if (path && loading) {
     return (
       <div
         className={`${box} shrink-0 animate-pulse rounded-full bg-panel-hover ${className}`}
@@ -64,7 +69,9 @@ export function PessoaAvatar({
     );
   }
 
-  if (url) {
+  const showImg = Boolean(url) && !imgFailed;
+
+  if (showImg && url) {
     if (expandable) {
       return (
         <>
@@ -77,8 +84,9 @@ export function PessoaAvatar({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={url}
-              alt={nome}
+              alt=""
               className="h-full w-full object-cover"
+              onError={() => setImgFailed(true)}
             />
           </button>
           {lightboxOpen ? (
@@ -96,15 +104,16 @@ export function PessoaAvatar({
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={url}
-        alt={nome}
-        className={`${box} shrink-0 rounded-full border border-border object-cover bg-panel-soft ${className}`}
+        alt=""
+        className={`${box} shrink-0 overflow-hidden rounded-full border border-border object-cover bg-panel-soft ${className}`}
+        onError={() => setImgFailed(true)}
       />
     );
   }
 
   return (
     <div
-      className={`${box} flex shrink-0 items-center justify-center rounded-full border border-border bg-panel-soft text-muted ${className}`}
+      className={`${box} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-panel-soft text-muted ${className}`}
       title="Sem foto de perfil"
       aria-label="Sem foto de perfil"
     >

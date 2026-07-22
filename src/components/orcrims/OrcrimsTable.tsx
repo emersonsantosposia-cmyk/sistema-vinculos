@@ -18,9 +18,18 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
+import { MobileSortBar, SortableTh } from "@/components/shared/ListSort";
 import { Button, Input, Select } from "@/components/ui/Form";
 import { formatDate, UFS } from "@/lib/format";
+import {
+  buildListFilterParams,
+  ENTITY_SORT_COLUMNS,
+  type SortDir,
+} from "@/lib/list-sort";
 import type { Orcrim } from "@/lib/types";
+
+const BASE = "/orcrims";
+const SORT_COLS = ENTITY_SORT_COLUMNS.orcrims;
 
 type FiltersProps = {
   total: number;
@@ -31,6 +40,8 @@ type TableProps = {
   total: number;
   page: number;
   pageSize: number;
+  sort: string;
+  dir: SortDir;
 };
 
 export function OrcrimsFilters({ total }: FiltersProps) {
@@ -41,11 +52,12 @@ export function OrcrimsFilters({ total }: FiltersProps) {
   const [pending, startTransition] = useTransition();
 
   function apply(nextQ: string, nextEstado: string) {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
-    if (nextEstado) params.set("estado", nextEstado);
+    const params = buildListFilterParams(searchParams, {
+      q: nextQ,
+      estado: nextEstado || null,
+    });
     startTransition(() => {
-      router.push(`/orcrims${params.toString() ? `?${params}` : ""}`);
+      router.push(`${BASE}${params.toString() ? `?${params}` : ""}`);
     });
   }
 
@@ -103,6 +115,8 @@ export function OrcrimsTable({
   total,
   page,
   pageSize,
+  sort,
+  dir,
 }: TableProps) {
   const rows = useMemo(() => orcrims, [orcrims]);
 
@@ -110,6 +124,14 @@ export function OrcrimsTable({
     <EntityListView
       empty={rows.length === 0}
       emptyMessage="Nenhuma orcrim encontrada com os filtros atuais."
+      before={
+        <MobileSortBar
+          columns={SORT_COLS}
+          activeSort={sort}
+          activeDir={dir}
+          basePath={BASE}
+        />
+      }
       cards={rows.map((orcrim) => (
         <ListCardLink key={orcrim.id} href={`/orcrims/${orcrim.id}`}>
           <ListCardTitle>{orcrim.nome || "Sem nome"}</ListCardTitle>
@@ -124,12 +146,35 @@ export function OrcrimsTable({
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-              <th className="px-3 py-2.5 font-semibold">Nome</th>
-              <th className="px-3 py-2.5 font-semibold">Sigla</th>
-              <th className="px-3 py-2.5 font-semibold">Estado de origem</th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Cadastro
-              </th>
+              <SortableTh
+                sortKey="nome"
+                label="Nome"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="sigla"
+                label="Sigla"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="estado_origem"
+                label="Estado de origem"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="data_cadastro"
+                label="Cadastro"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
             </tr>
           </thead>
           <tbody>
@@ -162,7 +207,7 @@ export function OrcrimsTable({
       }
       pagination={
         <ListPagination
-          basePath="/orcrims"
+          basePath={BASE}
           total={total}
           page={page}
           pageSize={pageSize}

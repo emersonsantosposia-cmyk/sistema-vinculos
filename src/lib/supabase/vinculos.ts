@@ -8,10 +8,24 @@ import { formatPlaca, labelComunicacaoTipo } from "@/lib/format";
 import type { EntidadeTipo } from "@/lib/types";
 import type {
   EntidadeOpcao,
+  TipoVinculoSugerido,
   VinculoCard,
   VinculoDiagramItem,
   VinculoRow,
 } from "@/lib/vinculos-types";
+
+/** Resolve rótulos direcionais com fallback ao legado `tipo_vinculo`. */
+function resolveTiposDirecionais(row: {
+  tipo_a_para_b?: string | null;
+  tipo_b_para_a?: string | null;
+  tipo_vinculo?: string | null;
+}): { tipoAParaB: string | null; tipoBParaA: string | null } {
+  const legado = row.tipo_vinculo?.trim() || null;
+  return {
+    tipoAParaB: row.tipo_a_para_b?.trim() || legado,
+    tipoBParaA: row.tipo_b_para_a?.trim() || legado,
+  };
+}
 
 function sanitizeTerm(q: string): string {
   return q.trim().replace(/[%_,]/g, "");
@@ -498,10 +512,17 @@ export async function listVinculosDaEntidade(
     const resumo = resumos.get(resumoKey(outroTipo, outroId)) ?? null;
     const restrito =
       !resumo && (outroTipo === "documento" || outroTipo === "caso");
+    const isOrigem =
+      row.entidade_origem_tipo === entidadeTipo &&
+      row.entidade_origem_id === entidadeId;
+    const { tipoAParaB, tipoBParaA } = resolveTiposDirecionais(row);
 
     return {
       id: row.id,
-      tipo_vinculo: row.tipo_vinculo,
+      tipo_a_para_b: tipoAParaB,
+      tipo_b_para_a: tipoBParaA,
+      tipo_perspectiva: isOrigem ? tipoAParaB : tipoBParaA,
+      is_origem: isOrigem,
       // Não vazar fundamentação quando o outro lado é doc/caso inacessível.
       fundamentacao: restrito ? null : row.observacao,
       usuario_cadastro: row.usuario_cadastro,
@@ -543,7 +564,8 @@ export async function buscarVinculosDaEntidade(
       vinculoId: card.id,
       outroTipo: card.outroTipo,
       outroId: card.outroId,
-      tipo_vinculo: card.tipo_vinculo,
+      tipo_perspectiva: card.tipo_perspectiva,
+      tipo_inverso: card.is_origem ? card.tipo_b_para_a : card.tipo_a_para_b,
       titulo: card.titulo,
       subtitulo: card.subtitulo,
       restrito: Boolean(card.restrito),
@@ -554,12 +576,49 @@ export async function buscarVinculosDaEntidade(
   };
 }
 
+export async function listTiposVinculoSugeridos(
+  origemTipo: EntidadeTipo,
+  destinoTipo: EntidadeTipo,
+): Promise<{
+  data: TipoVinculoSugerido[];
+  error: string | null;
+}> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("tipos_vinculo_sugeridos")
+    .select(
+      "entidade_origem_tipo, entidade_destino_tipo, termo_direto, termo_inverso, simetrico",
+    )
+    .eq("entidade_origem_tipo", origemTipo)
+    .eq("entidade_destino_tipo", destinoTipo)
+    .order("termo_direto");
+
+  if (error) {
+    return {
+      data: [],
+      error: friendlyError(error.message, "Erro ao carregar tipos sugeridos."),
+    };
+  }
+
+  return {
+    data: (data ?? []).map((row) => ({
+      entidade_origem_tipo: row.entidade_origem_tipo as EntidadeTipo,
+      entidade_destino_tipo: row.entidade_destino_tipo as EntidadeTipo,
+      termo_direto: row.termo_direto as string,
+      termo_inverso: row.termo_inverso as string,
+      simetrico: Boolean(row.simetrico),
+    })),
+    error: null,
+  };
+}
+
 export async function createVinculo(input: {
   origemTipo: EntidadeTipo;
   origemId: string;
   destinoTipo: EntidadeTipo;
   destinoId: string;
-  tipoVinculo?: string | null;
+  tipoAParaB?: string | null;
+  tipoBParaA?: string | null;
   fundamentacao?: string | null;
 }): Promise<{ error: string | null }> {
   if (
@@ -577,13 +636,19 @@ export async function createVinculo(input: {
   const auth = await requireAuthUser();
   if (!auth.user) return { error: auth.error };
 
+  const tipoAParaB = input.tipoAParaB?.trim() || null;
+  const tipoBParaA = input.tipoBParaA?.trim() || null;
+
   const supabase = createClient();
   const { error } = await supabase.from("vinculos").insert({
     entidade_origem_tipo: input.origemTipo,
     entidade_origem_id: input.origemId,
     entidade_destino_tipo: input.destinoTipo,
     entidade_destino_id: input.destinoId,
-    tipo_vinculo: input.tipoVinculo?.trim() || null,
+    tipo_a_para_b: tipoAParaB,
+    tipo_b_para_a: tipoBParaA,
+    // Legado: espelha A→B para qualquer leitor antigo restante.
+    tipo_vinculo: tipoAParaB,
     observacao: fundamentacao,
     usuario_cadastro: auth.user.id,
     data_cadastro: new Date().toISOString(),
@@ -598,7 +663,8 @@ export async function createVinculo(input: {
 export async function updateVinculo(
   id: string,
   input: {
-    tipoVinculo?: string | null;
+    tipoAParaB?: string | null;
+    tipoBParaA?: string | null;
     fundamentacao?: string | null;
   },
 ): Promise<{ error: string | null }> {
@@ -607,11 +673,16 @@ export async function updateVinculo(
     return { error: "Informe a fundamentação do vínculo." };
   }
 
+  const tipoAParaB = input.tipoAParaB?.trim() || null;
+  const tipoBParaA = input.tipoBParaA?.trim() || null;
+
   const supabase = createClient();
   const { error } = await supabase
     .from("vinculos")
     .update({
-      tipo_vinculo: input.tipoVinculo?.trim() || null,
+      tipo_a_para_b: tipoAParaB,
+      tipo_b_para_a: tipoBParaA,
+      tipo_vinculo: tipoAParaB,
       observacao: fundamentacao,
     })
     .eq("id", id);

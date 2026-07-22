@@ -17,9 +17,18 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
+import { MobileSortBar, SortableTh } from "@/components/shared/ListSort";
 import { Button, Input } from "@/components/ui/Form";
 import { formatCep, formatDate, formatEnderecoResumo } from "@/lib/format";
+import {
+  buildListFilterParams,
+  ENTITY_SORT_COLUMNS,
+  type SortDir,
+} from "@/lib/list-sort";
 import type { Endereco } from "@/lib/types";
+
+const BASE = "/enderecos";
+const SORT_COLS = ENTITY_SORT_COLUMNS.enderecos;
 
 type FiltersProps = {
   total: number;
@@ -30,6 +39,8 @@ type TableProps = {
   total: number;
   page: number;
   pageSize: number;
+  sort: string;
+  dir: SortDir;
 };
 
 export function EnderecosFilters({ total }: FiltersProps) {
@@ -39,10 +50,9 @@ export function EnderecosFilters({ total }: FiltersProps) {
   const [pending, startTransition] = useTransition();
 
   function apply(nextQ: string) {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
+    const params = buildListFilterParams(searchParams, { q: nextQ });
     startTransition(() => {
-      router.push(`/enderecos${params.toString() ? `?${params}` : ""}`);
+      router.push(`${BASE}${params.toString() ? `?${params}` : ""}`);
     });
   }
 
@@ -81,6 +91,8 @@ export function EnderecosTable({
   total,
   page,
   pageSize,
+  sort,
+  dir,
 }: TableProps) {
   const rows = useMemo(() => enderecos, [enderecos]);
 
@@ -88,6 +100,14 @@ export function EnderecosTable({
     <EntityListView
       empty={rows.length === 0}
       emptyMessage="Nenhum endereço encontrado com os filtros atuais."
+      before={
+        <MobileSortBar
+          columns={SORT_COLS}
+          activeSort={sort}
+          activeDir={dir}
+          basePath={BASE}
+        />
+      }
       cards={rows.map((endereco) => {
         const titulo =
           endereco.nome ||
@@ -112,13 +132,42 @@ export function EnderecosTable({
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-              <th className="px-3 py-2.5 font-semibold">Nome</th>
-              <th className="px-3 py-2.5 font-semibold">Endereço</th>
-              <th className="px-3 py-2.5 font-semibold">CEP</th>
-              <th className="px-3 py-2.5 font-semibold">UF</th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Cadastro
-              </th>
+              <SortableTh
+                sortKey="nome"
+                label="Nome"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="logradouro"
+                label="Endereço"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="cep"
+                label="CEP"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="estado"
+                label="UF"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="data_cadastro"
+                label="Cadastro"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
             </tr>
           </thead>
           <tbody>
@@ -156,7 +205,7 @@ export function EnderecosTable({
       }
       pagination={
         <ListPagination
-          basePath="/enderecos"
+          basePath={BASE}
           total={total}
           page={page}
           pageSize={pageSize}

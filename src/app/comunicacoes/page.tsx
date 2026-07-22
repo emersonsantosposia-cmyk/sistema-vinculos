@@ -6,6 +6,7 @@ import {
 } from "@/components/comunicacoes/ComunicacoesTable";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizeListSort } from "@/lib/list-sort";
 import { normalizePage } from "@/lib/pagination";
 import { listComunicacoes } from "@/lib/supabase/comunicacoes-server";
 
@@ -15,6 +16,8 @@ type Props = {
     tipo?: string;
     status?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
 };
 
@@ -33,18 +36,25 @@ async function Content({
   tipo,
   status,
   page,
+  sort,
+  dir,
 }: {
   q?: string;
   tipo?: string;
   status?: string;
   page?: string;
+  sort?: string;
+  dir?: string;
 }) {
+  const order = normalizeListSort("comunicacoes", sort, dir);
   const { data, total, page: currentPage, pageSize, error } =
     await listComunicacoes({
       q,
       tipo,
       status,
       page: normalizePage(page),
+      sort: order.sort,
+      dir: order.dir,
     });
   return (
     <>
@@ -64,6 +74,8 @@ async function Content({
         total={total}
         page={currentPage}
         pageSize={pageSize}
+        sort={order.sort}
+        dir={order.dir}
       />
     </>
   );
@@ -89,6 +101,8 @@ export default async function ComunicacoesPage({ searchParams }: Props) {
           tipo={params.tipo}
           status={params.status}
           page={params.page}
+          sort={params.sort}
+          dir={params.dir}
         />
       </Suspense>
     </DashboardShell>

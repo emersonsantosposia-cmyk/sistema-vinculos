@@ -1,4 +1,5 @@
 import { isPessoaTipo } from "@/lib/format";
+import { normalizeListSort } from "@/lib/list-sort";
 import {
   LIST_PAGE_SIZE,
   normalizePage,
@@ -39,10 +40,17 @@ export async function listPessoas(filters: {
   q?: string;
   tipo?: string;
   page?: number;
+  sort?: string;
+  dir?: string;
 }): Promise<PaginatedListResult<PessoaListItem>> {
   const pageSize = LIST_PAGE_SIZE;
   const page = normalizePage(filters.page);
   const { from, to } = pageRange(page, pageSize);
+  const { column, ascending } = normalizeListSort(
+    "pessoas",
+    filters.sort,
+    filters.dir,
+  );
   const empty: PaginatedListResult<PessoaListItem> = {
     data: [],
     total: 0,
@@ -55,7 +63,7 @@ export async function listPessoas(filters: {
   let query = supabase
     .from("pessoas")
     .select("*, pessoas_fotos(url_arquivo, tipo)", { count: "exact" })
-    .order("data_cadastro", { ascending: false })
+    .order(column, { ascending })
     .range(from, to);
 
   if (filters.tipo && isPessoaTipo(filters.tipo)) {

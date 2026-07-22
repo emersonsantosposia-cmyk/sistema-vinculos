@@ -3,13 +3,20 @@ import { Suspense } from "react";
 import { CasosFilters, CasosTable } from "@/components/casos/CasosTable";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizeListSort } from "@/lib/list-sort";
 import { normalizePage } from "@/lib/pagination";
 import { canChooseUnidade } from "@/lib/perfis";
 import { listCasos } from "@/lib/supabase/casos-server";
 import { getCurrentPerfil } from "@/lib/supabase/perfis-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string; unidade?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    unidade?: string;
+    page?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 };
 
 function LoadingSkeleton() {
@@ -26,17 +33,24 @@ async function Content({
   q,
   unidade,
   page,
+  sort,
+  dir,
 }: {
   q?: string;
   unidade?: string;
   page?: string;
+  sort?: string;
+  dir?: string;
 }) {
   const { perfil } = await getCurrentPerfil();
   const showUnidadeFilter = canChooseUnidade(perfil);
+  const order = normalizeListSort("casos", sort, dir);
   const { data, total, page: currentPage, pageSize, error } = await listCasos({
     q,
     unidade: showUnidadeFilter ? unidade : undefined,
     page: normalizePage(page),
+    sort: order.sort,
+    dir: order.dir,
   });
   return (
     <>
@@ -56,6 +70,8 @@ async function Content({
         total={total}
         page={currentPage}
         pageSize={pageSize}
+        sort={order.sort}
+        dir={order.dir}
       />
     </>
   );
@@ -76,7 +92,13 @@ export default async function CasosPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} unidade={params.unidade} page={params.page} />
+        <Content
+          q={params.q}
+          unidade={params.unidade}
+          page={params.page}
+          sort={params.sort}
+          dir={params.dir}
+        />
       </Suspense>
     </DashboardShell>
   );

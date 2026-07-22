@@ -7,6 +7,7 @@ import {
   DocumentosTable,
 } from "@/components/documentos/DocumentosTable";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizeListSort } from "@/lib/list-sort";
 import { normalizePage } from "@/lib/pagination";
 import { canChooseUnidade } from "@/lib/perfis";
 import { getCurrentPerfil } from "@/lib/supabase/perfis-server";
@@ -18,6 +19,8 @@ type Props = {
     tipo?: string;
     unidade?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
 };
 
@@ -36,19 +39,26 @@ async function Content({
   tipo,
   unidade,
   page,
+  sort,
+  dir,
 }: {
   q?: string;
   tipo?: string;
   unidade?: string;
   page?: string;
+  sort?: string;
+  dir?: string;
 }) {
   const { perfil } = await getCurrentPerfil();
   const showUnidadeFilter = canChooseUnidade(perfil);
+  const order = normalizeListSort("documentos", sort, dir);
   const { data, total, page: currentPage, pageSize, error } = await listDocumentos({
     q,
     tipo,
     unidade: showUnidadeFilter ? unidade : undefined,
     page: normalizePage(page),
+    sort: order.sort,
+    dir: order.dir,
   });
   return (
     <>
@@ -71,6 +81,8 @@ async function Content({
         total={total}
         page={currentPage}
         pageSize={pageSize}
+        sort={order.sort}
+        dir={order.dir}
       />
     </>
   );
@@ -99,6 +111,8 @@ export default async function DocumentosPage({ searchParams }: Props) {
           tipo={params.tipo}
           unidade={params.unidade}
           page={params.page}
+          sort={params.sort}
+          dir={params.dir}
         />
       </Suspense>
     </DashboardShell>

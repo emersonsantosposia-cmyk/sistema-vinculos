@@ -1,7 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { CarregarMaisNodeData } from "@/components/vinculos-diagram/CarregarMaisNode";
 import type { EntidadeNodeData } from "@/components/vinculos-diagram/EntidadeVinculoNode";
-import { formatTipoVinculoLabel } from "@/lib/vinculos-format";
+import { formatTipoVinculoEdgeLabel } from "@/lib/vinculos-format";
 import { entidadeNodeId } from "@/lib/entidade-visual";
 import type { VinculoDiagramItem } from "@/lib/vinculos-types";
 
@@ -11,6 +11,10 @@ export type EdgeData = {
   /** Expansões ativas que mantêm esta aresta. */
   refSources: string[];
   removing?: boolean;
+  /** Rótulo na direção source → target. */
+  tipoDirecao?: string | null;
+  /** Rótulo na direção inversa (para tooltip/contexto). */
+  tipoInverso?: string | null;
 };
 
 export type DiagramEdge = Edge<EdgeData>;
@@ -39,16 +43,22 @@ function buildEdge(
   vinculoId: string,
   sourceId: string,
   targetId: string,
-  tipoVinculo: string | null,
+  tipoPerspectiva: string | null,
+  tipoInverso: string | null,
   expansionId: string,
 ): DiagramEdge {
+  const label = formatTipoVinculoEdgeLabel(tipoPerspectiva, tipoInverso);
   return {
     id: `vinculo__${vinculoId}`,
     source: sourceId,
     target: targetId,
     type: "straight",
-    label: formatTipoVinculoLabel(tipoVinculo),
-    data: { refSources: [expansionId] },
+    label,
+    data: {
+      refSources: [expansionId],
+      tipoDirecao: tipoPerspectiva,
+      tipoInverso,
+    },
     labelStyle: {
       fill: "var(--cor-texto-secundario)",
       fontSize: 10,
@@ -153,7 +163,8 @@ export function applyVinculosBatch(
         v.vinculoId,
         parentId,
         childId,
-        v.tipo_vinculo,
+        v.tipo_perspectiva,
+        v.tipo_inverso,
         parentId,
       );
       nextEdges.push(edge);

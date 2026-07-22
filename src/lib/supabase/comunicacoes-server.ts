@@ -2,6 +2,7 @@ import {
   isComunicacaoStatus,
   isComunicacaoTipo,
 } from "@/lib/format";
+import { normalizeListSort } from "@/lib/list-sort";
 import {
   LIST_PAGE_SIZE,
   normalizePage,
@@ -17,10 +18,17 @@ export async function listComunicacoes(filters: {
   tipo?: string;
   status?: string;
   page?: number;
+  sort?: string;
+  dir?: string;
 }): Promise<PaginatedListResult<Comunicacao>> {
   const pageSize = LIST_PAGE_SIZE;
   const page = normalizePage(filters.page);
   const { from, to } = pageRange(page, pageSize);
+  const { column, ascending } = normalizeListSort(
+    "comunicacoes",
+    filters.sort,
+    filters.dir,
+  );
   const empty: PaginatedListResult<Comunicacao> = {
     data: [],
     total: 0,
@@ -33,7 +41,7 @@ export async function listComunicacoes(filters: {
   let query = supabase
     .from("comunicacoes")
     .select("*", { count: "exact" })
-    .order("data_cadastro", { ascending: false })
+    .order(column, { ascending })
     .range(from, to);
 
   if (filters.tipo && isComunicacaoTipo(filters.tipo)) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSignedStorageUrl } from "@/lib/supabase/storage-urls";
 
 const BUCKET = "fotos-veiculos";
@@ -40,10 +41,15 @@ export function VeiculoAvatar({
   size = "md",
   className = "",
 }: Props) {
+  const [imgFailed, setImgFailed] = useState(false);
   const { url, loading } = useSignedStorageUrl(BUCKET, path);
   const box = sizeClass[size];
 
-  if (path && (loading || !url)) {
+  useEffect(() => {
+    setImgFailed(false);
+  }, [path, url]);
+
+  if (path && loading) {
     return (
       <div
         className={`${box} shrink-0 animate-pulse rounded-full bg-panel-hover ${className}`}
@@ -52,20 +58,22 @@ export function VeiculoAvatar({
     );
   }
 
-  if (url) {
+  if (url && !imgFailed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={url}
-        alt={alt}
-        className={`${box} shrink-0 rounded-full border border-border object-cover bg-panel-soft ${className}`}
+        alt=""
+        title={alt}
+        className={`${box} shrink-0 overflow-hidden rounded-full border border-border object-cover bg-panel-soft ${className}`}
+        onError={() => setImgFailed(true)}
       />
     );
   }
 
   return (
     <div
-      className={`${box} flex shrink-0 items-center justify-center rounded-full border border-border bg-panel-soft text-muted ${className}`}
+      className={`${box} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-panel-soft text-muted ${className}`}
       title="Sem foto"
       aria-label="Sem foto"
     >

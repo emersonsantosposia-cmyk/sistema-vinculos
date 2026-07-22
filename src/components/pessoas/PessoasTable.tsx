@@ -18,11 +18,20 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
+import { MobileSortBar, SortableTh } from "@/components/shared/ListSort";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
 import { Button, Input, Select } from "@/components/ui/Form";
 import { formatCpf, formatDate, labelPessoaTipo } from "@/lib/format";
+import {
+  buildListFilterParams,
+  ENTITY_SORT_COLUMNS,
+  type SortDir,
+} from "@/lib/list-sort";
 import type { PessoaListItem } from "@/lib/types";
 import { PESSOA_TIPOS } from "@/lib/types";
+
+const BASE = "/pessoas";
+const SORT_COLS = ENTITY_SORT_COLUMNS.pessoas;
 
 type FiltersProps = {
   total: number;
@@ -33,14 +42,11 @@ type TableProps = {
   total: number;
   page: number;
   pageSize: number;
+  sort: string;
+  dir: SortDir;
 };
 
-type ListaProps = {
-  pessoas: PessoaListItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-};
+type ListaProps = TableProps;
 
 export function PessoasFilters({ total }: FiltersProps) {
   const router = useRouter();
@@ -50,11 +56,12 @@ export function PessoasFilters({ total }: FiltersProps) {
   const [pending, startTransition] = useTransition();
 
   function apply(nextQ: string, nextTipo: string) {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
-    if (nextTipo) params.set("tipo", nextTipo);
+    const params = buildListFilterParams(searchParams, {
+      q: nextQ,
+      tipo: nextTipo || null,
+    });
     startTransition(() => {
-      router.push(`/pessoas${params.toString() ? `?${params}` : ""}`);
+      router.push(`${BASE}${params.toString() ? `?${params}` : ""}`);
     });
   }
 
@@ -119,6 +126,8 @@ export function PessoasTable({
   total,
   page,
   pageSize,
+  sort,
+  dir,
 }: TableProps) {
   const rows = useMemo(() => pessoas, [pessoas]);
 
@@ -126,6 +135,14 @@ export function PessoasTable({
     <EntityListView
       empty={rows.length === 0}
       emptyMessage="Nenhuma pessoa encontrada com os filtros atuais."
+      before={
+        <MobileSortBar
+          columns={SORT_COLS}
+          activeSort={sort}
+          activeDir={dir}
+          basePath={BASE}
+        />
+      }
       cards={rows.map((pessoa) => (
         <ListCardLink key={pessoa.id} href={`/pessoas/${pessoa.id}`}>
           <ListCardTitle
@@ -154,15 +171,43 @@ export function PessoasTable({
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-              <th className="px-3 py-2.5 font-semibold">Nome</th>
-              <th className="px-3 py-2.5 font-semibold">Tipo</th>
-              <th className="px-3 py-2.5 font-semibold">CPF</th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Alcunha
-              </th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Cadastro
-              </th>
+              <SortableTh
+                sortKey="nome"
+                label="Nome"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="tipo"
+                label="Tipo"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="cpf"
+                label="CPF"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="alcunha"
+                label="Alcunha"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
+              <SortableTh
+                sortKey="data_cadastro"
+                label="Cadastro"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
             </tr>
           </thead>
           <tbody>
@@ -205,7 +250,7 @@ export function PessoasTable({
       }
       pagination={
         <ListPagination
-          basePath="/pessoas"
+          basePath={BASE}
           total={total}
           page={page}
           pageSize={pageSize}
@@ -215,7 +260,14 @@ export function PessoasTable({
   );
 }
 
-export function PessoasLista({ pessoas, total, page, pageSize }: ListaProps) {
+export function PessoasLista({
+  pessoas,
+  total,
+  page,
+  pageSize,
+  sort,
+  dir,
+}: ListaProps) {
   return (
     <>
       <PessoasFilters total={total} />
@@ -224,6 +276,8 @@ export function PessoasLista({ pessoas, total, page, pageSize }: ListaProps) {
         total={total}
         page={page}
         pageSize={pageSize}
+        sort={sort}
+        dir={dir}
       />
     </>
   );

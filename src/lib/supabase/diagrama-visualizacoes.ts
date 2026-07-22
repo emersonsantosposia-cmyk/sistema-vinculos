@@ -26,7 +26,8 @@ import {
 import type { EntidadeNodeData } from "@/components/vinculos-diagram/EntidadeVinculoNode";
 import type { CarregarMaisNodeData } from "@/components/vinculos-diagram/CarregarMaisNode";
 import type { Node } from "@xyflow/react";
-import { formatTipoVinculoLabel } from "@/lib/vinculos-format";
+import { formatTipoVinculoEdgeLabel } from "@/lib/vinculos-format";
+import { entidadeNodeId } from "@/lib/entidade-visual";
 
 function emptyToNull(value?: string | null): string | null {
   const trimmed = value?.trim();
@@ -36,6 +37,44 @@ function emptyToNull(value?: string | null): string | null {
 function parseVinculoIdFromEdge(edgeId: string): string | null {
   if (!edgeId.startsWith("vinculo__")) return null;
   return edgeId.slice("vinculo__".length) || null;
+}
+
+type VinculoTipoRow = {
+  id: string;
+  tipo_a_para_b: string | null;
+  tipo_b_para_a: string | null;
+  tipo_vinculo: string | null;
+  entidade_origem_tipo: EntidadeTipo;
+  entidade_origem_id: string;
+  entidade_destino_tipo: EntidadeTipo;
+  entidade_destino_id: string;
+};
+
+function resolveTiposFromRow(row: VinculoTipoRow): {
+  tipoAParaB: string | null;
+  tipoBParaA: string | null;
+} {
+  const legado = row.tipo_vinculo?.trim() || null;
+  return {
+    tipoAParaB: row.tipo_a_para_b?.trim() || legado,
+    tipoBParaA: row.tipo_b_para_a?.trim() || legado,
+  };
+}
+
+/** Escolhe o rótulo na direção source → target da aresta salva. */
+function tiposNaDirecaoAresta(
+  row: VinculoTipoRow,
+  sourceId: string,
+): { perspectiva: string | null; inverso: string | null } {
+  const { tipoAParaB, tipoBParaA } = resolveTiposFromRow(row);
+  const origemNodeId = entidadeNodeId(
+    row.entidade_origem_tipo,
+    row.entidade_origem_id,
+  );
+  if (sourceId === origemNodeId) {
+    return { perspectiva: tipoAParaB, inverso: tipoBParaA };
+  }
+  return { perspectiva: tipoBParaA, inverso: tipoAParaB };
 }
 
 /**
@@ -353,16 +392,18 @@ export async function restoreDiagramaEstado(
 
   const keptNodeIds = new Set(keptNodes.map((n) => n.id));
 
-  // 2) Validar vínculos e obter tipo_vinculo ao vivo (sem label no JSON).
+  // 2) Validar vínculos e obter rótulos direcionais ao vivo (sem label no JSON).
   const candidateEdgeIds = estado.edges
     .map((e) => parseVinculoIdFromEdge(e.id))
     .filter((id): id is string => Boolean(id));
 
-  const vinculoTipoById = new Map<string, string | null>();
+  const vinculoById = new Map<string, VinculoTipoRow>();
   if (candidateEdgeIds.length > 0) {
     const { data: vinculos, error } = await supabase
       .from("vinculos")
-      .select("id, tipo_vinculo")
+      .select(
+        "id, tipo_a_para_b, tipo_b_para_a, tipo_vinculo, entidade_origem_tipo, entidade_origem_id, entidade_destino_tipo, entidade_destino_id",
+      )
       .in("id", candidateEdgeIds);
 
     if (error) {
@@ -372,17 +413,15 @@ export async function restoreDiagramaEstado(
       };
     }
     for (const row of vinculos ?? []) {
-      vinculoTipoById.set(
-        row.id as string,
-        (row.tipo_vinculo as string | null) ?? null,
-      );
+      vinculoById.set(row.id as string, row as VinculoTipoRow);
     }
   }
 
   const keptEdges: DiagramEdge[] = [];
   for (const saved of estado.edges) {
     const vinculoId = parseVinculoIdFromEdge(saved.id);
-    if (!vinculoId || !vinculoTipoById.has(vinculoId)) continue;
+    const vinculo = vinculoId ? vinculoById.get(vinculoId) : undefined;
+    if (!vinculoId || !vinculo) continue;
     if (!keptNodeIds.has(saved.source) || !keptNodeIds.has(saved.target)) {
       continue;
     }
@@ -391,13 +430,22 @@ export async function restoreDiagramaEstado(
       keptNodeIds.has(id),
     );
 
+    const { perspectiva, inverso } = tiposNaDirecaoAresta(
+      vinculo,
+      saved.source,
+    );
+
     keptEdges.push({
       id: saved.id,
       source: saved.source,
       target: saved.target,
       type: "straight",
-      label: formatTipoVinculoLabel(vinculoTipoById.get(vinculoId) ?? null),
-      data: { refSources },
+      label: formatTipoVinculoEdgeLabel(perspectiva, inverso),
+      data: {
+        refSources,
+        tipoDirecao: perspectiva,
+        tipoInverso: inverso,
+      },
       labelStyle: {
         fill: "var(--cor-texto-secundario)",
         fontSize: 10,

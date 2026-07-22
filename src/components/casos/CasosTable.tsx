@@ -18,10 +18,19 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
+import { MobileSortBar, SortableTh } from "@/components/shared/ListSort";
 import { Button, Input, Select } from "@/components/ui/Form";
 import { formatDate, labelCasoStatus } from "@/lib/format";
+import {
+  buildListFilterParams,
+  ENTITY_SORT_COLUMNS,
+  type SortDir,
+} from "@/lib/list-sort";
 import { UNIDADES } from "@/lib/perfis";
 import type { Caso } from "@/lib/types";
+
+const BASE = "/casos";
+const SORT_COLS = ENTITY_SORT_COLUMNS.casos;
 
 type FiltersProps = {
   total: number;
@@ -33,6 +42,8 @@ type TableProps = {
   total: number;
   page: number;
   pageSize: number;
+  sort: string;
+  dir: SortDir;
 };
 
 export function CasosFilters({
@@ -48,11 +59,12 @@ export function CasosFilters({
   const [pending, startTransition] = useTransition();
 
   function apply(nextQ: string, nextUnidade: string) {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
-    if (showUnidadeFilter && nextUnidade) params.set("unidade", nextUnidade);
+    const params = buildListFilterParams(searchParams, {
+      q: nextQ,
+      unidade: showUnidadeFilter ? nextUnidade || null : null,
+    });
     startTransition(() => {
-      router.push(`/casos${params.toString() ? `?${params}` : ""}`);
+      router.push(`${BASE}${params.toString() ? `?${params}` : ""}`);
     });
   }
 
@@ -107,13 +119,28 @@ export function CasosFilters({
   );
 }
 
-export function CasosTable({ casos, total, page, pageSize }: TableProps) {
+export function CasosTable({
+  casos,
+  total,
+  page,
+  pageSize,
+  sort,
+  dir,
+}: TableProps) {
   const rows = useMemo(() => casos, [casos]);
 
   return (
     <EntityListView
       empty={rows.length === 0}
       emptyMessage="Nenhum caso encontrado com os filtros atuais."
+      before={
+        <MobileSortBar
+          columns={SORT_COLS}
+          activeSort={sort}
+          activeDir={dir}
+          basePath={BASE}
+        />
+      }
       cards={rows.map((caso) => (
         <ListCardLink key={caso.id} href={`/casos/${caso.id}`}>
           <ListCardTitle>{caso.numero || "Sem número"}</ListCardTitle>
@@ -134,16 +161,50 @@ export function CasosTable({ casos, total, page, pageSize }: TableProps) {
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-              <th className="px-3 py-2.5 font-semibold">Número</th>
-              <th className="px-3 py-2.5 font-semibold">Nome</th>
-              <th className="px-3 py-2.5 font-semibold">Unidade</th>
-              <th className="px-3 py-2.5 font-semibold">Status</th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Abertura
-              </th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Cadastro
-              </th>
+              <SortableTh
+                sortKey="numero"
+                label="Número"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="nome"
+                label="Nome"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="unidade"
+                label="Unidade"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="status"
+                label="Status"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="data_abertura"
+                label="Abertura"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
+              <SortableTh
+                sortKey="data_cadastro"
+                label="Cadastro"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
             </tr>
           </thead>
           <tbody>
@@ -186,7 +247,7 @@ export function CasosTable({ casos, total, page, pageSize }: TableProps) {
       }
       pagination={
         <ListPagination
-          basePath="/casos"
+          basePath={BASE}
           total={total}
           page={page}
           pageSize={pageSize}

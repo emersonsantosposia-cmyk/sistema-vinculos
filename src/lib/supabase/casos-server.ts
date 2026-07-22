@@ -1,3 +1,4 @@
+import { normalizeListSort } from "@/lib/list-sort";
 import {
   LIST_PAGE_SIZE,
   normalizePage,
@@ -13,10 +14,17 @@ export async function listCasos(filters: {
   q?: string;
   unidade?: string;
   page?: number;
+  sort?: string;
+  dir?: string;
 }): Promise<PaginatedListResult<Caso>> {
   const pageSize = LIST_PAGE_SIZE;
   const page = normalizePage(filters.page);
   const { from, to } = pageRange(page, pageSize);
+  const { column, ascending } = normalizeListSort(
+    "casos",
+    filters.sort,
+    filters.dir,
+  );
   const empty: PaginatedListResult<Caso> = {
     data: [],
     total: 0,
@@ -29,7 +37,7 @@ export async function listCasos(filters: {
   let query = supabase
     .from("casos")
     .select("*", { count: "exact" })
-    .order("data_cadastro", { ascending: false })
+    .order(column, { ascending })
     .range(from, to);
 
   if (filters.unidade && isUnidade(filters.unidade)) {

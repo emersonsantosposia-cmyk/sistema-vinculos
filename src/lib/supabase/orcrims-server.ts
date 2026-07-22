@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/supabase/errors";
 import { isUF } from "@/lib/format";
+import { normalizeListSort } from "@/lib/list-sort";
 import {
   LIST_PAGE_SIZE,
   normalizePage,
@@ -13,10 +14,17 @@ export async function listOrcrims(filters: {
   q?: string;
   estado?: string;
   page?: number;
+  sort?: string;
+  dir?: string;
 }): Promise<PaginatedListResult<Orcrim>> {
   const pageSize = LIST_PAGE_SIZE;
   const page = normalizePage(filters.page);
   const { from, to } = pageRange(page, pageSize);
+  const { column, ascending } = normalizeListSort(
+    "orcrims",
+    filters.sort,
+    filters.dir,
+  );
   const empty: PaginatedListResult<Orcrim> = {
     data: [],
     total: 0,
@@ -29,7 +37,7 @@ export async function listOrcrims(filters: {
   let query = supabase
     .from("orcrims")
     .select("*", { count: "exact" })
-    .order("data_cadastro", { ascending: false })
+    .order(column, { ascending })
     .range(from, to);
 
   if (filters.q?.trim()) {

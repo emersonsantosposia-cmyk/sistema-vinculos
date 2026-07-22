@@ -1,3 +1,4 @@
+import { normalizeListSort } from "@/lib/list-sort";
 import {
   LIST_PAGE_SIZE,
   normalizePage,
@@ -11,10 +12,17 @@ import type { Endereco } from "@/lib/types";
 export async function listEnderecos(filters: {
   q?: string;
   page?: number;
+  sort?: string;
+  dir?: string;
 }): Promise<PaginatedListResult<Endereco>> {
   const pageSize = LIST_PAGE_SIZE;
   const page = normalizePage(filters.page);
   const { from, to } = pageRange(page, pageSize);
+  const { column, ascending } = normalizeListSort(
+    "enderecos",
+    filters.sort,
+    filters.dir,
+  );
   const empty: PaginatedListResult<Endereco> = {
     data: [],
     total: 0,
@@ -27,7 +35,7 @@ export async function listEnderecos(filters: {
   let query = supabase
     .from("enderecos")
     .select("*", { count: "exact" })
-    .order("data_cadastro", { ascending: false })
+    .order(column, { ascending })
     .range(from, to);
 
   if (filters.q?.trim()) {

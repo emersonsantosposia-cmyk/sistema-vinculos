@@ -18,16 +18,26 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
+import { MobileSortBar, SortableTh } from "@/components/shared/ListSort";
 import { Button, Input, Select } from "@/components/ui/Form";
 import {
+  formatDate,
   labelComunicacaoStatus,
   labelComunicacaoTipo,
 } from "@/lib/format";
+import {
+  buildListFilterParams,
+  ENTITY_SORT_COLUMNS,
+  type SortDir,
+} from "@/lib/list-sort";
 import {
   COMUNICACAO_STATUS,
   COMUNICACAO_TIPOS,
   type Comunicacao,
 } from "@/lib/types";
+
+const BASE = "/comunicacoes";
+const SORT_COLS = ENTITY_SORT_COLUMNS.comunicacoes;
 
 type FiltersProps = {
   total: number;
@@ -38,6 +48,8 @@ type TableProps = {
   total: number;
   page: number;
   pageSize: number;
+  sort: string;
+  dir: SortDir;
 };
 
 export function ComunicacoesFilters({ total }: FiltersProps) {
@@ -49,12 +61,13 @@ export function ComunicacoesFilters({ total }: FiltersProps) {
   const [pending, startTransition] = useTransition();
 
   function apply(nextQ: string, nextTipo: string, nextStatus: string) {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
-    if (nextTipo) params.set("tipo", nextTipo);
-    if (nextStatus) params.set("status", nextStatus);
+    const params = buildListFilterParams(searchParams, {
+      q: nextQ,
+      tipo: nextTipo || null,
+      status: nextStatus || null,
+    });
     startTransition(() => {
-      router.push(`/comunicacoes${params.toString() ? `?${params}` : ""}`);
+      router.push(`${BASE}${params.toString() ? `?${params}` : ""}`);
     });
   }
 
@@ -131,6 +144,8 @@ export function ComunicacoesTable({
   total,
   page,
   pageSize,
+  sort,
+  dir,
 }: TableProps) {
   const rows = useMemo(() => comunicacoes, [comunicacoes]);
 
@@ -138,6 +153,14 @@ export function ComunicacoesTable({
     <EntityListView
       empty={rows.length === 0}
       emptyMessage="Nenhuma comunicação encontrada com os filtros atuais."
+      before={
+        <MobileSortBar
+          columns={SORT_COLS}
+          activeSort={sort}
+          activeDir={dir}
+          basePath={BASE}
+        />
+      }
       cards={rows.map((comunicacao) => (
         <ListCardLink
           key={comunicacao.id}
@@ -161,12 +184,43 @@ export function ComunicacoesTable({
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-              <th className="px-3 py-2.5 font-semibold">Tipo</th>
-              <th className="px-3 py-2.5 font-semibold">Valor</th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Operadora/Provedor
-              </th>
-              <th className="px-3 py-2.5 font-semibold">Status</th>
+              <SortableTh
+                sortKey="tipo"
+                label="Tipo"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="valor"
+                label="Valor"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="operadora_provedor"
+                label="Operadora"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
+              <SortableTh
+                sortKey="status"
+                label="Status"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="data_cadastro"
+                label="Cadastro"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
             </tr>
           </thead>
           <tbody>
@@ -194,6 +248,9 @@ export function ComunicacoesTable({
                 <td className="px-3 py-2 text-muted-strong">
                   {labelComunicacaoStatus(comunicacao.status)}
                 </td>
+                <td className={`${LIST_COL_SECONDARY} px-3 py-2 text-muted`}>
+                  {formatDate(comunicacao.data_cadastro)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -201,7 +258,7 @@ export function ComunicacoesTable({
       }
       pagination={
         <ListPagination
-          basePath="/comunicacoes"
+          basePath={BASE}
           total={total}
           page={page}
           pageSize={pageSize}

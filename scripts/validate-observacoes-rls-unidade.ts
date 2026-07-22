@@ -191,11 +191,13 @@ async function main() {
         entidade_origem_id: pessoa.id,
         entidade_destino_tipo: "documento",
         entidade_destino_id: doc.id,
+        tipo_a_para_b: "mencionado em",
+        tipo_b_para_a: "menciona",
         tipo_vinculo: "mencionado em",
         observacao: secretFund,
         usuario_cadastro: cginAcc.user.id,
       })
-      .select("id, observacao, tipo_vinculo")
+      .select("id, observacao, tipo_vinculo, tipo_a_para_b, tipo_b_para_a")
       .single();
     if (vincErr || !vinculo) throw new Error(`vinculo: ${vincErr?.message}`);
     createdIds.vinculo = vinculo.id;
@@ -293,13 +295,14 @@ async function main() {
 
     const { data: vincPfcg } = await pfcg
       .from("vinculos")
-      .select("id, observacao, tipo_vinculo")
+      .select("id, observacao, tipo_vinculo, tipo_a_para_b, tipo_b_para_a")
       .eq("id", vinculo.id)
       .maybeSingle();
     assert(vincPfcg, "PFCG deve ver a linha do vínculo (card restrito)");
     assert(
-      vincPfcg!.tipo_vinculo === "mencionado em",
-      "tipo_vinculo preservado",
+      vincPfcg!.tipo_a_para_b === "mencionado em" &&
+        vincPfcg!.tipo_b_para_a === "menciona",
+      "tipos direcionais preservados",
     );
 
     console.log("5) Contrato app: card restrito omite fundamentação…");

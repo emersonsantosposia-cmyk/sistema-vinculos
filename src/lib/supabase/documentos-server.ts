@@ -1,4 +1,5 @@
 import { isDocumentoTipo } from "@/lib/format";
+import { normalizeListSort } from "@/lib/list-sort";
 import {
   LIST_PAGE_SIZE,
   normalizePage,
@@ -15,10 +16,17 @@ export async function listDocumentos(filters: {
   tipo?: string;
   unidade?: string;
   page?: number;
+  sort?: string;
+  dir?: string;
 }): Promise<PaginatedListResult<Documento>> {
   const pageSize = LIST_PAGE_SIZE;
   const page = normalizePage(filters.page);
   const { from, to } = pageRange(page, pageSize);
+  const { column, ascending } = normalizeListSort(
+    "documentos",
+    filters.sort,
+    filters.dir,
+  );
   const empty: PaginatedListResult<Documento> = {
     data: [],
     total: 0,
@@ -31,7 +39,7 @@ export async function listDocumentos(filters: {
   let query = supabase
     .from("documentos")
     .select("*", { count: "exact" })
-    .order("data_cadastro", { ascending: false })
+    .order(column, { ascending })
     .range(from, to);
 
   if (filters.tipo && isDocumentoTipo(filters.tipo)) {

@@ -46,18 +46,26 @@ export const ENTIDADE_HREFS: Record<EntidadeTipo, string> = {
   orcrim: "/orcrims",
 };
 
+/** @deprecated Preferir tipos_vinculo_sugeridos filtrados por par de entidades. */
 export const TIPOS_VINCULO_COMUNS = [
-  "proprietário de",
-  "reside em",
-  "associado a",
-  "familiar de",
-  "citado(a)",
-  "trabalha em",
-  "sócio de",
-  "integrante",
-  "simpatizante",
-  "alvo",
+  "Chefe",
+  "Empregado(a)",
+  "Proprietário(a)",
+  "Pertence a",
+  "Sócio(a)",
+  "Cônjuge",
 ] as const;
+
+/** Sem fallback global: pares raros ficam com campo 100% livre. */
+export const PARES_VINCULO_FALLBACK: TipoVinculoSugerido[] = [];
+
+export type TipoVinculoSugerido = {
+  entidade_origem_tipo?: EntidadeTipo;
+  entidade_destino_tipo?: EntidadeTipo;
+  termo_direto: string;
+  termo_inverso: string;
+  simetrico?: boolean;
+};
 
 export type EntidadeOpcao = {
   id: string;
@@ -75,7 +83,10 @@ export type VinculoRow = {
   entidade_origem_id: string;
   entidade_destino_tipo: EntidadeTipo;
   entidade_destino_id: string;
+  /** Legado — preferir tipo_a_para_b / tipo_b_para_a. */
   tipo_vinculo: string | null;
+  tipo_a_para_b: string | null;
+  tipo_b_para_a: string | null;
   /** Coluna no banco: observacao (exibida como Fundamentação). */
   observacao: string | null;
   usuario_cadastro: string | null;
@@ -84,7 +95,12 @@ export type VinculoRow = {
 
 export type VinculoCard = {
   id: string;
-  tipo_vinculo: string | null;
+  /** Rótulo do ponto de vista da entidade da tela atual. */
+  tipo_perspectiva: string | null;
+  tipo_a_para_b: string | null;
+  tipo_b_para_a: string | null;
+  /** True se a entidade da tela é a origem (A) do registro. */
+  is_origem: boolean;
   fundamentacao: string | null;
   usuario_cadastro: string | null;
   data_cadastro: string;
@@ -106,7 +122,10 @@ export type VinculoDiagramItem = {
   vinculoId: string;
   outroTipo: EntidadeTipo;
   outroId: string;
-  tipo_vinculo: string | null;
+  /** Rótulo na direção da entidade expandida → outro. */
+  tipo_perspectiva: string | null;
+  /** Rótulo na direção inversa. */
+  tipo_inverso: string | null;
   titulo: string;
   subtitulo?: string | null;
   restrito: boolean;

@@ -18,10 +18,19 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
+import { MobileSortBar, SortableTh } from "@/components/shared/ListSort";
 import { Button, Input, Select } from "@/components/ui/Form";
 import { formatDate, labelDocumentoTipo } from "@/lib/format";
+import {
+  buildListFilterParams,
+  ENTITY_SORT_COLUMNS,
+  type SortDir,
+} from "@/lib/list-sort";
 import { UNIDADES } from "@/lib/perfis";
 import { DOCUMENTO_TIPOS, type Documento } from "@/lib/types";
+
+const BASE = "/documentos";
+const SORT_COLS = ENTITY_SORT_COLUMNS.documentos;
 
 type FiltersProps = {
   total: number;
@@ -33,6 +42,8 @@ type TableProps = {
   total: number;
   page: number;
   pageSize: number;
+  sort: string;
+  dir: SortDir;
 };
 
 export function DocumentosFilters({
@@ -49,12 +60,13 @@ export function DocumentosFilters({
   const [pending, startTransition] = useTransition();
 
   function apply(nextQ: string, nextTipo: string, nextUnidade: string) {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
-    if (nextTipo) params.set("tipo", nextTipo);
-    if (showUnidadeFilter && nextUnidade) params.set("unidade", nextUnidade);
+    const params = buildListFilterParams(searchParams, {
+      q: nextQ,
+      tipo: nextTipo || null,
+      unidade: showUnidadeFilter ? nextUnidade || null : null,
+    });
     startTransition(() => {
-      router.push(`/documentos${params.toString() ? `?${params}` : ""}`);
+      router.push(`${BASE}${params.toString() ? `?${params}` : ""}`);
     });
   }
 
@@ -133,6 +145,8 @@ export function DocumentosTable({
   total,
   page,
   pageSize,
+  sort,
+  dir,
 }: TableProps) {
   const rows = useMemo(() => documentos, [documentos]);
 
@@ -140,6 +154,14 @@ export function DocumentosTable({
     <EntityListView
       empty={rows.length === 0}
       emptyMessage="Nenhum documento encontrado com os filtros atuais."
+      before={
+        <MobileSortBar
+          columns={SORT_COLS}
+          activeSort={sort}
+          activeDir={dir}
+          basePath={BASE}
+        />
+      }
       cards={rows.map((documento) => (
         <ListCardLink key={documento.id} href={`/documentos/${documento.id}`}>
           <ListCardTitle>{documento.nome || "Sem nome"}</ListCardTitle>
@@ -160,15 +182,43 @@ export function DocumentosTable({
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-              <th className="px-3 py-2.5 font-semibold">Nome</th>
-              <th className="px-3 py-2.5 font-semibold">Unidade</th>
-              <th className="px-3 py-2.5 font-semibold">Tipo</th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Data
-              </th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Cadastro
-              </th>
+              <SortableTh
+                sortKey="nome"
+                label="Nome"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="unidade"
+                label="Unidade"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="tipo"
+                label="Tipo"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="data"
+                label="Data"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
+              <SortableTh
+                sortKey="data_cadastro"
+                label="Cadastro"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
             </tr>
           </thead>
           <tbody>
@@ -208,7 +258,7 @@ export function DocumentosTable({
       }
       pagination={
         <ListPagination
-          basePath="/documentos"
+          basePath={BASE}
           total={total}
           page={page}
           pageSize={pageSize}

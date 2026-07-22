@@ -1,3 +1,4 @@
+import { normalizeListSort } from "@/lib/list-sort";
 import {
   LIST_PAGE_SIZE,
   normalizePage,
@@ -11,10 +12,17 @@ import type { Veiculo } from "@/lib/types";
 export async function listVeiculos(filters: {
   q?: string;
   page?: number;
+  sort?: string;
+  dir?: string;
 }): Promise<PaginatedListResult<Veiculo>> {
   const pageSize = LIST_PAGE_SIZE;
   const page = normalizePage(filters.page);
   const { from, to } = pageRange(page, pageSize);
+  const { column, ascending } = normalizeListSort(
+    "veiculos",
+    filters.sort,
+    filters.dir,
+  );
   const empty: PaginatedListResult<Veiculo> = {
     data: [],
     total: 0,
@@ -27,7 +35,7 @@ export async function listVeiculos(filters: {
   let query = supabase
     .from("veiculos")
     .select("*", { count: "exact" })
-    .order("data_cadastro", { ascending: false })
+    .order(column, { ascending })
     .range(from, to);
 
   if (filters.q?.trim()) {

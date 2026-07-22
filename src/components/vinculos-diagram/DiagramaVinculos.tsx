@@ -445,33 +445,38 @@ function DiagramaVinculosInner({
     [applyLayout],
   );
 
-  const fetchVinculos = useCallback(async (nodeId: string) => {
-    const current = nodesRef.current.find((n) => n.id === nodeId);
-    if (!current || !isEntidadeNode(current)) return null;
-    const { entidadeTipo: tipo, entidadeId: id, restrito } = current.data;
-    if (restrito) return null;
+  const fetchVinculos = useCallback(
+    async (nodeId: string, forceRefresh = false) => {
+      const current = nodesRef.current.find((n) => n.id === nodeId);
+      if (!current || !isEntidadeNode(current)) return null;
+      const { entidadeTipo: tipo, entidadeId: id, restrito } = current.data;
+      if (restrito) return null;
 
-    let all = vinculosCacheRef.current.get(nodeId);
-    if (!all) {
+      if (!forceRefresh) {
+        const cached = vinculosCacheRef.current.get(nodeId);
+        if (cached) return cached;
+      }
+
       const { data, error } = await buscarVinculosDaEntidade(tipo, id);
       if (error) return null;
-      all = data;
-      vinculosCacheRef.current.set(nodeId, all);
-    }
-    return all;
-  }, []);
+      vinculosCacheRef.current.set(nodeId, data);
+      return data;
+    },
+    [],
+  );
 
-  /** Expande sem toggle (não recolhe se já expandido). */
-  const expandNodeOnly = useCallback(
+  /**
+   * Garante que todos os vínculos diretos do nó estejam na tela.
+   * Usado quando o nó já está "expanded" (ex.: cascata) mas algum filho
+   * foi removido manualmente — a lista real vem do banco, não do grafo.
+   */
+  const reconcileExpandedVinculos = useCallback(
     async (
       nodeId: string,
       layoutOpts?: { fitView?: boolean },
     ): Promise<string[]> => {
-      const current = nodesRef.current.find((n) => n.id === nodeId);
-      if (!current || !isEntidadeNode(current)) return [];
-      if (current.data.restrito || collapsingRef.current) return [];
-      if (current.data.expanded) {
-        // Já expandido: filhos entidade já estão na tela.
+      const all = await fetchVinculos(nodeId, true);
+      if (!all) {
         return nodesRef.current
           .filter(
             (n) =>
@@ -486,6 +491,80 @@ function DiagramaVinculosInner({
           .map((n) => n.id);
       }
 
+      const missing = all.filter((v) => {
+        const childId = entidadeNodeId(v.outroTipo, v.outroId);
+        const edgeId = `vinculo__${v.vinculoId}`;
+        const hasNode = nodesRef.current.some((n) => n.id === childId);
+        const hasEdge = edgesRef.current.some((e) => e.id === edgeId);
+        return !hasNode || !hasEdge;
+      });
+
+      if (missing.length > 0) {
+        const connectedBefore = new Set(
+          edgesRef.current
+            .filter(
+              (e) =>
+                e.id.startsWith("vinculo__") &&
+                (e.source === nodeId || e.target === nodeId),
+            )
+            .map((e) => (e.source === nodeId ? e.target : e.source)),
+        );
+        const afterCount = connectedBefore.size + missing.length;
+        const remaining = Math.max(0, all.length - afterCount);
+
+        const currentNodes = nodesRef.current.map((n) =>
+          n.id === nodeId && isEntidadeNode(n)
+            ? {
+                ...n,
+                data: { ...n.data, loading: false, expanded: true },
+              }
+            : n,
+        );
+        const { nodes: nextNodes, edges: nextEdges } = applyVinculosBatch(
+          nodeId,
+          missing,
+          currentNodes,
+          edgesRef.current,
+          remaining,
+        );
+        loadedCountRef.current.set(nodeId, afterCount);
+        applyLayout(nextNodes, nextEdges, {
+          preserveExisting: true,
+          fitView: layoutOpts?.fitView,
+        });
+      }
+
+      return nodesRef.current
+        .filter(
+          (n) =>
+            isEntidadeNode(n) &&
+            n.id !== nodeId &&
+            edgesRef.current.some(
+              (e) =>
+                (e.source === nodeId || e.target === nodeId) &&
+                (e.source === n.id || e.target === n.id),
+            ),
+        )
+        .map((n) => n.id);
+    },
+    [applyLayout, fetchVinculos],
+  );
+
+  /** Expande sem toggle (não recolhe se já expandido). */
+  const expandNodeOnly = useCallback(
+    async (
+      nodeId: string,
+      layoutOpts?: { fitView?: boolean },
+    ): Promise<string[]> => {
+      const current = nodesRef.current.find((n) => n.id === nodeId);
+      if (!current || !isEntidadeNode(current)) return [];
+      if (current.data.restrito || collapsingRef.current) return [];
+
+      // Já expandido: reconcilia filhos faltantes a partir do banco.
+      if (current.data.expanded) {
+        return reconcileExpandedVinculos(nodeId, layoutOpts);
+      }
+
       const loadingNodes = nodesRef.current.map((n) =>
         n.id === nodeId && isEntidadeNode(n)
           ? { ...n, data: { ...n.data, loading: true } }
@@ -494,7 +573,9 @@ function DiagramaVinculosInner({
       nodesRef.current = loadingNodes;
       setNodes(loadingNodes);
 
-      const all = await fetchVinculos(nodeId);
+      // Sempre re-busca a lista completa no banco (não reutiliza cache
+      // eventualmente desalinhado com remoções manuais da tela).
+      const all = await fetchVinculos(nodeId, true);
       if (!all) {
         const cleared = nodesRef.current.map((n) =>
           n.id === nodeId && isEntidadeNode(n)
@@ -508,7 +589,7 @@ function DiagramaVinculosInner({
 
       return expandWithItems(nodeId, all, 0, layoutOpts);
     },
-    [expandWithItems, fetchVinculos],
+    [expandWithItems, fetchVinculos, reconcileExpandedVinculos],
   );
 
   /**
@@ -555,6 +636,9 @@ function DiagramaVinculosInner({
       if (collapsingRef.current) return;
       collapsingRef.current = true;
 
+      // Invalida o cache deste nó: a próxima expansão reconsulta o banco.
+      vinculosCacheRef.current.delete(nodeId);
+
       const result = collapseExpansion(
         nodeId,
         nodesRef.current,
@@ -565,6 +649,7 @@ function DiagramaVinculosInner({
       for (const id of result.removedNodeIds) {
         loadedCountRef.current.delete(id);
         pinnedRef.current.delete(id);
+        vinculosCacheRef.current.delete(id);
       }
       loadedCountRef.current.delete(nodeId);
 
@@ -629,6 +714,18 @@ function DiagramaVinculosInner({
 
       collapsingRef.current = true;
 
+      // Pais que perdem esta aresta — o cache deles permanece (fonte completa);
+      // só a tela perde o filho. Próxima expansão do pai reconsulta o banco.
+      const parentIds = new Set<string>();
+      for (const edge of edgesRef.current) {
+        if (edge.id.startsWith("vinculo__") && edge.source === nodeId) {
+          parentIds.add(edge.target);
+        }
+        if (edge.id.startsWith("vinculo__") && edge.target === nodeId) {
+          parentIds.add(edge.source);
+        }
+      }
+
       const result = removeNodeExplicitly(
         nodeId,
         nodesRef.current,
@@ -644,8 +741,10 @@ function DiagramaVinculosInner({
       for (const id of result.removedNodeIds) {
         loadedCountRef.current.delete(id);
         pinnedRef.current.delete(id);
+        vinculosCacheRef.current.delete(id);
       }
       loadedCountRef.current.delete(nodeId);
+      vinculosCacheRef.current.delete(nodeId);
 
       if (
         result.removedNodeIds.length > 0 ||
@@ -664,7 +763,31 @@ function DiagramaVinculosInner({
         );
       }
 
-      applyLayout(result.nodes, result.edges);
+      // Se um pai ficou sem filhos de vínculo na tela, marca como recolhido
+      // para o próximo clique expandir (e trazer a lista completa de volta).
+      let nextNodes = result.nodes;
+      for (const parentId of parentIds) {
+        if (parentId === nodeId) continue;
+        const stillHasChild = result.edges.some(
+          (e) =>
+            e.id.startsWith("vinculo__") &&
+            (e.source === parentId || e.target === parentId) &&
+            (e.data?.refSources?.includes(parentId) ?? true),
+        );
+        if (!stillHasChild) {
+          loadedCountRef.current.delete(parentId);
+          nextNodes = nextNodes.map((n) =>
+            n.id === parentId && isEntidadeNode(n)
+              ? {
+                  ...n,
+                  data: { ...n.data, expanded: false, loading: false },
+                }
+              : n,
+          );
+        }
+      }
+
+      applyLayout(nextNodes, result.edges);
 
       collapsingRef.current = false;
     },

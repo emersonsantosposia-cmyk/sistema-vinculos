@@ -348,6 +348,8 @@ async function main() {
         entidade_origem_id: analistaPessoaId,
         entidade_destino_tipo: "empresa",
         entidade_destino_id: seedIds.empresas,
+        tipo_a_para_b: "associado a",
+        tipo_b_para_a: "associado a",
         tipo_vinculo: "associado a",
         usuario_cadastro: analistaAcc.user.id,
       })

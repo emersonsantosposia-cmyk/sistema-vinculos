@@ -137,7 +137,9 @@ async function main() {
         entidade_origem_id: pessoa.id,
         entidade_destino_tipo: "empresa",
         entidade_destino_id: empId,
-        tipo_vinculo: "sócio de",
+        tipo_a_para_b: "sócio",
+        tipo_b_para_a: "sócio",
+        tipo_vinculo: "sócio",
         observacao: `${MARKER} fund ${empId.slice(0, 8)}`,
         usuario_cadastro: user.id,
       })

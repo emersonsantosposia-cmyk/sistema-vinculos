@@ -17,9 +17,18 @@ import {
   ListFiltersBar,
 } from "@/components/shared/ListFiltersBar";
 import { ListPagination } from "@/components/shared/ListPagination";
+import { MobileSortBar, SortableTh } from "@/components/shared/ListSort";
 import { Button, Input } from "@/components/ui/Form";
 import { formatDate, formatPlaca } from "@/lib/format";
+import {
+  buildListFilterParams,
+  ENTITY_SORT_COLUMNS,
+  type SortDir,
+} from "@/lib/list-sort";
 import type { Veiculo } from "@/lib/types";
+
+const BASE = "/veiculos";
+const SORT_COLS = ENTITY_SORT_COLUMNS.veiculos;
 
 type FiltersProps = {
   total: number;
@@ -30,6 +39,8 @@ type TableProps = {
   total: number;
   page: number;
   pageSize: number;
+  sort: string;
+  dir: SortDir;
 };
 
 export function VeiculosFilters({ total }: FiltersProps) {
@@ -39,10 +50,9 @@ export function VeiculosFilters({ total }: FiltersProps) {
   const [pending, startTransition] = useTransition();
 
   function apply(nextQ: string) {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
+    const params = buildListFilterParams(searchParams, { q: nextQ });
     startTransition(() => {
-      router.push(`/veiculos${params.toString() ? `?${params}` : ""}`);
+      router.push(`${BASE}${params.toString() ? `?${params}` : ""}`);
     });
   }
 
@@ -81,6 +91,8 @@ export function VeiculosTable({
   total,
   page,
   pageSize,
+  sort,
+  dir,
 }: TableProps) {
   const rows = useMemo(() => veiculos, [veiculos]);
 
@@ -88,6 +100,14 @@ export function VeiculosTable({
     <EntityListView
       empty={rows.length === 0}
       emptyMessage="Nenhum veículo encontrado com os filtros atuais."
+      before={
+        <MobileSortBar
+          columns={SORT_COLS}
+          activeSort={sort}
+          activeDir={dir}
+          basePath={BASE}
+        />
+      }
       cards={rows.map((veiculo) => (
         <ListCardLink key={veiculo.id} href={`/veiculos/${veiculo.id}`}>
           <ListCardTitle>
@@ -110,18 +130,51 @@ export function VeiculosTable({
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
-              <th className="px-3 py-2.5 font-semibold">Placa</th>
-              <th className="px-3 py-2.5 font-semibold">Marca</th>
-              <th className="px-3 py-2.5 font-semibold">Modelo</th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Cor
-              </th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Ano
-              </th>
-              <th className={`${LIST_COL_SECONDARY} px-3 py-2.5 font-semibold`}>
-                Cadastro
-              </th>
+              <SortableTh
+                sortKey="placa"
+                label="Placa"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="marca"
+                label="Marca"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="modelo"
+                label="Modelo"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+              />
+              <SortableTh
+                sortKey="cor"
+                label="Cor"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
+              <SortableTh
+                sortKey="ano_fabricacao"
+                label="Ano"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
+              <SortableTh
+                sortKey="data_cadastro"
+                label="Cadastro"
+                activeSort={sort}
+                activeDir={dir}
+                basePath={BASE}
+                className={LIST_COL_SECONDARY}
+              />
             </tr>
           </thead>
           <tbody>
@@ -166,7 +219,7 @@ export function VeiculosTable({
       }
       pagination={
         <ListPagination
-          basePath="/veiculos"
+          basePath={BASE}
           total={total}
           page={page}
           pageSize={pageSize}

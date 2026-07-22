@@ -3,11 +3,17 @@ import { Suspense } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { EnderecosFilters, EnderecosTable } from "@/components/enderecos/EnderecosTable";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizeListSort } from "@/lib/list-sort";
 import { normalizePage } from "@/lib/pagination";
 import { listEnderecos } from "@/lib/supabase/enderecos-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    page?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 };
 
 function LoadingSkeleton() {
@@ -20,10 +26,23 @@ function LoadingSkeleton() {
   );
 }
 
-async function Content({ q, page }: { q?: string; page?: string }) {
+async function Content({
+  q,
+  page,
+  sort,
+  dir,
+}: {
+  q?: string;
+  page?: string;
+  sort?: string;
+  dir?: string;
+}) {
+  const order = normalizeListSort("enderecos", sort, dir);
   const { data, total, page: currentPage, pageSize, error } = await listEnderecos({
     q,
     page: normalizePage(page),
+    sort: order.sort,
+    dir: order.dir,
   });
   return (
     <>
@@ -43,6 +62,8 @@ async function Content({ q, page }: { q?: string; page?: string }) {
         total={total}
         page={currentPage}
         pageSize={pageSize}
+        sort={order.sort}
+        dir={order.dir}
       />
     </>
   );
@@ -63,7 +84,12 @@ export default async function EnderecosPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} page={params.page} />
+        <Content
+          q={params.q}
+          page={params.page}
+          sort={params.sort}
+          dir={params.dir}
+        />
       </Suspense>
     </DashboardShell>
   );

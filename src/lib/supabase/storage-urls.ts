@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 /**
  * Gera signed URLs para paths do Storage (bucket privado).
  * Retorna mapa path → signedUrl.
+ * URLs absolutas (legado) são repassadas; o avatar trata falha de carga com fallback.
  */
 export function useSignedStorageUrls(
   bucket: string,
@@ -31,7 +32,7 @@ export function useSignedStorageUrls(
         return;
       }
 
-      // URLs absolutas (ex.: placeholders do seed) não passam pelo Storage.
+      // URLs absolutas (legado do seed) — não passam pelo Storage.
       const absolute = unique.filter((p) => /^https?:\/\//i.test(p));
       const storagePaths = unique.filter((p) => !/^https?:\/\//i.test(p));
       const map: Record<string, string> = {};
@@ -55,7 +56,8 @@ export function useSignedStorageUrls(
 
       if (!error && data) {
         for (const item of data) {
-          if (item.path && item.signedUrl) {
+          // Ignora itens sem signedUrl (path inexistente / erro por arquivo).
+          if (item.path && item.signedUrl && !item.error) {
             map[item.path] = item.signedUrl;
           }
         }

@@ -203,7 +203,10 @@ export type Observacao = {
 
 export type VinculoResumo = {
   id: string;
-  tipo_vinculo: string | null;
+  /** Rótulo do ponto de vista da entidade de referência. */
+  tipo_perspectiva: string | null;
+  tipo_a_para_b?: string | null;
+  tipo_b_para_a?: string | null;
   entidade_tipo: EntidadeTipo;
   entidade_id: string;
   titulo: string;

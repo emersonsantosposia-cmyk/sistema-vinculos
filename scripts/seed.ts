@@ -19,6 +19,7 @@
 
 import { faker } from "@faker-js/faker/locale/pt_BR";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { buildAvatarPng } from "./lib/avatar-png";
 import {
   ENTIDADE_TIPOS,
   TEST_PREFIX,
@@ -54,13 +55,13 @@ const COMUNICACAO_TIPOS = [
 const COMUNICACAO_STATUS = ["ativo", "inativo", "desconhecido"] as const;
 
 const TIPOS_VINCULO = [
-  "associado a",
-  "reside em",
-  "proprietário de",
-  "presente em",
-  "mencionado em",
-  "familiar de",
-  "citado(a)",
+  { direto: "chefe", inverso: "empregado" },
+  { direto: "sócio", inverso: "sócio" },
+  { direto: "associado a", inverso: "associado a" },
+  { direto: "reside em", inverso: "residência de" },
+  { direto: "proprietário", inverso: "pertence a" },
+  { direto: "familiar de", inverso: "familiar de" },
+  { direto: "citado(a)", inverso: "cita" },
 ] as const;
 
 const UFS = [
@@ -335,23 +336,52 @@ async function seedPessoas(
   let redes = 0;
   let fotos = 0;
   const redesRows: Record<string, unknown>[] = [];
-  const fotosRows: Record<string, unknown>[] = [];
 
   for (let i = 0; i < ids.length; i++) {
     const pessoaId = ids[i]!;
-    fotosRows.push({
+    const nome = rows[i]!.nome as string;
+
+    const perfilPath = `${pessoaId}/perfil.png`;
+    const { error: perfilUpErr } = await supabase.storage
+      .from("fotos-pessoas")
+      .upload(perfilPath, await buildAvatarPng(pessoaId, nome), {
+        upsert: true,
+        contentType: "image/png",
+        cacheControl: "3600",
+      });
+    if (perfilUpErr) {
+      throw new Error(`foto perfil ${pessoaId}: ${perfilUpErr.message}`);
+    }
+    const { error: perfilInsErr } = await supabase.from("pessoas_fotos").insert({
       pessoa_id: pessoaId,
-      url_arquivo: `https://i.pravatar.cc/300?u=${pessoaId}`,
+      url_arquivo: perfilPath,
       tipo: "perfil",
     });
+    if (perfilInsErr) {
+      throw new Error(`pessoas_fotos perfil: ${perfilInsErr.message}`);
+    }
     fotos += 1;
 
     if (i % 3 === 0) {
-      fotosRows.push({
+      const outraPath = `${pessoaId}/galeria-seed.png`;
+      const { error: outraUpErr } = await supabase.storage
+        .from("fotos-pessoas")
+        .upload(outraPath, await buildAvatarPng(`${pessoaId}-outra`, nome), {
+          upsert: true,
+          contentType: "image/png",
+          cacheControl: "3600",
+        });
+      if (outraUpErr) {
+        throw new Error(`foto outra ${pessoaId}: ${outraUpErr.message}`);
+      }
+      const { error: outraInsErr } = await supabase.from("pessoas_fotos").insert({
         pessoa_id: pessoaId,
-        url_arquivo: `https://i.pravatar.cc/400?u=${pessoaId}-outra`,
+        url_arquivo: outraPath,
         tipo: "outra",
       });
+      if (outraInsErr) {
+        throw new Error(`pessoas_fotos outra: ${outraInsErr.message}`);
+      }
       fotos += 1;
     }
 
@@ -378,10 +408,6 @@ async function seedPessoas(
   if (redesRows.length) {
     const { error } = await supabase.from("pessoas_redes_sociais").insert(redesRows);
     if (error) throw new Error(`pessoas_redes_sociais: ${error.message}`);
-  }
-  if (fotosRows.length) {
-    const { error } = await supabase.from("pessoas_fotos").insert(fotosRows);
-    if (error) throw new Error(`pessoas_fotos: ${error.message}`);
   }
 
   return { ids, redes, fotos };
@@ -540,12 +566,15 @@ async function seedVinculos(
       );
       const origemId = pickId(bundle[origemTipo]);
       const destinoId = pickId(bundle[destinoTipo]);
+      const tipo = faker.helpers.arrayElement([...TIPOS_VINCULO]);
       rows.push({
         entidade_origem_tipo: origemTipo,
         entidade_origem_id: origemId,
         entidade_destino_tipo: destinoTipo,
         entidade_destino_id: destinoId,
-        tipo_vinculo: faker.helpers.arrayElement([...TIPOS_VINCULO]),
+        tipo_a_para_b: tipo.direto,
+        tipo_b_para_a: tipo.inverso,
+        tipo_vinculo: tipo.direto,
         observacao: faker.lorem.sentence(),
         usuario_cadastro: usuarioId,
       });

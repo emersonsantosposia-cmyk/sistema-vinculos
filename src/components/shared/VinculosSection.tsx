@@ -17,7 +17,6 @@ import {
   Input,
   Label,
   Panel,
-  Select,
   Textarea,
 } from "@/components/ui/Form";
 import { ModalShell } from "@/components/ui/ModalShell";
@@ -27,19 +26,26 @@ import { formatDateTime } from "@/lib/format";
 import {
   createVinculo,
   deleteVinculo,
+  getEntidadeResumo,
+  listTiposVinculoSugeridos,
   listVinculosDaEntidade,
   searchEntidades,
   updateVinculo,
 } from "@/lib/supabase/vinculos";
 import { ENTIDADE_TIPOS, type EntidadeTipo } from "@/lib/types";
-import { formatTipoVinculoLabel } from "@/lib/vinculos-format";
+import {
+  formatTipoVinculoLabel,
+  inversoSugeridoDeTermo,
+  termosDiretosUnicos,
+  termosInversosUnicos,
+} from "@/lib/vinculos-format";
 import {
   ENTIDADE_HREFS,
   ENTIDADE_LABELS,
   ENTIDADE_VINCULOS_ADD,
   ENTIDADE_VINCULOS_TITULOS,
-  TIPOS_VINCULO_COMUNS,
   type EntidadeOpcao,
+  type TipoVinculoSugerido,
   type VinculoCard,
 } from "@/lib/vinculos-types";
 
@@ -55,15 +61,55 @@ const PESSOAS_CARD_H = "h-[7.5rem]";
 const PESSOAS_GRADE_MAX_H =
   "max-h-[calc(4*7.5rem+3*0.5rem)]";
 
-function resolveTipoSelectValue(tipo: string | null | undefined): {
-  select: string;
-  custom: string;
-} {
-  if (!tipo) return { select: "", custom: "" };
-  if ((TIPOS_VINCULO_COMUNS as readonly string[]).includes(tipo)) {
-    return { select: tipo, custom: "" };
-  }
-  return { select: "__custom", custom: tipo };
+function TipoVinculoCombobox({
+  id,
+  label,
+  value,
+  onChange,
+  sugestoes,
+  disabled,
+  listId,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  sugestoes: string[];
+  disabled?: boolean;
+  listId: string;
+}) {
+  const hasSugestoes = sugestoes.length > 0;
+  return (
+    <div>
+      {/* Sem uppercase: preserva nomes das entidades no rótulo direcional. */}
+      <label
+        htmlFor={id}
+        className="mb-1 block text-xs font-medium text-muted-strong"
+      >
+        {label}
+      </label>
+      <Input
+        id={id}
+        list={hasSugestoes ? listId : undefined}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={
+          hasSugestoes
+            ? "Digite ou escolha uma sugestão"
+            : "Digite o tipo de vínculo"
+        }
+        disabled={disabled}
+        autoComplete="off"
+      />
+      {hasSugestoes ? (
+        <datalist id={listId}>
+          {sugestoes.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
+      ) : null}
+    </div>
+  );
 }
 
 function VinculoCardBox({
@@ -92,7 +138,7 @@ function VinculoCardBox({
     !isRestrito &&
     (card.outroTipo === "veiculo" || card.outroTipo === "endereco") &&
     Boolean(card.subtitulo);
-  const tipoLabel = formatTipoVinculoLabel(card.tipo_vinculo);
+  const tipoLabel = formatTipoVinculoLabel(card.tipo_perspectiva);
   const entidadeHref = `${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`;
   const entidadeTipoLabel = ENTIDADE_LABELS[card.outroTipo];
 
@@ -398,8 +444,8 @@ function VinculoDetalheModal({
       <p className="text-sm text-foreground">{card.titulo}</p>
       <p className="mt-0.5 text-xs text-muted">
         {ENTIDADE_LABELS[card.outroTipo]}
-        {card.tipo_vinculo
-          ? ` · ${formatTipoVinculoLabel(card.tipo_vinculo)}`
+        {card.tipo_perspectiva
+          ? ` · ${formatTipoVinculoLabel(card.tipo_perspectiva)}`
           : ""}
       </p>
 
@@ -493,12 +539,32 @@ export function VinculosProvider({
   const [opcoes, setOpcoes] = useState<EntidadeOpcao[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [selecionada, setSelecionada] = useState<EntidadeOpcao | null>(null);
-  const [tipoVinculo, setTipoVinculo] = useState<string>("");
-  const [tipoVinculoCustom, setTipoVinculoCustom] = useState("");
+  const [tipoAParaB, setTipoAParaB] = useState("");
+  const [tipoBParaA, setTipoBParaA] = useState("");
+  const [editIsOrigem, setEditIsOrigem] = useState(true);
   const [fundamentacao, setFundamentacao] = useState("");
+  const [entidadeTitulo, setEntidadeTitulo] = useState<string>("esta entidade");
+  const [paresSugeridos, setParesSugeridos] = useState<TipoVinculoSugerido[]>(
+    [],
+  );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [abertos, setAbertos] = useState<Set<EntidadeTipo>>(new Set());
+
+  /** Tipos A/B do registro (origem/destino no banco) para filtrar sugestões. */
+  const sugestaoOrigemTipo: EntidadeTipo =
+    formMode === "edit" && !editIsOrigem ? destinoTipo : entidadeTipo;
+  const sugestaoDestinoTipo: EntidadeTipo =
+    formMode === "edit" && !editIsOrigem ? entidadeTipo : destinoTipo;
+
+  const sugestoesDiretos = useMemo(
+    () => termosDiretosUnicos(paresSugeridos),
+    [paresSugeridos],
+  );
+  const sugestoesInversos = useMemo(
+    () => termosInversosUnicos(paresSugeridos),
+    [paresSugeridos],
+  );
 
   const cardsPorTipo = useMemo(() => {
     const map = new Map<EntidadeTipo, VinculoCard[]>();
@@ -527,6 +593,34 @@ export function VinculosProvider({
     setAbertos(new Set());
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const resumo = await getEntidadeResumo(entidadeTipo, entidadeId);
+      if (cancelled) return;
+      if (resumo?.titulo) setEntidadeTitulo(resumo.titulo);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [entidadeTipo, entidadeId]);
+
+  useEffect(() => {
+    if (!formOpen) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await listTiposVinculoSugeridos(
+        sugestaoOrigemTipo,
+        sugestaoDestinoTipo,
+      );
+      if (cancelled) return;
+      setParesSugeridos(data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [formOpen, sugestaoOrigemTipo, sugestaoDestinoTipo]);
 
   useEffect(() => {
     if (!formOpen || formMode !== "create") return;
@@ -569,8 +663,9 @@ export function VinculosProvider({
     setBusca("");
     setOpcoes([]);
     setSelecionada(null);
-    setTipoVinculo("");
-    setTipoVinculoCustom("");
+    setTipoAParaB("");
+    setTipoBParaA("");
+    setEditIsOrigem(true);
     setFundamentacao("");
     setEditandoId(null);
     setFormMode("create");
@@ -586,9 +681,9 @@ export function VinculosProvider({
   }
 
   function abrirEdicao(card: VinculoCard) {
-    const tipoVals = resolveTipoSelectValue(card.tipo_vinculo);
     setFormMode("edit");
     setEditandoId(card.id);
+    setEditIsOrigem(card.is_origem);
     setDestinoTipo(card.outroTipo);
     setSelecionada({
       id: card.outroId,
@@ -597,8 +692,8 @@ export function VinculosProvider({
       foto_perfil_path: card.foto_perfil_path,
       foto_url: card.foto_url,
     });
-    setTipoVinculo(tipoVals.select);
-    setTipoVinculoCustom(tipoVals.custom);
+    setTipoAParaB(card.tipo_a_para_b ?? "");
+    setTipoBParaA(card.tipo_b_para_a ?? "");
     setFundamentacao(card.fundamentacao ?? "");
     setError(null);
     setFormOpen(true);
@@ -620,12 +715,18 @@ export function VinculosProvider({
     });
   }
 
+  function handleTipoAParaBChange(value: string) {
+    setTipoAParaB(value);
+    const inverso = inversoSugeridoDeTermo(value, paresSugeridos);
+    if (inverso !== null) {
+      setTipoBParaA(inverso);
+    }
+  }
+
   function handleSalvar(e: React.FormEvent) {
     e.preventDefault();
-    const tipoFinal =
-      tipoVinculo === "__custom"
-        ? tipoVinculoCustom.trim()
-        : tipoVinculo.trim();
+    const tipoAFinal = tipoAParaB.trim();
+    const tipoBFinal = tipoBParaA.trim();
     const fundamentacaoFinal = fundamentacao.trim();
 
     if (!fundamentacaoFinal) {
@@ -637,7 +738,8 @@ export function VinculosProvider({
       startTransition(async () => {
         setError(null);
         const { error: updateError } = await updateVinculo(editandoId, {
-          tipoVinculo: tipoFinal || null,
+          tipoAParaB: tipoAFinal || null,
+          tipoBParaA: tipoBFinal || null,
           fundamentacao: fundamentacaoFinal,
         });
         if (updateError) {
@@ -662,7 +764,8 @@ export function VinculosProvider({
         origemId: entidadeId,
         destinoTipo,
         destinoId: selecionada.id,
-        tipoVinculo: tipoFinal || null,
+        tipoAParaB: tipoAFinal || null,
+        tipoBParaA: tipoBFinal || null,
         fundamentacao: fundamentacaoFinal,
       });
       if (createError) {
@@ -720,7 +823,7 @@ export function VinculosProvider({
             </p>
             <p className="mt-0.5 text-xs text-muted">
               {mode === "edit"
-                ? "Altere o tipo de vínculo ou a fundamentação."
+                ? "Altere os tipos de vínculo ou a fundamentação."
                 : "Busque e escolha o registro a vincular."}
             </p>
           </div>
@@ -810,32 +913,35 @@ export function VinculosProvider({
           )}
         </div>
 
-        <div>
-          <Label htmlFor={`tipo_vinculo_${mode}`}>Tipo de vínculo</Label>
-          <Select
-            id={`tipo_vinculo_${mode}`}
-            value={tipoVinculo}
-            onChange={(e) => setTipoVinculo(e.target.value)}
-            disabled={pending}
-          >
-            <option value="">Selecione ou personalize</option>
-            {TIPOS_VINCULO_COMUNS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-            <option value="__custom">Outro (digitar)…</option>
-          </Select>
-          {tipoVinculo === "__custom" ? (
-            <Input
-              className="mt-2"
-              value={tipoVinculoCustom}
-              onChange={(e) => setTipoVinculoCustom(e.target.value)}
-              placeholder="Descreva o tipo de vínculo"
-              disabled={pending}
-            />
-          ) : null}
-        </div>
+        {(() => {
+          const nomeOutro = selecionada?.titulo?.trim() || "a outra entidade";
+          const nomeA =
+            mode === "edit" && !editIsOrigem ? nomeOutro : entidadeTitulo;
+          const nomeB =
+            mode === "edit" && !editIsOrigem ? entidadeTitulo : nomeOutro;
+          return (
+            <div className="space-y-3">
+              <TipoVinculoCombobox
+                id={`tipo_a_para_b_${mode}`}
+                listId={`sugestoes_tipo_a_${mode}`}
+                label={`Tipo de vínculo (de ${nomeA} para ${nomeB})`}
+                value={tipoAParaB}
+                onChange={handleTipoAParaBChange}
+                sugestoes={sugestoesDiretos}
+                disabled={pending}
+              />
+              <TipoVinculoCombobox
+                id={`tipo_b_para_a_${mode}`}
+                listId={`sugestoes_tipo_b_${mode}`}
+                label={`Tipo de vínculo (de ${nomeB} para ${nomeA})`}
+                value={tipoBParaA}
+                onChange={setTipoBParaA}
+                sugestoes={sugestoesInversos}
+                disabled={pending}
+              />
+            </div>
+          );
+        })()}
 
         <div>
           <Label htmlFor={`fundamentacao_vinculo_${mode}`}>

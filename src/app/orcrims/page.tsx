@@ -6,11 +6,18 @@ import {
   OrcrimsTable,
 } from "@/components/orcrims/OrcrimsTable";
 import { ErrorBanner } from "@/components/ui/Form";
+import { normalizeListSort } from "@/lib/list-sort";
 import { normalizePage } from "@/lib/pagination";
 import { listOrcrims } from "@/lib/supabase/orcrims-server";
 
 type Props = {
-  searchParams: Promise<{ q?: string; estado?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    estado?: string;
+    page?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 };
 
 function LoadingSkeleton() {
@@ -27,15 +34,22 @@ async function Content({
   q,
   estado,
   page,
+  sort,
+  dir,
 }: {
   q?: string;
   estado?: string;
   page?: string;
+  sort?: string;
+  dir?: string;
 }) {
+  const order = normalizeListSort("orcrims", sort, dir);
   const { data, total, page: currentPage, pageSize, error } = await listOrcrims({
     q,
     estado,
     page: normalizePage(page),
+    sort: order.sort,
+    dir: order.dir,
   });
   return (
     <>
@@ -55,6 +69,8 @@ async function Content({
         total={total}
         page={currentPage}
         pageSize={pageSize}
+        sort={order.sort}
+        dir={order.dir}
       />
     </>
   );
@@ -72,7 +88,13 @@ export default async function OrcrimsPage({ searchParams }: Props) {
       }
     >
       <Suspense fallback={<LoadingSkeleton />}>
-        <Content q={params.q} estado={params.estado} page={params.page} />
+        <Content
+          q={params.q}
+          estado={params.estado}
+          page={params.page}
+          sort={params.sort}
+          dir={params.dir}
+        />
       </Suspense>
     </DashboardShell>
   );
