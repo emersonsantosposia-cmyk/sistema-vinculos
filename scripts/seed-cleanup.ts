@@ -1,13 +1,27 @@
 /**
- * Remove todos os dados fictícios criados por scripts/seed.ts
- * (registros com prefixo "[TESTE]" no campo identificador principal),
- * incluindo vínculos e observações relacionados.
+ * APAGA TODOS os registros das tabelas de entidades, vínculos e observações.
+ *
+ * Operação DESTRUTIVA TOTAL da base de cadastro — destinada a zerar o ambiente
+ * antes da implantação real (não apenas registros marcados com "[TESTE]").
+ *
+ * Escopo apagado:
+ *   - vinculos
+ *   - observacoes
+ *   - pessoas (CASCADE: pessoas_fotos, pessoas_redes_sociais)
+ *   - empresas, enderecos, veiculos, documentos, casos, comunicacoes, orcrims
+ *
+ * NÃO apaga:
+ *   - perfis_usuario
+ *   - auditoria
+ *   - usuários em auth.users
+ *
+ * A trigger de auditoria permanece ativa e registra os DELETEs.
  *
  * Uso (local, NUNCA no build de produção / Vercel):
- *   npm run seed:cleanup -- --yes
+ *   npm run seed:cleanup -- --yes --wipe-all
  *
  * Equivalente:
- *   npx tsx --env-file=.env.local scripts/seed-cleanup.ts --yes
+ *   npx tsx --env-file=.env.local scripts/seed-cleanup.ts --yes --wipe-all
  *
  * Requisitos no .env.local (nunca commitar):
  *   NEXT_PUBLIC_SUPABASE_URL
@@ -15,25 +29,20 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import {
-  ENTIDADE_TIPOS,
-  IDENTIFIER_BY_TABLE,
-  TEST_PREFIX,
-  type EntidadeTipo,
-  type EntityTable,
-} from "./seed-shared";
 
 const PAGE = 1000;
 
-const TABLE_BY_TIPO: Record<EntidadeTipo, EntityTable> = {
-  pessoa: "pessoas",
-  empresa: "empresas",
-  endereco: "enderecos",
-  veiculo: "veiculos",
-  documento: "documentos",
-  caso: "casos",
-  comunicacao: "comunicacoes",
-};
+/** Tabelas de entidades (ordem de apagamento após vinculos/observacoes). */
+const ENTITY_TABLES = [
+  "pessoas",
+  "empresas",
+  "enderecos",
+  "veiculos",
+  "documentos",
+  "casos",
+  "comunicacoes",
+  "orcrims",
+] as const;
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -52,192 +61,106 @@ function createAdminClient(): SupabaseClient {
   );
 }
 
-async function fetchIdsByLike(
-  supabase: SupabaseClient,
-  table: EntityTable,
-  column: string,
-): Promise<string[]> {
-  const ids: string[] = [];
-  let from = 0;
-
-  for (;;) {
-    const { data, error } = await supabase
-      .from(table)
-      .select("id")
-      .like(column, `${TEST_PREFIX}%`)
-      .range(from, from + PAGE - 1);
-
-    if (error) {
-      throw new Error(`Falha ao buscar ${table}.${column}: ${error.message}`);
-    }
-    if (!data?.length) break;
-    ids.push(...data.map((r) => r.id as string));
-    if (data.length < PAGE) break;
-    from += data.length;
-  }
-  return ids;
-}
-
-async function fetchTestIds(
-  supabase: SupabaseClient,
-  table: EntityTable,
-): Promise<string[]> {
-  const column = IDENTIFIER_BY_TABLE[table];
-  const ids = await fetchIdsByLike(supabase, table, column);
-
-  if (table === "empresas") {
-    const razaoIds = await fetchIdsByLike(supabase, "empresas", "razao_social");
-    return [...new Set([...ids, ...razaoIds])];
-  }
-
-  return ids;
-}
-
-async function deleteByIds(
+async function countTable(
   supabase: SupabaseClient,
   table: string,
-  ids: string[],
 ): Promise<number> {
-  if (!ids.length) return 0;
+  const { count, error } = await supabase
+    .from(table)
+    .select("id", { count: "exact", head: true });
+  if (error) throw new Error(`contar ${table}: ${error.message}`);
+  return count ?? 0;
+}
+
+/** Apaga todos os registros (PostgREST exige filtro). */
+async function deleteAllRows(
+  supabase: SupabaseClient,
+  table: string,
+): Promise<number> {
   let total = 0;
-  for (let i = 0; i < ids.length; i += 100) {
-    const chunk = ids.slice(i, i + 100);
+  for (;;) {
     const { data, error, count } = await supabase
       .from(table)
       .delete({ count: "exact" })
-      .in("id", chunk)
-      .select("id");
+      .neq("id", "00000000-0000-0000-0000-000000000000")
+      .select("id")
+      .limit(PAGE);
+
     if (error) throw new Error(`delete ${table}: ${error.message}`);
-    total += count ?? data?.length ?? 0;
+    const n = count ?? data?.length ?? 0;
+    total += n;
+    if (n < PAGE) break;
   }
-  return total;
-}
-
-async function deleteRelatedPolymorphic(
-  supabase: SupabaseClient,
-  table: "vinculos" | "observacoes",
-  byTipo: Record<EntidadeTipo, string[]>,
-): Promise<number> {
-  let total = 0;
-
-  for (const tipo of ENTIDADE_TIPOS) {
-    const ids = byTipo[tipo];
-    if (!ids.length) continue;
-
-    for (let i = 0; i < ids.length; i += 50) {
-      const chunk = ids.slice(i, i + 50);
-
-      if (table === "observacoes") {
-        const { data, error, count } = await supabase
-          .from("observacoes")
-          .delete({ count: "exact" })
-          .eq("entidade_tipo", tipo)
-          .in("entidade_id", chunk)
-          .select("id");
-        if (error) throw new Error(`observacoes: ${error.message}`);
-        total += count ?? data?.length ?? 0;
-      } else {
-        const { data: d1, error: e1, count: c1 } = await supabase
-          .from("vinculos")
-          .delete({ count: "exact" })
-          .eq("entidade_origem_tipo", tipo)
-          .in("entidade_origem_id", chunk)
-          .select("id");
-        if (e1) throw new Error(`vinculos origem: ${e1.message}`);
-        total += c1 ?? d1?.length ?? 0;
-
-        const { data: d2, error: e2, count: c2 } = await supabase
-          .from("vinculos")
-          .delete({ count: "exact" })
-          .eq("entidade_destino_tipo", tipo)
-          .in("entidade_destino_id", chunk)
-          .select("id");
-        if (e2) throw new Error(`vinculos destino: ${e2.message}`);
-        total += c2 ?? d2?.length ?? 0;
-      }
-    }
-  }
-
-  // Observações [TESTE] órfãs (mensagem com prefixo)
-  if (table === "observacoes") {
-    for (;;) {
-      const { data, error, count } = await supabase
-        .from("observacoes")
-        .delete({ count: "exact" })
-        .like("mensagem", `${TEST_PREFIX}%`)
-        .select("id")
-        .limit(PAGE);
-      if (error) throw new Error(`observacoes prefix: ${error.message}`);
-      const n = count ?? data?.length ?? 0;
-      total += n;
-      if (n < PAGE) break;
-    }
-  }
-
   return total;
 }
 
 async function main() {
-  if (!process.argv.includes("--yes")) {
-    console.error(`
-Este script apaga TODOS os registros com prefixo "${TEST_PREFIX.trim()}"
-e vínculos/observações relacionados.
+  const yes = process.argv.includes("--yes");
+  const wipeAll = process.argv.includes("--wipe-all");
 
-Para confirmar:
-  npm run seed:cleanup -- --yes
+  if (!yes || !wipeAll) {
+    console.error(`
+════════════════════════════════════════════════════════════════
+ATENÇÃO: este script APAGA TODOS os registros de entidades,
+vínculos e observações — não apenas os marcados com "[TESTE]".
+════════════════════════════════════════════════════════════════
+
+Escopo:
+  - vinculos, observacoes
+  - pessoas (+ fotos/redes via CASCADE)
+  - empresas, enderecos, veiculos, documentos, casos,
+    comunicacoes, orcrims
+
+Preservado:
+  - perfis_usuario
+  - auditoria
+  - auth.users
+
+A trigger de auditoria permanece ativa.
+
+Para confirmar a limpeza TOTAL, passe AMBAS as flags:
+  npm run seed:cleanup -- --yes --wipe-all
 `);
     process.exit(1);
   }
 
   const supabase = createAdminClient();
-  const byTipo = {} as Record<EntidadeTipo, string[]>;
+  const tables = ["vinculos", "observacoes", ...ENTITY_TABLES] as const;
 
-  console.log("Buscando registros [TESTE]...");
-  for (const tipo of ENTIDADE_TIPOS) {
-    const table = TABLE_BY_TIPO[tipo];
-    const ids = await fetchTestIds(supabase, table);
-    byTipo[tipo] = ids;
-    console.log(`  ${table}: ${ids.length}`);
+  console.log("Contagens antes:");
+  for (const table of tables) {
+    console.log(`  ${table}: ${await countTable(supabase, table)}`);
   }
+  console.log(`  perfis_usuario: ${await countTable(supabase, "perfis_usuario")} (preservada)`);
+  console.log(`  auditoria: ${await countTable(supabase, "auditoria")} (preservada)`);
 
-  console.log("\nRemovendo vínculos relacionados...");
-  const vinculos = await deleteRelatedPolymorphic(supabase, "vinculos", byTipo);
+  console.log("\nApagando vínculos...");
+  const vinculos = await deleteAllRows(supabase, "vinculos");
   console.log(`  vinculos: ${vinculos}`);
 
-  console.log("Removendo observações relacionadas...");
-  const observacoes = await deleteRelatedPolymorphic(
-    supabase,
-    "observacoes",
-    byTipo,
-  );
+  console.log("Apagando observações...");
+  const observacoes = await deleteAllRows(supabase, "observacoes");
   console.log(`  observacoes: ${observacoes}`);
 
-  console.log("\nRemovendo entidades...");
-  // ordem: satélites CASCADE com pessoas; entidades sem FK entre si
-  const order: EntidadeTipo[] = [
-    "pessoa",
-    "empresa",
-    "endereco",
-    "veiculo",
-    "documento",
-    "caso",
-    "comunicacao",
-  ];
-
-  const summary: Record<string, number> = {};
-  for (const tipo of order) {
-    const table = TABLE_BY_TIPO[tipo];
-    const n = await deleteByIds(supabase, table, byTipo[tipo]);
+  console.log("\nApagando entidades...");
+  const summary: Record<string, number> = { vinculos, observacoes };
+  for (const table of ENTITY_TABLES) {
+    const n = await deleteAllRows(supabase, table);
     summary[table] = n;
     console.log(`  ${table}: ${n}`);
   }
 
+  console.log("\nContagens depois:");
+  for (const table of tables) {
+    console.log(`  ${table}: ${await countTable(supabase, table)}`);
+  }
+  console.log(`  perfis_usuario: ${await countTable(supabase, "perfis_usuario")} (preservada)`);
+  console.log(`  auditoria: ${await countTable(supabase, "auditoria")} (preservada)`);
+
   console.log(`
 ────────────────────────────────────────
-Resumo do seed-cleanup
+Resumo do seed-cleanup (wipe total)
 ────────────────────────────────────────
-  vinculos:      ${vinculos}
-  observacoes:   ${observacoes}
 ${Object.entries(summary)
   .map(([k, v]) => `  ${k}:`.padEnd(18) + v)
   .join("\n")}

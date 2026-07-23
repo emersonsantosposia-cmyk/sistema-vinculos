@@ -191,30 +191,17 @@ export function formatTipoVinculoPerspectiva(
 }
 
 /**
- * Rótulo da aresta no diagrama.
- * - Um só sentido / simétrico: só o termo na direção visual.
- * - Dois sentidos distintos: "Chefe ↔ Funcionário" (direção da aresta primeiro).
+ * Rótulo da aresta no diagrama: apenas o tipo na direção visual (source → target).
+ * O inverso é usado só como fallback se o termo direto estiver vazio.
  */
 export function formatTipoVinculoEdgeLabel(
   tipoDirecaoAresta: string | null | undefined,
-  tipoInverso: string | null | undefined,
+  tipoInverso?: string | null | undefined,
 ): string {
   const diretoRaw = tipoDirecaoAresta?.trim() || null;
   const inversoRaw = tipoInverso?.trim() || null;
   if (!diretoRaw && !inversoRaw) return "Sem tipo";
-
-  const direto = formatTipoVinculoLabel(diretoRaw);
-  const inverso = formatTipoVinculoLabel(inversoRaw);
-
-  if (!diretoRaw) return inverso;
-  if (!inversoRaw) return direto;
-
-  if (
-    direto.toLocaleLowerCase("pt-BR") === inverso.toLocaleLowerCase("pt-BR")
-  ) {
-    return direto;
-  }
-  return `${direto} ↔ ${inverso}`;
+  return formatTipoVinculoLabel(diretoRaw ?? inversoRaw);
 }
 
 /** Normaliza para comparação de sugestões. */

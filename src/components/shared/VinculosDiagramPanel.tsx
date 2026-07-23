@@ -61,12 +61,8 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
   const [resetToken, setResetToken] = useState(0);
   const [expandDepth, setExpandDepth] = useState<ExpandDepth>(1);
   const [pendingDepth, setPendingDepth] = useState<ExpandDepth>(1);
-  const [expandTipos, setExpandTipos] = useState<EntidadeTipo[]>(() =>
-    allEntidadeTipos(),
-  );
-  const [pendingTipos, setPendingTipos] = useState<EntidadeTipo[]>(() =>
-    allEntidadeTipos(),
-  );
+  const [expandTipos, setExpandTipos] = useState<EntidadeTipo[]>([]);
+  const [pendingTipos, setPendingTipos] = useState<EntidadeTipo[]>([]);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [setupFromDiagram, setSetupFromDiagram] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -79,7 +75,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
   const openSetup = useCallback(() => {
     setResetToken(0);
     setPendingDepth(1);
-    setPendingTipos(allEntidadeTipos());
+    setPendingTipos([]);
     setSetupFromDiagram(false);
     setPhase("setup");
     syncDiagramaQuery(true);
@@ -102,7 +98,7 @@ export function VinculosDiagramPanel({ entidadeTipo, entidadeId }: Props) {
     if (params.get("diagrama") === "1") {
       setResetToken(0);
       setPendingDepth(1);
-      setPendingTipos(allEntidadeTipos());
+      setPendingTipos([]);
       setPhase("setup");
     }
   }, [entidadeTipo, entidadeId]);
