@@ -71,6 +71,8 @@ export type Empresa = {
   razao_social: string;
   cnpj: string | null;
   cnae_principal: string | null;
+  website: string | null;
+  foto_url: string | null;
   usuario_cadastro: string | null;
   data_cadastro: string;
 };
@@ -87,6 +89,7 @@ export type Endereco = {
   cep: string | null;
   latitude: number | null;
   longitude: number | null;
+  foto_url: string | null;
   usuario_cadastro: string | null;
   data_cadastro: string;
 };
@@ -193,6 +196,7 @@ export type Orcrim = {
   sigla: string | null;
   estado_origem: string | null;
   descricao: string | null;
+  foto_url: string | null;
   usuario_cadastro: string | null;
   data_cadastro: string;
 };

@@ -1,12 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, FormActions, Input, Label, Select } from "@/components/ui/Form";
 import { MapPicker } from "@/components/maps/MapComponents";
 import { geocodeEndereco } from "@/lib/geocode";
 import { maskCepInput, UFS } from "@/lib/format";
-import { createEndereco, updateEndereco } from "@/lib/supabase/enderecos";
+import {
+  createEndereco,
+  updateEndereco,
+  uploadFotoEndereco,
+} from "@/lib/supabase/enderecos";
+import { useSignedStorageUrl } from "@/lib/supabase/storage-urls";
 import { fetchViaCep } from "@/lib/viacep";
 import type { Endereco } from "@/lib/types";
 
@@ -51,6 +56,21 @@ export function EnderecoForm({ initial }: Props) {
   const [longitude, setLongitude] = useState(
     initial?.longitude != null ? String(initial.longitude) : "",
   );
+  const [foto, setFoto] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+
+  const { url: existingFotoUrl, loading: existingFotoLoading } =
+    useSignedStorageUrl("fotos-enderecos", initial?.foto_url);
+
+  useEffect(() => {
+    if (!foto) {
+      setFotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(foto);
+    setFotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [foto]);
 
   const latNum = parseCoord(latitude);
   const lngNum = parseCoord(longitude);
@@ -131,7 +151,6 @@ export function EnderecoForm({ initial }: Props) {
     setGeoLoading(false);
 
     if (geoError || !data) {
-      // Não preenche coordenadas falsas; mantém o que o usuário já tinha.
       if (showHint) {
         setGeoHint(
           geoError ??
@@ -200,15 +219,36 @@ export function EnderecoForm({ initial }: Props) {
         ? await updateEndereco(initial!.id, payload)
         : await createEndereco(payload);
 
-      setStatus(null);
       if (saveError || !data) {
+        setStatus(null);
         setError(saveError ?? "Erro ao salvar endereço.");
         return;
       }
+
+      if (foto) {
+        setStatus("Enviando foto…");
+        const { error: uploadError } = await uploadFotoEndereco({
+          enderecoId: data.id,
+          file: foto,
+        });
+        if (uploadError) {
+          setStatus(null);
+          setError(
+            `${uploadError} O endereço foi salvo, mas a foto pode estar incompleta.`,
+          );
+          router.push(`/enderecos/${data.id}`);
+          router.refresh();
+          return;
+        }
+      }
+
+      setStatus("Concluído. Redirecionando…");
       router.push(`/enderecos/${data.id}`);
       router.refresh();
     });
   }
+
+  const previewSrc = fotoPreview ?? (foto ? null : existingFotoUrl);
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
@@ -389,6 +429,45 @@ export function EnderecoForm({ initial }: Props) {
                 setLongitude(lng.toFixed(6));
                 setGeoHint("Posição ajustada pelo clique no mapa.");
               }}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <Label htmlFor="foto">
+              Foto
+              {isEdit ? " (opcional — substitui a atual)" : ""}
+            </Label>
+            {isEdit && initial?.foto_url ? (
+              <div className="mb-2">
+                {existingFotoLoading ? (
+                  <div className="flex h-32 w-full max-w-xs items-center justify-center rounded border border-border bg-panel-soft text-xs text-muted">
+                    Carregando foto atual…
+                  </div>
+                ) : previewSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewSrc}
+                    alt="Foto atual do endereço"
+                    className="h-32 w-full max-w-xs rounded border border-border object-cover bg-panel-soft"
+                  />
+                ) : null}
+              </div>
+            ) : fotoPreview ? (
+              <div className="mb-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fotoPreview}
+                  alt="Pré-visualização da foto"
+                  className="h-32 w-full max-w-xs rounded border border-border object-cover bg-panel-soft"
+                />
+              </div>
+            ) : null}
+            <Input
+              id="foto"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
+              disabled={pending}
             />
           </div>
         </div>

@@ -7,6 +7,7 @@ import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
+import { EntidadeStorageFoto } from "@/components/shared/EntidadeStorageFoto";
 import { getOrcrimById } from "@/lib/supabase/orcrims-server";
 
 type Props = {
@@ -86,7 +87,16 @@ export default async function OrcrimDetailPage({ params }: Props) {
           </Panel>
         }
         extras={
-          <VinculosDiagramPanel entidadeTipo="orcrim" entidadeId={orcrim.id} />
+          <>
+            <Panel title="Foto">
+              <EntidadeStorageFoto
+                bucket="fotos-orcrims"
+                path={orcrim.foto_url}
+                alt={orcrim.nome}
+              />
+            </Panel>
+            <VinculosDiagramPanel entidadeTipo="orcrim" entidadeId={orcrim.id} />
+          </>
         }
         observacoes={
           <Panel title="Observações">

@@ -22,8 +22,10 @@ import {
 } from "@/components/ui/Form";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
+import { EntidadeStorageAvatar } from "@/components/shared/EntidadeStorageAvatar";
 import { VeiculoAvatar } from "@/components/veiculos/VeiculoAvatar";
 import { clampFixedMenuPosition } from "@/lib/clamp-fixed-menu";
+import { fotoBucketForEntidade } from "@/lib/entity-fotos";
 import { formatDateTime } from "@/lib/format";
 import {
   createVinculo,
@@ -135,6 +137,7 @@ function VinculoCardBox({
   const isPessoa = card.outroTipo === "pessoa";
   const isCompact = variant === "compact" && isPessoa;
   const isVeiculo = card.outroTipo === "veiculo";
+  const fotoBucket = fotoBucketForEntidade(card.outroTipo);
   const isRestrito = Boolean(card.restrito);
   const showSubtitulo =
     !isRestrito &&
@@ -302,6 +305,14 @@ function VinculoCardBox({
     <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
       {isVeiculo ? (
         <VeiculoAvatar
+          path={card.foto_url}
+          alt={card.titulo}
+          size="md"
+          className="shrink-0"
+        />
+      ) : fotoBucket && card.foto_url ? (
+        <EntidadeStorageAvatar
+          bucket={fotoBucket}
           path={card.foto_url}
           alt={card.titulo}
           size="md"

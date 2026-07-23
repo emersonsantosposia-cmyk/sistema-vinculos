@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Form";
 import { ModalShell } from "@/components/ui/ModalShell";
@@ -20,17 +20,30 @@ type Props = {
   children: React.ReactNode;
 };
 
+const PUBLIC_PREFIXES = ["/login", "/indisponivel"];
+
+function isPublicPath(pathname: string | null): boolean {
+  if (!pathname) return true;
+  return PUBLIC_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
 /**
- * Segurança de sessão (área autenticada / DashboardShell):
- * aviso aos 4m30s + logout por inatividade aos 5 min.
+ * Segurança de sessão na área autenticada:
+ * aviso antes do limite + logout por inatividade.
  *
- * Multi-aba é permitido (cookies compartilhados). A inatividade é medida
- * por relógio de parede em localStorage — fecha a aba ou deixa em segundo
- * plano não pausa a contagem; ao voltar (ou reabrir), a sessão é
- * reavaliada e encerrada se o prazo já passou.
+ * Fica no layout raiz para NÃO remontar a cada troca de página
+ * (DashboardShell remonta e isso causava logout “no clique”).
+ *
+ * Multi-aba é permitido. A inatividade usa relógio de parede em
+ * localStorage — segundo plano / aba fechada não pausam a contagem.
  */
 export function SessionGuard({ children }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const publicRoute = isPublicPath(pathname);
+
   const [warningOpen, setWarningOpen] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(
     Math.ceil(SESSAO_AVISO_ANTES_MS / 1000),
@@ -111,7 +124,6 @@ export function SessionGuard({ children }: Props) {
       logoutTimerRef.current = window.setTimeout(() => {
         const restante = sessaoIdleRestanteMs(lastActivityRef.current);
         if (restante > 0) {
-          // Atividade recente (esta ou outra aba) — não desloga.
           syncFromWallClockRef.current?.();
           return;
         }
@@ -121,10 +133,6 @@ export function SessionGuard({ children }: Props) {
     [clearCountdown, forceLogout],
   );
 
-  /**
-   * Alinha timers ao timestamp de última atividade (relógio de parede).
-   * Seguro chamar após foco, visibilitychange, storage ou timers atrasados.
-   */
   const syncFromWallClock = useCallback(() => {
     if (loggingOutRef.current) return;
 
@@ -142,7 +150,6 @@ export function SessionGuard({ children }: Props) {
 
     const avisoRestante = sessaoAvisoRestanteMs(last);
 
-    // Já no modal de aviso: não reinicia o countdown (watchdog/foco).
     if (avisoRestante <= 0 && warningOpenRef.current) {
       return;
     }
@@ -165,7 +172,6 @@ export function SessionGuard({ children }: Props) {
       }
       const againAviso = sessaoAvisoRestanteMs(lastActivityRef.current);
       if (againAviso > 0) {
-        // Timer atrasado (aba em background) mas ainda não é hora do aviso.
         syncFromWallClockRef.current?.();
         return;
       }
@@ -177,20 +183,24 @@ export function SessionGuard({ children }: Props) {
   syncFromWallClockRef.current = syncFromWallClock;
 
   const markActivity = useCallback(
-    (opts?: { forceReschedule?: boolean }) => {
+    (opts?: { forcePersist?: boolean; forceReschedule?: boolean }) => {
       if (loggingOutRef.current) return;
 
       const now = Date.now();
       lastActivityRef.current = now;
 
-      // Persiste com throttle (storage é compartilhado entre abas).
-      if (now - lastPersistRef.current >= 1000) {
+      const forcePersist = opts?.forcePersist === true;
+      const forceReschedule =
+        opts?.forceReschedule === true || warningOpenRef.current;
+
+      // Cliques/teclas: sempre persistem (navegação entre páginas).
+      // mousemove/scroll: throttle de 1s.
+      if (forcePersist || now - lastPersistRef.current >= 1000) {
         lastPersistRef.current = now;
         writeLastActivityAt(now);
       }
 
-      const force = opts?.forceReschedule || warningOpenRef.current;
-      if (!force && now - lastRescheduleRef.current < 1000) {
+      if (!forceReschedule && now - lastRescheduleRef.current < 1000) {
         return;
       }
       lastRescheduleRef.current = now;
@@ -202,14 +212,23 @@ export function SessionGuard({ children }: Props) {
   );
 
   const continueSession = useCallback(() => {
-    markActivity({ forceReschedule: true });
+    markActivity({ forcePersist: true, forceReschedule: true });
   }, [markActivity]);
 
   useEffect(() => {
+    if (publicRoute) {
+      clearIdleTimers();
+      warningOpenRef.current = false;
+      setWarningOpen(false);
+      loggingOutRef.current = false;
+      return;
+    }
+
+    loggingOutRef.current = false;
+
     const existing = readLastActivityAt();
     const now = Date.now();
     if (existing != null && now - existing >= SESSAO_IDLE_MS) {
-      // Aba ficou fechada/ociosa além do limite — encerra na reabertura.
       void forceLogout();
       return;
     }
@@ -220,20 +239,23 @@ export function SessionGuard({ children }: Props) {
     lastRescheduleRef.current = now;
     syncFromWallClock();
 
-    const onActivity = () => {
+    const onSoftActivity = () => {
       markActivity();
     };
+    const onHardActivity = () => {
+      markActivity({ forcePersist: true, forceReschedule: true });
+    };
+
     const opts: AddEventListenerOptions = { capture: true, passive: true };
-    window.addEventListener("mousemove", onActivity, opts);
-    window.addEventListener("mousedown", onActivity, opts);
-    window.addEventListener("keydown", onActivity, opts);
-    window.addEventListener("scroll", onActivity, opts);
-    window.addEventListener("touchstart", onActivity, opts);
-    window.addEventListener("click", onActivity, opts);
+    window.addEventListener("mousemove", onSoftActivity, opts);
+    window.addEventListener("scroll", onSoftActivity, opts);
+    window.addEventListener("mousedown", onHardActivity, opts);
+    window.addEventListener("keydown", onHardActivity, opts);
+    window.addEventListener("touchstart", onHardActivity, opts);
+    window.addEventListener("click", onHardActivity, opts);
 
     const onVisibilityOrFocus = () => {
       if (document.visibilityState === "hidden") return;
-      // Reavalia com o relógio real (aba fechada/segundo plano não pausa).
       syncFromWallClockRef.current?.();
     };
     document.addEventListener("visibilitychange", onVisibilityOrFocus);
@@ -243,7 +265,6 @@ export function SessionGuard({ children }: Props) {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== SESSAO_LAST_ACTIVITY_KEY) return;
       if (event.newValue == null) {
-        // Outra aba encerrou a sessão.
         void forceLogout();
         return;
       }
@@ -256,18 +277,17 @@ export function SessionGuard({ children }: Props) {
     };
     window.addEventListener("storage", onStorage);
 
-    // Rede de segurança: a cada 15s confere o relógio (timers throttled).
     const watchdog = window.setInterval(() => {
       syncFromWallClockRef.current?.();
     }, 15_000);
 
     return () => {
-      window.removeEventListener("mousemove", onActivity, opts);
-      window.removeEventListener("mousedown", onActivity, opts);
-      window.removeEventListener("keydown", onActivity, opts);
-      window.removeEventListener("scroll", onActivity, opts);
-      window.removeEventListener("touchstart", onActivity, opts);
-      window.removeEventListener("click", onActivity, opts);
+      window.removeEventListener("mousemove", onSoftActivity, opts);
+      window.removeEventListener("scroll", onSoftActivity, opts);
+      window.removeEventListener("mousedown", onHardActivity, opts);
+      window.removeEventListener("keydown", onHardActivity, opts);
+      window.removeEventListener("touchstart", onHardActivity, opts);
+      window.removeEventListener("click", onHardActivity, opts);
       document.removeEventListener("visibilitychange", onVisibilityOrFocus);
       window.removeEventListener("focus", onVisibilityOrFocus);
       window.removeEventListener("pageshow", onVisibilityOrFocus);
@@ -275,14 +295,12 @@ export function SessionGuard({ children }: Props) {
       window.clearInterval(watchdog);
       clearIdleTimers();
     };
-    // Montagem única: pathname não deve reiniciar o ciclo (causava ruído).
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only session lifecycle
-  }, []);
+  }, [publicRoute, clearIdleTimers, forceLogout, markActivity, syncFromWallClock]);
 
   return (
     <>
       {children}
-      {warningOpen ? (
+      {!publicRoute && warningOpen ? (
         <ModalShell
           title="Sua sessão vai expirar"
           onClose={continueSession}

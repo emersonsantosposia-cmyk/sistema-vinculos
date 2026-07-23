@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Oswald } from "next/font/google";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { SessionGuard } from "@/components/auth/SessionGuard";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,7 +43,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full bg-background text-foreground antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <SessionGuard>{children}</SessionGuard>
+        </ThemeProvider>
       </body>
     </html>
   );

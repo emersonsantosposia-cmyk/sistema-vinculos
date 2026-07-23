@@ -74,7 +74,7 @@ export type EntidadeOpcao = {
   subtitulo?: string | null;
   /** Path no bucket fotos-pessoas (apenas para tipo pessoa). */
   foto_perfil_path?: string | null;
-  /** Path no bucket fotos-veiculos (apenas para tipo veiculo). */
+  /** Path no bucket de foto ilustrativa (veículo, empresa, endereço, orcrim). */
   foto_url?: string | null;
 };
 
@@ -114,7 +114,7 @@ export type VinculoCard = {
   restrito?: boolean;
   /** Path no bucket fotos-pessoas (apenas quando outroTipo === "pessoa"). */
   foto_perfil_path?: string | null;
-  /** Path no bucket fotos-veiculos (apenas quando outroTipo === "veiculo"). */
+  /** Path no bucket de foto ilustrativa (veículo, empresa, endereço, orcrim). */
   foto_url?: string | null;
 };
 

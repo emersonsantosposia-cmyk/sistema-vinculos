@@ -26,6 +26,7 @@ export async function createOrcrim(
       sigla: emptyToNull(input.sigla),
       estado_origem: emptyToNull(input.estado_origem),
       descricao: emptyToNull(input.descricao),
+      foto_url: null,
       usuario_cadastro: auth.user.id,
       data_cadastro: new Date().toISOString(),
     })
@@ -43,7 +44,7 @@ export async function createOrcrim(
 
 export async function updateOrcrim(
   id: string,
-  input: Partial<OrcrimInput>,
+  input: Partial<OrcrimInput> & { foto_url?: string | null },
 ): Promise<{ data: Orcrim | null; error: string | null }> {
   const supabase = createClient();
   const payload: Record<string, unknown> = {};
@@ -55,6 +56,7 @@ export async function updateOrcrim(
   if (input.descricao !== undefined) {
     payload.descricao = emptyToNull(input.descricao);
   }
+  if (input.foto_url !== undefined) payload.foto_url = input.foto_url;
 
   const { data, error } = await supabase
     .from("orcrims")
@@ -81,4 +83,50 @@ export async function deleteOrcrim(
     return { error: friendlyError(error.message, "Erro ao excluir orcrim.") };
   }
   return { error: null };
+}
+
+export async function uploadFotoOrcrim(options: {
+  orcrimId: string;
+  file: File;
+}): Promise<{ path: string | null; error: string | null }> {
+  const { orcrimId, file } = options;
+  const supabase = createClient();
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${orcrimId}/foto.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("fotos-orcrims")
+    .upload(path, file, {
+      upsert: true,
+      contentType: file.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
+    });
+
+  if (uploadError) {
+    return {
+      path: null,
+      error: friendlyError(uploadError.message, "Erro no upload da foto."),
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("orcrims")
+    .update({ foto_url: path })
+    .eq("id", orcrimId)
+    .select("foto_url")
+    .maybeSingle();
+
+  if (error) {
+    return {
+      path: null,
+      error: friendlyError(error.message, "Erro ao salvar referência da foto."),
+    };
+  }
+  if (!data?.foto_url) {
+    return {
+      path: null,
+      error: "Não foi possível gravar a referência da foto na orcrim.",
+    };
+  }
+
+  return { path, error: null };
 }

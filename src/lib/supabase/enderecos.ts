@@ -38,6 +38,7 @@ export async function createEndereco(
       cep: emptyToNull(input.cep?.replace(/\D/g, "")),
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
+      foto_url: null,
       usuario_cadastro: auth.user.id,
       data_cadastro: new Date().toISOString(),
     })
@@ -55,7 +56,7 @@ export async function createEndereco(
 
 export async function updateEndereco(
   id: string,
-  input: Partial<EnderecoInput>,
+  input: Partial<EnderecoInput> & { foto_url?: string | null },
 ): Promise<{ data: Endereco | null; error: string | null }> {
   const supabase = createClient();
   const payload: Record<string, unknown> = {};
@@ -75,6 +76,7 @@ export async function updateEndereco(
   }
   if (input.latitude !== undefined) payload.latitude = input.latitude;
   if (input.longitude !== undefined) payload.longitude = input.longitude;
+  if (input.foto_url !== undefined) payload.foto_url = input.foto_url;
 
   const { data, error } = await supabase
     .from("enderecos")
@@ -101,4 +103,50 @@ export async function deleteEndereco(
     return { error: friendlyError(error.message, "Erro ao excluir endereço.") };
   }
   return { error: null };
+}
+
+export async function uploadFotoEndereco(options: {
+  enderecoId: string;
+  file: File;
+}): Promise<{ path: string | null; error: string | null }> {
+  const { enderecoId, file } = options;
+  const supabase = createClient();
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${enderecoId}/foto.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("fotos-enderecos")
+    .upload(path, file, {
+      upsert: true,
+      contentType: file.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
+    });
+
+  if (uploadError) {
+    return {
+      path: null,
+      error: friendlyError(uploadError.message, "Erro no upload da foto."),
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("enderecos")
+    .update({ foto_url: path })
+    .eq("id", enderecoId)
+    .select("foto_url")
+    .maybeSingle();
+
+  if (error) {
+    return {
+      path: null,
+      error: friendlyError(error.message, "Erro ao salvar referência da foto."),
+    };
+  }
+  if (!data?.foto_url) {
+    return {
+      path: null,
+      error: "Não foi possível gravar a referência da foto no endereço.",
+    };
+  }
+
+  return { path, error: null };
 }

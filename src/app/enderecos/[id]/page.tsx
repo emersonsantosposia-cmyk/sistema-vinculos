@@ -8,6 +8,7 @@ import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
+import { EntidadeStorageFoto } from "@/components/shared/EntidadeStorageFoto";
 import { formatCep, formatEnderecoResumo } from "@/lib/format";
 import { getEnderecoById } from "@/lib/supabase/enderecos-server";
 
@@ -103,6 +104,13 @@ export default async function EnderecoDetailPage({ params }: Props) {
         }
         extras={
           <>
+            <Panel title="Foto">
+              <EntidadeStorageFoto
+                bucket="fotos-enderecos"
+                path={endereco.foto_url}
+                alt={titulo}
+              />
+            </Panel>
             <Panel title="Mapa">
               <EnderecoMapa
                 latitude={endereco.latitude}

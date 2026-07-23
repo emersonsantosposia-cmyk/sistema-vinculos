@@ -1,10 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button, FormActions, Input, Label } from "@/components/ui/Form";
 import { maskCnpjInput } from "@/lib/format";
-import { createEmpresa, updateEmpresa } from "@/lib/supabase/empresas";
+import {
+  createEmpresa,
+  updateEmpresa,
+  uploadFotoEmpresa,
+} from "@/lib/supabase/empresas";
+import { useSignedStorageUrl } from "@/lib/supabase/storage-urls";
 import type { Empresa } from "@/lib/types";
 
 type Props = {
@@ -26,6 +31,22 @@ export function EmpresaForm({ initial }: Props) {
   const [cnaePrincipal, setCnaePrincipal] = useState(
     initial?.cnae_principal ?? "",
   );
+  const [website, setWebsite] = useState(initial?.website ?? "");
+  const [foto, setFoto] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+
+  const { url: existingFotoUrl, loading: existingFotoLoading } =
+    useSignedStorageUrl("fotos-empresas", initial?.foto_url);
+
+  useEffect(() => {
+    if (!foto) {
+      setFotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(foto);
+    setFotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [foto]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,21 +64,43 @@ export function EmpresaForm({ initial }: Props) {
         razao_social: razaoSocial,
         cnpj,
         cnae_principal: cnaePrincipal,
+        website,
       };
 
       const { data, error: saveError } = isEdit
         ? await updateEmpresa(initial!.id, payload)
         : await createEmpresa(payload);
 
-      setStatus(null);
       if (saveError || !data) {
+        setStatus(null);
         setError(saveError ?? "Erro ao salvar empresa.");
         return;
       }
+
+      if (foto) {
+        setStatus("Enviando foto…");
+        const { error: uploadError } = await uploadFotoEmpresa({
+          empresaId: data.id,
+          file: foto,
+        });
+        if (uploadError) {
+          setStatus(null);
+          setError(
+            `${uploadError} A empresa foi salva, mas a foto pode estar incompleta.`,
+          );
+          router.push(`/empresas/${data.id}`);
+          router.refresh();
+          return;
+        }
+      }
+
+      setStatus("Concluído. Redirecionando…");
       router.push(`/empresas/${data.id}`);
       router.refresh();
     });
   }
+
+  const previewSrc = fotoPreview ?? (foto ? null : existingFotoUrl);
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
@@ -113,6 +156,55 @@ export function EmpresaForm({ initial }: Props) {
               id="cnae_principal"
               value={cnaePrincipal}
               onChange={(e) => setCnaePrincipal(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="website">Website</Label>
+            <Input
+              id="website"
+              type="url"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://www.exemplo.com.br"
+              disabled={pending}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="foto">
+              Foto
+              {isEdit ? " (opcional — substitui a atual)" : ""}
+            </Label>
+            {isEdit && initial?.foto_url ? (
+              <div className="mb-2">
+                {existingFotoLoading ? (
+                  <div className="flex h-32 w-full max-w-xs items-center justify-center rounded border border-border bg-panel-soft text-xs text-muted">
+                    Carregando foto atual…
+                  </div>
+                ) : previewSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewSrc}
+                    alt="Foto atual da empresa"
+                    className="h-32 w-full max-w-xs rounded border border-border object-cover bg-panel-soft"
+                  />
+                ) : null}
+              </div>
+            ) : fotoPreview ? (
+              <div className="mb-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fotoPreview}
+                  alt="Pré-visualização da foto"
+                  className="h-32 w-full max-w-xs rounded border border-border object-cover bg-panel-soft"
+                />
+              </div>
+            ) : null}
+            <Input
+              id="foto"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
               disabled={pending}
             />
           </div>

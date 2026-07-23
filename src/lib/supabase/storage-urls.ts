@@ -55,12 +55,13 @@ export function useSignedStorageUrls(
       if (cancelled) return;
 
       if (!error && data) {
-        for (const item of data) {
-          // Ignora itens sem signedUrl (path inexistente / erro por arquivo).
-          if (item.path && item.signedUrl && !item.error) {
-            map[item.path] = item.signedUrl;
+        // Associa pelo índice original: em algumas versões `item.path` vem vazio.
+        storagePaths.forEach((originalPath, index) => {
+          const item = data[index];
+          if (item?.signedUrl && !item.error) {
+            map[originalPath] = item.signedUrl;
           }
-        }
+        });
       }
       setUrls(map);
       setLoading(false);

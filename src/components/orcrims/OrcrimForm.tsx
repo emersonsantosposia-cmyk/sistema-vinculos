@@ -1,10 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button, FormActions, Input, Label, Select, Textarea } from "@/components/ui/Form";
 import { UFS } from "@/lib/format";
-import { createOrcrim, updateOrcrim } from "@/lib/supabase/orcrims";
+import {
+  createOrcrim,
+  updateOrcrim,
+  uploadFotoOrcrim,
+} from "@/lib/supabase/orcrims";
+import { useSignedStorageUrl } from "@/lib/supabase/storage-urls";
 import type { Orcrim } from "@/lib/types";
 
 type Props = {
@@ -24,6 +29,21 @@ export function OrcrimForm({ initial }: Props) {
     initial?.estado_origem ?? "",
   );
   const [descricao, setDescricao] = useState(initial?.descricao ?? "");
+  const [foto, setFoto] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+
+  const { url: existingFotoUrl, loading: existingFotoLoading } =
+    useSignedStorageUrl("fotos-orcrims", initial?.foto_url);
+
+  useEffect(() => {
+    if (!foto) {
+      setFotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(foto);
+    setFotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [foto]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,15 +67,36 @@ export function OrcrimForm({ initial }: Props) {
         ? await updateOrcrim(initial!.id, payload)
         : await createOrcrim(payload);
 
-      setStatus(null);
       if (saveError || !data) {
+        setStatus(null);
         setError(saveError ?? "Erro ao salvar orcrim.");
         return;
       }
+
+      if (foto) {
+        setStatus("Enviando foto…");
+        const { error: uploadError } = await uploadFotoOrcrim({
+          orcrimId: data.id,
+          file: foto,
+        });
+        if (uploadError) {
+          setStatus(null);
+          setError(
+            `${uploadError} A orcrim foi salva, mas a foto pode estar incompleta.`,
+          );
+          router.push(`/orcrims/${data.id}`);
+          router.refresh();
+          return;
+        }
+      }
+
+      setStatus("Concluído. Redirecionando…");
       router.push(`/orcrims/${data.id}`);
       router.refresh();
     });
   }
+
+  const previewSrc = fotoPreview ?? (foto ? null : existingFotoUrl);
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
@@ -120,6 +161,44 @@ export function OrcrimForm({ initial }: Props) {
               rows={10}
               disabled={pending}
               className="min-h-[12rem]"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="foto">
+              Foto
+              {isEdit ? " (opcional — substitui a atual)" : ""}
+            </Label>
+            {isEdit && initial?.foto_url ? (
+              <div className="mb-2">
+                {existingFotoLoading ? (
+                  <div className="flex h-32 w-full max-w-xs items-center justify-center rounded border border-border bg-panel-soft text-xs text-muted">
+                    Carregando foto atual…
+                  </div>
+                ) : previewSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewSrc}
+                    alt="Foto atual da orcrim"
+                    className="h-32 w-full max-w-xs rounded border border-border object-cover bg-panel-soft"
+                  />
+                ) : null}
+              </div>
+            ) : fotoPreview ? (
+              <div className="mb-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fotoPreview}
+                  alt="Pré-visualização da foto"
+                  className="h-32 w-full max-w-xs rounded border border-border object-cover bg-panel-soft"
+                />
+              </div>
+            ) : null}
+            <Input
+              id="foto"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
+              disabled={pending}
             />
           </div>
         </div>

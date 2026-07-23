@@ -11,8 +11,10 @@ import {
 import { EntidadeTipoIcon } from "@/components/dashboard/EntityIcons";
 import { useDiagramaNodeActions } from "@/components/vinculos-diagram/DiagramaNodeActions";
 import { PessoaAvatar } from "@/components/pessoas/PessoaAvatar";
+import { EntidadeStorageAvatar } from "@/components/shared/EntidadeStorageAvatar";
 import { VeiculoAvatar } from "@/components/veiculos/VeiculoAvatar";
 import { ENTIDADE_COLORS } from "@/lib/entidade-visual";
+import { fotoBucketForEntidade } from "@/lib/entity-fotos";
 import { ENTIDADE_LABELS } from "@/lib/vinculos-types";
 import type { EntidadeTipo } from "@/lib/types";
 
@@ -118,7 +120,12 @@ function NodeAvatar({
       : null;
   const veiculoFoto =
     !restrito && entidadeTipo === "veiculo" && foto_url ? foto_url : null;
-  const hasPhoto = Boolean(pessoaFoto || veiculoFoto);
+  const storageBucket =
+    !restrito && !pessoaFoto && !veiculoFoto && foto_url
+      ? fotoBucketForEntidade(entidadeTipo)
+      : null;
+  const storageFoto = storageBucket && foto_url ? foto_url : null;
+  const hasPhoto = Boolean(pessoaFoto || veiculoFoto || storageFoto);
 
   return (
     <div
@@ -145,6 +152,14 @@ function NodeAvatar({
       ) : veiculoFoto ? (
         <VeiculoAvatar
           path={veiculoFoto}
+          alt={titulo}
+          size="sm"
+          className="!h-full !w-full !rounded-none !border-0"
+        />
+      ) : storageFoto && storageBucket ? (
+        <EntidadeStorageAvatar
+          bucket={storageBucket}
+          path={storageFoto}
           alt={titulo}
           size="sm"
           className="!h-full !w-full !rounded-none !border-0"

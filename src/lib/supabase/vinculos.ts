@@ -75,7 +75,7 @@ export async function searchEntidades(
       case "empresa": {
         let query = supabase
           .from("empresas")
-          .select("id, nome_fantasia, razao_social, cnpj")
+          .select("id, nome_fantasia, razao_social, cnpj, foto_url")
           .order("razao_social")
           .limit(limit);
         if (term) {
@@ -90,6 +90,7 @@ export async function searchEntidades(
             id: row.id,
             titulo: pickTitle(row.nome_fantasia, row.razao_social),
             subtitulo: row.cnpj || row.razao_social,
+            foto_url: row.foto_url,
           })),
           error: null,
         };
@@ -97,7 +98,7 @@ export async function searchEntidades(
       case "endereco": {
         let query = supabase
           .from("enderecos")
-          .select("id, nome, logradouro, numero, cidade, estado, cep")
+          .select("id, nome, logradouro, numero, cidade, estado, cep, foto_url")
           .order("data_cadastro", { ascending: false })
           .limit(limit);
         if (term) {
@@ -120,6 +121,7 @@ export async function searchEntidades(
             ]
               .filter(Boolean)
               .join(", "),
+            foto_url: row.foto_url,
           })),
           error: null,
         };
@@ -224,7 +226,7 @@ export async function searchEntidades(
       case "orcrim": {
         let query = supabase
           .from("orcrims")
-          .select("id, nome, sigla, estado_origem")
+          .select("id, nome, sigla, estado_origem, foto_url")
           .order("nome", { ascending: true })
           .limit(limit);
         if (term) {
@@ -239,6 +241,7 @@ export async function searchEntidades(
             subtitulo: [row.sigla, row.estado_origem]
               .filter(Boolean)
               .join(" · "),
+            foto_url: row.foto_url,
           })),
           error: null,
         };
@@ -310,13 +313,14 @@ export async function getEntidadesResumoBatch(
         case "empresa": {
           const { data } = await supabase
             .from("empresas")
-            .select("id, nome_fantasia, razao_social, cnpj")
+            .select("id, nome_fantasia, razao_social, cnpj, foto_url")
             .in("id", ids);
           for (const row of data ?? []) {
             result.set(resumoKey(tipo, row.id), {
               id: row.id,
               titulo: pickTitle(row.nome_fantasia, row.razao_social),
               subtitulo: row.cnpj || row.razao_social,
+              foto_url: row.foto_url,
             });
           }
           break;
@@ -324,7 +328,7 @@ export async function getEntidadesResumoBatch(
         case "endereco": {
           const { data } = await supabase
             .from("enderecos")
-            .select("id, nome, logradouro, numero, cidade, estado")
+            .select("id, nome, logradouro, numero, cidade, estado, foto_url")
             .in("id", ids);
           for (const row of data ?? []) {
             result.set(resumoKey(tipo, row.id), {
@@ -339,6 +343,7 @@ export async function getEntidadesResumoBatch(
               ]
                 .filter(Boolean)
                 .join(", "),
+              foto_url: row.foto_url,
             });
           }
           break;
@@ -415,7 +420,7 @@ export async function getEntidadesResumoBatch(
         case "orcrim": {
           const { data } = await supabase
             .from("orcrims")
-            .select("id, nome, sigla, estado_origem")
+            .select("id, nome, sigla, estado_origem, foto_url")
             .in("id", ids);
           for (const row of data ?? []) {
             result.set(resumoKey(tipo, row.id), {
@@ -424,6 +429,7 @@ export async function getEntidadesResumoBatch(
               subtitulo: [row.sigla, row.estado_origem]
                 .filter(Boolean)
                 .join(" · "),
+              foto_url: row.foto_url,
             });
           }
           break;

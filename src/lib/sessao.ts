@@ -3,12 +3,12 @@
  * Aviso aparece SESSAO_AVISO_ANTES_MS antes deste limite.
  *
  * A contagem usa relógio de parede (timestamp em localStorage), para que
- * abas em segundo plano ou fechadas não “pausem” os 5 minutos.
+ * abas em segundo plano ou fechadas não “pausem” o prazo.
  */
-export const SESSAO_IDLE_MS = 5 * 60 * 1000;
+export const SESSAO_IDLE_MS = 15 * 60 * 1000;
 
-/** Antecedência do aviso de expiração (30s antes dos 5 min → aviso aos 4m30s). */
-export const SESSAO_AVISO_ANTES_MS = 30 * 1000;
+/** Antecedência do aviso de expiração (60s antes do limite). */
+export const SESSAO_AVISO_ANTES_MS = 60 * 1000;
 
 /** Chave compartilhada entre abas (última interação do usuário). */
 export const SESSAO_LAST_ACTIVITY_KEY = "rede-lince:sessao:last-activity";

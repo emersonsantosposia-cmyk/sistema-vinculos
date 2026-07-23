@@ -7,6 +7,7 @@ import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
+import { EntidadeStorageFoto } from "@/components/shared/EntidadeStorageFoto";
 import { formatCnpj } from "@/lib/format";
 import { getEmpresaById } from "@/lib/supabase/empresas-server";
 
@@ -21,6 +22,32 @@ function Field({ label, value }: { label: string; value: string }) {
         {label}
       </dt>
       <dd className="mt-0.5 text-sm text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+function WebsiteField({ url }: { url: string | null }) {
+  if (!url) {
+    return <Field label="Website" value="—" />;
+  }
+
+  const href = url.startsWith("http") ? url : `https://${url}`;
+
+  return (
+    <div className="sm:col-span-2">
+      <dt className="text-[11px] font-medium tracking-wide text-muted uppercase">
+        Website
+      </dt>
+      <dd className="mt-0.5 text-sm">
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="break-all text-gold underline-offset-2 hover:text-gold-bright hover:underline"
+        >
+          {url}
+        </a>
+      </dd>
     </div>
   );
 }
@@ -81,6 +108,7 @@ export default async function EmpresaDetailPage({ params }: Props) {
                 label="CNAE principal"
                 value={empresa.cnae_principal || "—"}
               />
+              <WebsiteField url={empresa.website} />
               <CadastroMeta
                 dataCadastro={empresa.data_cadastro}
                 usuarioCadastroId={empresa.usuario_cadastro}
@@ -89,7 +117,16 @@ export default async function EmpresaDetailPage({ params }: Props) {
           </Panel>
         }
         extras={
-          <VinculosDiagramPanel entidadeTipo="empresa" entidadeId={empresa.id} />
+          <>
+            <Panel title="Foto">
+              <EntidadeStorageFoto
+                bucket="fotos-empresas"
+                path={empresa.foto_url}
+                alt={empresa.nome_fantasia || empresa.razao_social}
+              />
+            </Panel>
+            <VinculosDiagramPanel entidadeTipo="empresa" entidadeId={empresa.id} />
+          </>
         }
         observacoes={
           <Panel title="Observações">
