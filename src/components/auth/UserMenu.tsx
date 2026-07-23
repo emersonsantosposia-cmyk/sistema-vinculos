@@ -10,6 +10,7 @@ import {
   formatPerfilAcesso,
   type PerfilUsuario,
 } from "@/lib/perfis";
+import { clearLastActivityAt } from "@/lib/sessao";
 import { createClient } from "@/lib/supabase/client";
 
 function iniciais(nome: string) {
@@ -234,6 +235,7 @@ export function UserMenu() {
   function handleLogout() {
     setMenuOpen(false);
     startTransition(async () => {
+      clearLastActivityAt();
       const supabase = createClient();
       await supabase.auth.signOut();
       router.push("/login");

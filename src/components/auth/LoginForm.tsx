@@ -9,7 +9,7 @@ import {
 } from "@/lib/auth/login-email";
 import { createClient } from "@/lib/supabase/client";
 import { InstitutionalBanner } from "@/components/layout/InstitutionalBanner";
-import { mensagemMotivoSessao } from "@/lib/sessao";
+import { mensagemMotivoSessao, writeLastActivityAt } from "@/lib/sessao";
 
 function LoginFormInner() {
   const router = useRouter();
@@ -53,6 +53,9 @@ function LoginFormInner() {
         );
         return;
       }
+      // Reinicia o relógio de inatividade — senão um timestamp antigo no
+      // localStorage (sessão anterior) faz o SessionGuard expulsar na hora.
+      writeLastActivityAt();
       const next = searchParams.get("next");
       const dest =
         next && next.startsWith("/") && !next.startsWith("//")

@@ -58,6 +58,19 @@ function main() {
   assert(sessaoAvisoRestanteMs(resumed, midWarning) === avisoApos, "aviso cheio");
   console.log("   OK");
 
+  console.log(
+    "5) Após idle expirado, um login deve reiniciar o relógio (não expulsar)…",
+  );
+  const stale = t0;
+  const loginNow = t0 + SESSAO_IDLE_MS + 60_000;
+  assert(sessaoIdleRestanteMs(stale, loginNow) < 0, "timestamp antigo expirado");
+  // writeLastActivityAt(loginNow) no LoginForm → nova âncora:
+  assert(
+    sessaoIdleRestanteMs(loginNow, loginNow) === SESSAO_IDLE_MS,
+    "após login, idle cheio",
+  );
+  console.log("   OK");
+
   console.log("\n✅ Ciclo de aviso de sessão (relógio de parede) OK.\n");
 }
 

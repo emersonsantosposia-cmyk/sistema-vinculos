@@ -221,6 +221,13 @@ export function SessionGuard({ children }: Props) {
       warningOpenRef.current = false;
       setWarningOpen(false);
       loggingOutRef.current = false;
+      // Descarta relógio de uma sessão anterior já expirada. Sem isso, o
+      // próximo login bem-sucedido é derrubado imediatamente ao entrar na
+      // área autenticada (abre e fecha / volta ao login).
+      const stale = readLastActivityAt();
+      if (stale != null && Date.now() - stale >= SESSAO_IDLE_MS) {
+        clearLastActivityAt();
+      }
       return;
     }
 
