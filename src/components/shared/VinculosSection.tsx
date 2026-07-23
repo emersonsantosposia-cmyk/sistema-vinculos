@@ -227,7 +227,7 @@ function VinculoCardBox({
   const cardContent = isRestrito ? (
     isCompact ? (
       <div className="flex h-full flex-col items-center gap-1 text-center">
-        <p className="line-clamp-1 w-full text-[10px] font-medium normal-case leading-tight text-gold">
+        <p className="line-clamp-2 w-full text-[10px] font-medium normal-case leading-tight break-words text-gold">
           {tipoLabel}
         </p>
         <PessoaAvatar nome={card.titulo} size="compact" />
@@ -254,7 +254,7 @@ function VinculoCardBox({
     <div className="flex h-full flex-col items-center gap-1 text-center">
       <button
         type="button"
-        className="line-clamp-1 w-full text-[10px] font-medium normal-case leading-tight text-gold hover:text-gold-bright hover:underline"
+        className="line-clamp-2 w-full text-[10px] font-medium normal-case leading-tight break-words text-gold hover:text-gold-bright hover:underline"
         onClick={() => onDetalhe(card)}
         title="Ver detalhes do vínculo"
       >

@@ -3,27 +3,16 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { fetchPainelOperacionalMetricsAction } from "@/app/actions/dashboard";
+import { DashboardTimeFilters } from "@/components/dashboard/DashboardTimeFilters";
 import { PorQueLinceButton } from "@/components/dashboard/PorQueLinceButton";
 import {
   DASHBOARD_TIME_TUDO,
-  currentMonthFilter,
-  currentYearFilter,
   type DashboardTimeFilter,
   type PainelMetric,
   type PainelOperacionalData,
 } from "@/lib/dashboard";
 
 type ScopeButton = "tudo" | "ano" | "mes";
-
-function scopeFromFilter(filter: DashboardTimeFilter): ScopeButton {
-  return filter.scope;
-}
-
-function filterFromScope(scope: ScopeButton): DashboardTimeFilter {
-  if (scope === "ano") return currentYearFilter();
-  if (scope === "mes") return currentMonthFilter();
-  return DASHBOARD_TIME_TUDO;
-}
 
 function deltaSuffix(scope: Exclude<ScopeButton, "tudo">): string {
   return scope === "ano" ? "no ano" : "no mês";
@@ -124,14 +113,18 @@ export function PainelOperacional({
   const [filter, setFilter] = useState<DashboardTimeFilter>(DASHBOARD_TIME_TUDO);
   const [data, setData] = useState(initialData);
   const [pending, startTransition] = useTransition();
-  const scope = scopeFromFilter(filter);
 
-  function changeScope(next: ScopeButton) {
-    if (next === scope) return;
-    const nextFilter = filterFromScope(next);
-    setFilter(nextFilter);
+  function changeFilter(next: DashboardTimeFilter) {
+    if (
+      next.scope === filter.scope &&
+      next.year === filter.year &&
+      next.month === filter.month
+    ) {
+      return;
+    }
+    setFilter(next);
     startTransition(async () => {
-      const result = await fetchPainelOperacionalMetricsAction(nextFilter);
+      const result = await fetchPainelOperacionalMetricsAction(next);
       if (result.data) setData(result.data);
     });
   }
@@ -146,37 +139,11 @@ export function PainelOperacional({
             Painel operacional
           </h1>
 
-          <div
-            className="inline-flex w-full max-w-sm self-stretch overflow-hidden rounded-md border border-[color:var(--dash-border)] bg-[color:var(--dash-panel)] p-0.5 sm:w-auto sm:self-center"
-            role="group"
-            aria-label="Filtro de período"
-          >
-            {(
-              [
-                { id: "tudo", label: "Tudo" },
-                { id: "ano", label: "Ano" },
-                { id: "mes", label: "Mês" },
-              ] as const
-            ).map((opt) => {
-              const active = scope === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  disabled={pending}
-                  onClick={() => changeScope(opt.id)}
-                  className={`flex-1 px-3 py-2 text-[11px] tracking-[0.14em] uppercase transition-colors disabled:opacity-60 sm:flex-none sm:px-4 sm:py-1.5 ${
-                    active
-                      ? "rounded bg-[color:var(--cor-entidade-documentos)] font-semibold text-[#f3efe4]"
-                      : "rounded text-[color:var(--dash-muted-strong)] hover:text-[color:var(--dash-gold)]"
-                  }`}
-                  aria-pressed={active}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          <DashboardTimeFilters
+            value={filter}
+            onChange={changeFilter}
+            disabled={pending}
+          />
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 lg:justify-end">
             <p className="text-[9px] font-medium tracking-[0.16em] text-[color:var(--dash-muted)] uppercase sm:text-[10px]">
@@ -191,7 +158,7 @@ export function PainelOperacional({
             <MetricCard
               key={metric.key}
               metric={metric}
-              scope={scope}
+              scope={filter.scope}
               maxValue={maxValue}
               pending={pending}
             />
