@@ -1,6 +1,7 @@
 import {
   DASHBOARD_ENTITIES,
   DOCUMENTO_TIPO_CHART_KEYS,
+  previousTimeFilter,
   timeFilterToRange,
   type DashboardCasoStatusPoint,
   type DashboardCounts,
@@ -10,6 +11,7 @@ import {
   type DashboardTimeFilter,
   type DashboardUnidadePoint,
   type DocumentoTipoChartKey,
+  type PainelOperacionalData,
 } from "@/lib/dashboard";
 import { UNIDADES } from "@/lib/perfis";
 import { createClient } from "@/lib/supabase/server";
@@ -244,6 +246,125 @@ function mapTotaisRow(row: RpcTotaisRow): DashboardEntityTotalPoint[] {
     total: totals[entity.key],
     fill: entity.color,
   }));
+}
+
+type PainelSlice = {
+  registros: number;
+  vinculos: number;
+  documentos: number;
+  casosAtivos: number;
+};
+
+async function fetchPainelSlice(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  filter: DashboardTimeFilter,
+): Promise<{ data: PainelSlice | null; error: string | null }> {
+  const range = timeFilterToRange(filter);
+  const [totaisResult, vinculosResult, casosAtivosResult] = await Promise.all([
+    getTotaisEntidades(filter),
+    countExact(supabase, "vinculos", undefined, range),
+    countExact(
+      supabase,
+      "casos",
+      { column: "status", value: "em_andamento" },
+      range,
+    ),
+  ]);
+
+  const firstError =
+    totaisResult.error ||
+    vinculosResult.error ||
+    casosAtivosResult.error ||
+    null;
+  if (firstError) {
+    return { data: null, error: firstError };
+  }
+
+  const registros = totaisResult.data.reduce((sum, point) => sum + point.total, 0);
+  const documentos =
+    totaisResult.data.find((point) => point.key === "documentos")?.total ?? 0;
+
+  return {
+    data: {
+      registros,
+      vinculos: vinculosResult.count,
+      documentos,
+      casosAtivos: casosAtivosResult.count,
+    },
+    error: null,
+  };
+}
+
+/**
+ * Métricas do painel operacional (registros, vínculos, documentos, casos ativos)
+ * com delta vs. período anterior quando o filtro é ano ou mês.
+ */
+export async function getPainelOperacionalMetrics(
+  filter: DashboardTimeFilter,
+): Promise<{ data: PainelOperacionalData | null; error: string | null }> {
+  const supabase = await createClient();
+  const prev = previousTimeFilter(filter);
+
+  const [currentResult, previousResult] = await Promise.all([
+    fetchPainelSlice(supabase, filter),
+    prev
+      ? fetchPainelSlice(supabase, prev)
+      : Promise.resolve({ data: null as PainelSlice | null, error: null }),
+  ]);
+
+  if (currentResult.error || !currentResult.data) {
+    return {
+      data: null,
+      error: currentResult.error ?? "Não foi possível carregar o painel.",
+    };
+  }
+
+  if (previousResult.error) {
+    return { data: null, error: previousResult.error };
+  }
+
+  const current = currentResult.data;
+  const previous = previousResult.data;
+  const withDelta = (value: number, prevValue: number | undefined): number | null => {
+    if (!previous) return null;
+    return value - (prevValue ?? 0);
+  };
+
+  return {
+    data: {
+      metrics: [
+        {
+          key: "registros",
+          label: "Registros",
+          href: null,
+          value: current.registros,
+          delta: withDelta(current.registros, previous?.registros),
+        },
+        {
+          key: "vinculos",
+          label: "Vínculos",
+          href: null,
+          value: current.vinculos,
+          delta: withDelta(current.vinculos, previous?.vinculos),
+        },
+        {
+          key: "documentos",
+          label: "Documentos",
+          href: "/documentos",
+          value: current.documentos,
+          delta: withDelta(current.documentos, previous?.documentos),
+        },
+        {
+          key: "casosAtivos",
+          label: "Casos ativos",
+          href: "/casos",
+          value: current.casosAtivos,
+          delta: withDelta(current.casosAtivos, previous?.casosAtivos),
+        },
+      ],
+    },
+    error: null,
+  };
 }
 
 /**

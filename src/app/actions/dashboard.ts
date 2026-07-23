@@ -5,8 +5,15 @@ import {
   getCasosPorStatus,
   getDocCasosPorUnidade,
   getDocPorTipoUnidade,
+  getPainelOperacionalMetrics,
   getTotaisEntidades,
 } from "@/lib/supabase/dashboard-server";
+
+export async function fetchPainelOperacionalMetricsAction(
+  filter: DashboardTimeFilter,
+) {
+  return getPainelOperacionalMetrics(filter);
+}
 
 export async function fetchTotaisEntidadesAction(filter: DashboardTimeFilter) {
   return getTotaisEntidades(filter);

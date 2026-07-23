@@ -80,6 +80,54 @@ export const DASHBOARD_TIME_TUDO: DashboardTimeFilter = {
   month: null,
 };
 
+/** Filtro do ano civil corrente. */
+export function currentYearFilter(now = new Date()): DashboardTimeFilter {
+  return { scope: "ano", year: now.getFullYear(), month: null };
+}
+
+/** Filtro do mês civil corrente. */
+export function currentMonthFilter(now = new Date()): DashboardTimeFilter {
+  return {
+    scope: "mes",
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  };
+}
+
+/** Período imediatamente anterior (ano ou mês); null para "tudo". */
+export function previousTimeFilter(
+  filter: DashboardTimeFilter,
+): DashboardTimeFilter | null {
+  if (filter.scope === "tudo" || filter.year == null) return null;
+  if (filter.scope === "ano") {
+    return { scope: "ano", year: filter.year - 1, month: null };
+  }
+  if (filter.month == null) return null;
+  if (filter.month === 1) {
+    return { scope: "mes", year: filter.year - 1, month: 12 };
+  }
+  return { scope: "mes", year: filter.year, month: filter.month - 1 };
+}
+
+export type PainelMetricKey =
+  | "registros"
+  | "vinculos"
+  | "documentos"
+  | "casosAtivos";
+
+export type PainelMetric = {
+  key: PainelMetricKey;
+  label: string;
+  href: string | null;
+  value: number;
+  /** Variação vs. período anterior; null quando o filtro é "tudo". */
+  delta: number | null;
+};
+
+export type PainelOperacionalData = {
+  metrics: PainelMetric[];
+};
+
 export const DASHBOARD_MONTH_OPTIONS = [
   { value: 1, label: "Janeiro" },
   { value: 2, label: "Fevereiro" },
