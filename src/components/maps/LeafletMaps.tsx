@@ -47,6 +47,7 @@ type ViewerProps = {
   latitude: number;
   longitude: number;
   label?: string | null;
+  precisaoLabel?: string | null;
   className?: string;
 };
 
@@ -54,6 +55,7 @@ export function MapViewer({
   latitude,
   longitude,
   label,
+  precisaoLabel,
   className = "",
 }: ViewerProps) {
   const center: [number, number] = [latitude, longitude];
@@ -73,11 +75,20 @@ export function MapViewer({
         <Marker position={center} />
         <Recenter center={center} zoom={16} />
       </MapContainer>
-      {label ? (
-        <p className="border-t border-border bg-panel-soft px-3 py-2 text-xs text-muted">
-          {label} · {latitude.toFixed(6)}, {longitude.toFixed(6)}
-        </p>
-      ) : null}
+      <div className="space-y-0.5 border-t border-border bg-panel-soft px-3 py-2 text-xs text-muted">
+        {label ? (
+          <p>
+            {label} · {latitude.toFixed(6)}, {longitude.toFixed(6)}
+          </p>
+        ) : (
+          <p>
+            {latitude.toFixed(6)}, {longitude.toFixed(6)}
+          </p>
+        )}
+        {precisaoLabel ? (
+          <p className="text-muted-strong">{precisaoLabel}</p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -86,6 +97,7 @@ type PickerProps = {
   latitude: number | null;
   longitude: number | null;
   onChange: (lat: number, lng: number) => void;
+  precisaoLabel?: string | null;
   className?: string;
 };
 
@@ -93,6 +105,7 @@ export function MapPicker({
   latitude,
   longitude,
   onChange,
+  precisaoLabel,
   className = "",
 }: PickerProps) {
   const hasPoint =
@@ -118,13 +131,30 @@ export function MapPicker({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {hasPoint ? <Marker position={[latitude, longitude]} /> : null}
+        {hasPoint ? (
+          <Marker
+            position={[latitude, longitude]}
+            draggable
+            eventHandlers={{
+              dragend(e) {
+                const { lat, lng } = e.target.getLatLng();
+                onChange(lat, lng);
+              },
+            }}
+          />
+        ) : null}
         <ClickHandler onPick={onChange} />
         <Recenter center={center} zoom={zoom} />
       </MapContainer>
-      <p className="border-t border-border bg-panel-soft px-3 py-2 text-xs text-muted">
-        Clique no mapa para posicionar o marcador e preencher latitude/longitude.
-      </p>
+      <div className="space-y-0.5 border-t border-border bg-panel-soft px-3 py-2 text-xs text-muted">
+        {precisaoLabel ? (
+          <p className="text-muted-strong">{precisaoLabel}</p>
+        ) : null}
+        <p>
+          Arraste o marcador ou clique no mapa para posicionar e preencher
+          latitude/longitude.
+        </p>
+      </div>
     </div>
   );
 }

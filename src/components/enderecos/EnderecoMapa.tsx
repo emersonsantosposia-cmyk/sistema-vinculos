@@ -1,14 +1,24 @@
 "use client";
 
 import { MapViewer } from "@/components/maps/MapComponents";
+import { labelGeocodePrecisao } from "@/lib/geocode";
+import type { GeocodePrecisao } from "@/lib/types";
 
 type Props = {
   latitude?: number | null;
   longitude?: number | null;
   label?: string | null;
+  coordenadasAjustadasManualmente?: boolean;
+  geocodePrecisao?: GeocodePrecisao | null;
 };
 
-export function EnderecoMapa({ latitude, longitude, label }: Props) {
+export function EnderecoMapa({
+  latitude,
+  longitude,
+  label,
+  coordenadasAjustadasManualmente = false,
+  geocodePrecisao = null,
+}: Props) {
   const lat =
     typeof latitude === "number"
       ? latitude
@@ -37,5 +47,17 @@ export function EnderecoMapa({ latitude, longitude, label }: Props) {
     );
   }
 
-  return <MapViewer latitude={lat} longitude={lng} label={label} />;
+  const precisaoLabel = labelGeocodePrecisao(
+    geocodePrecisao,
+    coordenadasAjustadasManualmente,
+  );
+
+  return (
+    <MapViewer
+      latitude={lat}
+      longitude={lng}
+      label={label}
+      precisaoLabel={precisaoLabel}
+    />
+  );
 }

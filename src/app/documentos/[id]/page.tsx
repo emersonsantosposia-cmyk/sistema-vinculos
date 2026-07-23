@@ -5,6 +5,7 @@ import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { DocumentoDeleteButton } from "@/components/shared/EntityDeletes";
 import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
+import { EnderecosMapaPanel } from "@/components/shared/EnderecosMapaPanel";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatDate, labelDocumentoTipo } from "@/lib/format";
@@ -128,10 +129,16 @@ export default async function DocumentoDetailPage({ params }: Props) {
           </Panel>
         }
         extras={
-          <VinculosDiagramPanel
-            entidadeTipo="documento"
-            entidadeId={documento.id}
-          />
+          <div className="space-y-3">
+            <VinculosDiagramPanel
+              entidadeTipo="documento"
+              entidadeId={documento.id}
+            />
+            <EnderecosMapaPanel
+              raizTipo="documento"
+              raizId={documento.id}
+            />
+          </div>
         }
         observacoes={
           <Panel title="Observações">

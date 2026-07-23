@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { emptyToNull, friendlyError } from "@/lib/supabase/errors";
 import type { Endereco } from "@/lib/types";
 
+import type { GeocodePrecisao } from "@/lib/types";
+
 export type EnderecoInput = {
   nome?: string | null;
   logradouro?: string | null;
@@ -16,6 +18,8 @@ export type EnderecoInput = {
   cep?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  coordenadas_ajustadas_manualmente?: boolean;
+  geocode_precisao?: GeocodePrecisao | null;
 };
 
 export async function createEndereco(
@@ -38,6 +42,9 @@ export async function createEndereco(
       cep: emptyToNull(input.cep?.replace(/\D/g, "")),
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
+      coordenadas_ajustadas_manualmente:
+        input.coordenadas_ajustadas_manualmente ?? false,
+      geocode_precisao: input.geocode_precisao ?? null,
       foto_url: null,
       usuario_cadastro: auth.user.id,
       data_cadastro: new Date().toISOString(),
@@ -76,6 +83,13 @@ export async function updateEndereco(
   }
   if (input.latitude !== undefined) payload.latitude = input.latitude;
   if (input.longitude !== undefined) payload.longitude = input.longitude;
+  if (input.coordenadas_ajustadas_manualmente !== undefined) {
+    payload.coordenadas_ajustadas_manualmente =
+      input.coordenadas_ajustadas_manualmente;
+  }
+  if (input.geocode_precisao !== undefined) {
+    payload.geocode_precisao = input.geocode_precisao;
+  }
   if (input.foto_url !== undefined) payload.foto_url = input.foto_url;
 
   const { data, error } = await supabase

@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, FormActions, Input, Label, Select } from "@/components/ui/Form";
 import { MapPicker } from "@/components/maps/MapComponents";
-import { geocodeEndereco } from "@/lib/geocode";
+import {
+  geocodeEndereco,
+  labelGeocodePrecisao,
+} from "@/lib/geocode";
 import { maskCepInput, UFS } from "@/lib/format";
 import {
   createEndereco,
@@ -13,7 +16,7 @@ import {
 } from "@/lib/supabase/enderecos";
 import { useSignedStorageUrl } from "@/lib/supabase/storage-urls";
 import { fetchViaCep } from "@/lib/viacep";
-import type { Endereco } from "@/lib/types";
+import type { Endereco, GeocodePrecisao } from "@/lib/types";
 
 function parseCoord(value: string): number | null {
   const trimmed = value.trim().replace(",", ".");
@@ -56,6 +59,12 @@ export function EnderecoForm({ initial }: Props) {
   const [longitude, setLongitude] = useState(
     initial?.longitude != null ? String(initial.longitude) : "",
   );
+  const [coordsManuais, setCoordsManuais] = useState(
+    initial?.coordenadas_ajustadas_manualmente ?? false,
+  );
+  const [geocodePrecisao, setGeocodePrecisao] = useState<GeocodePrecisao | null>(
+    initial?.geocode_precisao ?? null,
+  );
   const [foto, setFoto] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
 
@@ -74,6 +83,26 @@ export function EnderecoForm({ initial }: Props) {
 
   const latNum = parseCoord(latitude);
   const lngNum = parseCoord(longitude);
+  const precisaoLabel = labelGeocodePrecisao(geocodePrecisao, coordsManuais);
+
+  function markCoordsManual(lat: number, lng: number) {
+    setLatitude(lat.toFixed(6));
+    setLongitude(lng.toFixed(6));
+    setCoordsManuais(true);
+    setGeocodePrecisao(null);
+    setGeoHint("Posição ajustada manualmente no mapa.");
+  }
+
+  function handleCoordTyped(
+    field: "latitude" | "longitude",
+    value: string,
+  ) {
+    if (field === "latitude") setLatitude(value);
+    else setLongitude(value);
+    // Qualquer edição direta nos campos marca como ajuste manual.
+    setCoordsManuais(true);
+    setGeocodePrecisao(null);
+  }
 
   async function lookupCep(raw: string) {
     const digits = raw.replace(/\D/g, "");
@@ -115,14 +144,43 @@ export function EnderecoForm({ initial }: Props) {
     showHint?: boolean;
     /** Botão explícito: sempre consulta de novo. Submit: só se faltar coord. */
     force?: boolean;
-  }): Promise<{ lat: number | null; lng: number | null }> {
+  }): Promise<{
+    lat: number | null;
+    lng: number | null;
+    precisao: GeocodePrecisao | null;
+    manuais: boolean;
+  }> {
     const showHint = options?.showHint ?? true;
     const force = options?.force ?? false;
 
     const existingLat = parseCoord(latitude);
     const existingLng = parseCoord(longitude);
     if (!force && existingLat != null && existingLng != null) {
-      return { lat: existingLat, lng: existingLng };
+      return {
+        lat: existingLat,
+        lng: existingLng,
+        precisao: geocodePrecisao,
+        manuais: coordsManuais,
+      };
+    }
+
+    if (
+      force &&
+      coordsManuais &&
+      existingLat != null &&
+      existingLng != null
+    ) {
+      const ok = window.confirm(
+        "As coordenadas atuais foram ajustadas manualmente. Obter novas coordenadas do endereço substituirá esse ajuste. Continuar?",
+      );
+      if (!ok) {
+        return {
+          lat: existingLat,
+          lng: existingLng,
+          precisao: geocodePrecisao,
+          manuais: true,
+        };
+      }
     }
 
     const hasAddress =
@@ -135,7 +193,7 @@ export function EnderecoForm({ initial }: Props) {
           "Informe logradouro/cidade/CEP antes de obter as coordenadas.",
         );
       }
-      return { lat: null, lng: null };
+      return { lat: null, lng: null, precisao: null, manuais: coordsManuais };
     }
 
     setGeoLoading(true);
@@ -157,17 +215,25 @@ export function EnderecoForm({ initial }: Props) {
             "Não foi possível localizar as coordenadas deste endereço automaticamente; você pode ajustar manualmente.",
         );
       }
-      return { lat: null, lng: null };
+      return { lat: null, lng: null, precisao: null, manuais: coordsManuais };
     }
 
     setLatitude(data.latitude.toFixed(6));
     setLongitude(data.longitude.toFixed(6));
+    setCoordsManuais(false);
+    setGeocodePrecisao(data.precisao);
     if (showHint) {
+      const label = labelGeocodePrecisao(data.precisao) ?? "";
       setGeoHint(
-        `Coordenadas preenchidas: ${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}`,
+        `Coordenadas preenchidas: ${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}. ${label}`,
       );
     }
-    return { lat: data.latitude, lng: data.longitude };
+    return {
+      lat: data.latitude,
+      lng: data.longitude,
+      precisao: data.precisao,
+      manuais: false,
+    };
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -178,15 +244,20 @@ export function EnderecoForm({ initial }: Props) {
 
       let lat = parseCoord(latitude);
       let lng = parseCoord(longitude);
+      let manuais = coordsManuais;
+      let precisao = geocodePrecisao;
 
       if (
         (lat == null || lng == null) &&
+        !manuais &&
         (logradouro.trim() || cidade.trim() || cep.replace(/\D/g, ""))
       ) {
         setStatus("Geocodificando endereço…");
         const geo = await geocodeNow({ showHint: true, force: false });
         lat = geo.lat;
         lng = geo.lng;
+        manuais = geo.manuais;
+        precisao = geo.precisao;
       }
 
       if (latitude.trim() && lat === null) {
@@ -213,6 +284,8 @@ export function EnderecoForm({ initial }: Props) {
         cep,
         latitude: lat,
         longitude: lng,
+        coordenadas_ajustadas_manualmente: manuais,
+        geocode_precisao: manuais ? null : precisao,
       };
 
       const { data, error: saveError } = isEdit
@@ -377,7 +450,7 @@ export function EnderecoForm({ initial }: Props) {
             <Input
               id="latitude"
               value={latitude}
-              onChange={(e) => setLatitude(e.target.value)}
+              onChange={(e) => handleCoordTyped("latitude", e.target.value)}
               placeholder="Ex.: -20.469700"
               inputMode="decimal"
               disabled={pending}
@@ -389,7 +462,7 @@ export function EnderecoForm({ initial }: Props) {
             <Input
               id="longitude"
               value={longitude}
-              onChange={(e) => setLongitude(e.target.value)}
+              onChange={(e) => handleCoordTyped("longitude", e.target.value)}
               placeholder="Ex.: -54.620100"
               inputMode="decimal"
               disabled={pending}
@@ -424,11 +497,8 @@ export function EnderecoForm({ initial }: Props) {
             <MapPicker
               latitude={latNum}
               longitude={lngNum}
-              onChange={(lat, lng) => {
-                setLatitude(lat.toFixed(6));
-                setLongitude(lng.toFixed(6));
-                setGeoHint("Posição ajustada pelo clique no mapa.");
-              }}
+              precisaoLabel={precisaoLabel}
+              onChange={markCoordsManual}
             />
           </div>
 

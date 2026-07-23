@@ -30,6 +30,7 @@ export function MapViewer(props: {
   latitude: number;
   longitude: number;
   label?: string | null;
+  precisaoLabel?: string | null;
   className?: string;
 }) {
   return <MapViewerInner {...props} />;
@@ -39,6 +40,7 @@ export function MapPicker(props: {
   latitude: number | null;
   longitude: number | null;
   onChange: (lat: number, lng: number) => void;
+  precisaoLabel?: string | null;
   className?: string;
 }) {
   return <MapPickerInner {...props} />;

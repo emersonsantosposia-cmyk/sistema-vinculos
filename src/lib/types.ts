@@ -77,6 +77,8 @@ export type Empresa = {
   data_cadastro: string;
 };
 
+export type GeocodePrecisao = "exata" | "rua" | "bairro_cidade";
+
 export type Endereco = {
   id: string;
   nome: string | null;
@@ -89,6 +91,10 @@ export type Endereco = {
   cep: string | null;
   latitude: number | null;
   longitude: number | null;
+  /** True quando lat/lng foram definidos/ajustados manualmente. */
+  coordenadas_ajustadas_manualmente: boolean;
+  /** Precisão do último geocode automático; nulo se manual ou nunca geocodificado. */
+  geocode_precisao: GeocodePrecisao | null;
   foto_url: string | null;
   usuario_cadastro: string | null;
   data_cadastro: string;

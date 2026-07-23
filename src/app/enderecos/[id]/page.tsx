@@ -116,6 +116,10 @@ export default async function EnderecoDetailPage({ params }: Props) {
                 latitude={endereco.latitude}
                 longitude={endereco.longitude}
                 label={titulo}
+                coordenadasAjustadasManualmente={
+                  endereco.coordenadas_ajustadas_manualmente
+                }
+                geocodePrecisao={endereco.geocode_precisao}
               />
             </Panel>
             <VinculosDiagramPanel entidadeTipo="endereco" entidadeId={endereco.id} />

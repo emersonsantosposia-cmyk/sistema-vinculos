@@ -5,6 +5,7 @@ import { CadastroMeta } from "@/components/shared/CadastroMeta";
 import { CasoDeleteButton } from "@/components/shared/EntityDeletes";
 import { EntidadeDetailLayout } from "@/components/shared/EntidadeDetailLayout";
 import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
+import { EnderecosMapaPanel } from "@/components/shared/EnderecosMapaPanel";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { formatDate, labelCasoStatus } from "@/lib/format";
@@ -136,7 +137,10 @@ export default async function CasoDetailPage({ params }: Props) {
           </Panel>
         }
         extras={
-          <VinculosDiagramPanel entidadeTipo="caso" entidadeId={caso.id} />
+          <div className="space-y-3">
+            <VinculosDiagramPanel entidadeTipo="caso" entidadeId={caso.id} />
+            <EnderecosMapaPanel raizTipo="caso" raizId={caso.id} />
+          </div>
         }
         observacoes={
           <Panel title="Observações">
