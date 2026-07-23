@@ -40,6 +40,7 @@ import { ENTIDADE_TIPOS, type EntidadeTipo } from "@/lib/types";
 import {
   formatTipoVinculoLabel,
   inversoSugeridoDeTermo,
+  rotuloTipoVinculoDoCard,
   termosDiretosUnicos,
   termosInversosUnicos,
 } from "@/lib/vinculos-format";
@@ -132,6 +133,7 @@ function VinculoCardBox({
   /** Grade compacta desktop: só avatar + nome. */
   variant?: "default" | "compact";
 }) {
+  const { entidadeTipo: paginaTipo } = useVinculosContext();
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const isPessoa = card.outroTipo === "pessoa";
@@ -144,15 +146,10 @@ function VinculoCardBox({
     (card.outroTipo === "veiculo" || card.outroTipo === "endereco") &&
     Boolean(card.subtitulo);
   /**
-   * Na grade compacta (foto + nome do vinculado), o rótulo descreve a
-   * pessoa do card em relação à da página — não o papel da página.
-   * Demais seções mantêm tipo_perspectiva (papel da entidade aberta).
+   * Pessoa: papel da pessoa, exceto em endereço/empresa (papel da entidade
+   * da página: Residência de, Local de trabalho de, Pertence a, …).
    */
-  const tipoParaRotulo = isCompact
-    ? card.is_origem
-      ? card.tipo_b_para_a
-      : card.tipo_a_para_b
-    : card.tipo_perspectiva;
+  const tipoParaRotulo = rotuloTipoVinculoDoCard(card, paginaTipo);
   const tipoLabel = formatTipoVinculoLabel(tipoParaRotulo);
   const entidadeHref = `${ENTIDADE_HREFS[card.outroTipo]}/${card.outroId}`;
   const entidadeTipoLabel = ENTIDADE_LABELS[card.outroTipo];
@@ -453,6 +450,9 @@ function VinculoDetalheModal({
   card: VinculoCard;
   onClose: () => void;
 }) {
+  const { entidadeTipo: paginaTipo } = useVinculosContext();
+  const rotulo = rotuloTipoVinculoDoCard(card, paginaTipo);
+
   return (
     <ModalShell
       title="Detalhes do vínculo"
@@ -478,9 +478,7 @@ function VinculoDetalheModal({
       <p className="text-sm text-foreground">{card.titulo}</p>
       <p className="mt-0.5 text-xs text-muted">
         {ENTIDADE_LABELS[card.outroTipo]}
-        {card.tipo_perspectiva
-          ? ` · ${formatTipoVinculoLabel(card.tipo_perspectiva)}`
-          : ""}
+        {rotulo ? ` · ${formatTipoVinculoLabel(rotulo)}` : ""}
       </p>
 
       <dl className="mt-4 space-y-3 border-t border-border pt-3">
@@ -527,6 +525,8 @@ function VinculoDetalheModal({
 }
 
 type VinculosContextValue = {
+  /** Tipo da entidade da página aberta (não confundir com destinoTipo do form). */
+  entidadeTipo: EntidadeTipo;
   loading: boolean;
   error: string | null;
   pending: boolean;
@@ -1014,6 +1014,7 @@ export function VinculosProvider({
   }
 
   const value: VinculosContextValue = {
+    entidadeTipo,
     loading,
     error,
     pending,
