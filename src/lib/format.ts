@@ -119,6 +119,17 @@ export function isUF(value: string): value is UF {
   return (UFS as readonly string[]).includes(value);
 }
 
+/** Linha principal de identificação: logradouro + número. */
+export function formatEnderecoTitulo(endereco: {
+  logradouro?: string | null;
+  numero?: string | null;
+}): string {
+  const line = [endereco.logradouro, endereco.numero]
+    .filter(Boolean)
+    .join(", ");
+  return line || "Endereço sem logradouro";
+}
+
 export function formatEnderecoResumo(endereco: {
   logradouro?: string | null;
   numero?: string | null;

@@ -1,5 +1,6 @@
 "use client";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/supabase/errors";
@@ -98,12 +99,12 @@ export async function searchEntidades(
       case "endereco": {
         let query = supabase
           .from("enderecos")
-          .select("id, nome, logradouro, numero, cidade, estado, cep, foto_url")
+          .select("id, tipo, logradouro, numero, cidade, estado, cep, foto_url")
           .order("data_cadastro", { ascending: false })
           .limit(limit);
         if (term) {
           query = query.or(
-            `nome.ilike.%${term}%,logradouro.ilike.%${term}%,cidade.ilike.%${term}%,cep.ilike.%${term}%`,
+            `tipo.ilike.%${term}%,logradouro.ilike.%${term}%,cidade.ilike.%${term}%,cep.ilike.%${term}%`,
           );
         }
         const { data, error } = await query;
@@ -112,15 +113,14 @@ export async function searchEntidades(
           data: (data ?? []).map((row) => ({
             id: row.id,
             titulo: pickTitle(
-              row.nome,
-              [row.logradouro, row.cidade].filter(Boolean).join(", "),
+              [row.logradouro, row.numero].filter(Boolean).join(", "),
             ),
             subtitulo: [
-              [row.logradouro, row.numero].filter(Boolean).join(", "),
+              row.tipo,
               [row.cidade, row.estado].filter(Boolean).join(" · "),
             ]
               .filter(Boolean)
-              .join(", "),
+              .join(" · "),
             foto_url: row.foto_url,
           })),
           error: null,
@@ -267,6 +267,7 @@ type ResumoRef = { tipo: EntidadeTipo; id: string };
  */
 export async function getEntidadesResumoBatch(
   refs: ResumoRef[],
+  client?: SupabaseClient,
 ): Promise<Map<string, EntidadeOpcao>> {
   const result = new Map<string, EntidadeOpcao>();
   if (refs.length === 0) return result;
@@ -282,7 +283,7 @@ export async function getEntidadesResumoBatch(
     set.add(ref.id);
   }
 
-  const supabase = createClient();
+  const supabase = client ?? createClient();
 
   await Promise.all(
     [...byTipo.entries()].map(async ([tipo, idSet]) => {
@@ -328,21 +329,20 @@ export async function getEntidadesResumoBatch(
         case "endereco": {
           const { data } = await supabase
             .from("enderecos")
-            .select("id, nome, logradouro, numero, cidade, estado, foto_url")
+            .select("id, tipo, logradouro, numero, cidade, estado, foto_url")
             .in("id", ids);
           for (const row of data ?? []) {
             result.set(resumoKey(tipo, row.id), {
               id: row.id,
               titulo: pickTitle(
-                row.nome,
-                [row.logradouro, row.cidade].filter(Boolean).join(", "),
+                [row.logradouro, row.numero].filter(Boolean).join(", "),
               ),
               subtitulo: [
-                [row.logradouro, row.numero].filter(Boolean).join(", "),
+                row.tipo,
                 [row.cidade, row.estado].filter(Boolean).join(" · "),
               ]
                 .filter(Boolean)
-                .join(", "),
+                .join(" · "),
               foto_url: row.foto_url,
             });
           }

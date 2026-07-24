@@ -1,8 +1,8 @@
 export const PESSOA_TIPOS = [
   { value: "ppf", label: "PPF" },
-  { value: "terceirizado", label: "Terceirizado" },
+  { value: "terceirizado", label: "Terceirizado(a)" },
   { value: "preso", label: "Preso" },
-  { value: "advogado", label: "Advogado" },
+  { value: "advogado", label: "Advogado(a)" },
   { value: "visitante", label: "Visitante" },
   {
     value: "agente_publico_outros_orgaos",
@@ -79,9 +79,23 @@ export type Empresa = {
 
 export type GeocodePrecisao = "exata" | "rua" | "bairro_cidade";
 
+/** Sugestões do combobox híbrido de tipo de endereço (texto livre permitido). */
+export const ENDERECO_TIPOS_SUGERIDOS = [
+  "Casa",
+  "Casa condomínio",
+  "Apartamento",
+  "Empresa",
+  "Órgão público",
+  "Área rural",
+  "Outros",
+] as const;
+
+export type EnderecoTipoSugerido = (typeof ENDERECO_TIPOS_SUGERIDOS)[number];
+
 export type Endereco = {
   id: string;
-  nome: string | null;
+  /** Tipo do endereço (texto livre; UI sugere valores comuns). */
+  tipo: string | null;
   logradouro: string | null;
   numero: string | null;
   bairro: string | null;

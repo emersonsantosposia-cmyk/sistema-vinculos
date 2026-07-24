@@ -8,7 +8,7 @@ import type { Endereco } from "@/lib/types";
 import type { GeocodePrecisao } from "@/lib/types";
 
 export type EnderecoInput = {
-  nome?: string | null;
+  tipo?: string | null;
   logradouro?: string | null;
   numero?: string | null;
   bairro?: string | null;
@@ -32,7 +32,7 @@ export async function createEndereco(
   const { data, error } = await supabase
     .from("enderecos")
     .insert({
-      nome: emptyToNull(input.nome),
+      tipo: emptyToNull(input.tipo),
       logradouro: emptyToNull(input.logradouro),
       numero: emptyToNull(input.numero),
       bairro: emptyToNull(input.bairro),
@@ -67,7 +67,7 @@ export async function updateEndereco(
 ): Promise<{ data: Endereco | null; error: string | null }> {
   const supabase = createClient();
   const payload: Record<string, unknown> = {};
-  if (input.nome !== undefined) payload.nome = emptyToNull(input.nome);
+  if (input.tipo !== undefined) payload.tipo = emptyToNull(input.tipo);
   if (input.logradouro !== undefined) {
     payload.logradouro = emptyToNull(input.logradouro);
   }

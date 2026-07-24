@@ -437,12 +437,14 @@ async function seedEnderecos(
   const rows = Array.from({ length: COUNT }, () => {
     const { latitude, longitude } = brazilLatLng();
     return {
-      nome: withPrefix(faker.helpers.arrayElement([
-        "Residência",
-        "Sede",
-        "Galpão",
-        "Escritório",
-        "Ponto de encontro",
+      tipo: withPrefix(faker.helpers.arrayElement([
+        "Casa",
+        "Casa condomínio",
+        "Apartamento",
+        "Empresa",
+        "Órgão público",
+        "Área rural",
+        "Outros",
       ])),
       logradouro: faker.location.street(),
       numero: String(faker.number.int({ min: 1, max: 9999 })),

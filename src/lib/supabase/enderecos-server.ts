@@ -42,7 +42,7 @@ export async function listEnderecos(filters: {
     const term = filters.q.trim().replace(/[%_,]/g, "");
     if (term) {
       query = query.or(
-        `nome.ilike.%${term}%,logradouro.ilike.%${term}%,cidade.ilike.%${term}%,bairro.ilike.%${term}%,cep.ilike.%${term}%`,
+        `tipo.ilike.%${term}%,logradouro.ilike.%${term}%,cidade.ilike.%${term}%,bairro.ilike.%${term}%,cep.ilike.%${term}%`,
       );
     }
   }

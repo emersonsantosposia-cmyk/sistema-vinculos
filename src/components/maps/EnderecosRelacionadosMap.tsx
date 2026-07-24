@@ -16,6 +16,7 @@ import { fixLeafletIcons } from "@/lib/leaflet-icons";
 import {
   categoriaMarcador,
   descreverCaminhos,
+  linksDoCaminho,
   MARCADOR_CORES,
   type EnderecoMapaItem,
 } from "@/lib/supabase/enderecos-mapa";
@@ -179,6 +180,9 @@ export function EnderecosRelacionadosMapInner({
                     <p className="font-semibold text-foreground">
                       {item.titulo}
                     </p>
+                    {item.tipo ? (
+                      <p className="text-xs text-muted">{item.tipo}</p>
+                    ) : null}
                     {caminhos.map((texto, idx) => (
                       <p key={idx} className="text-xs leading-snug text-muted">
                         {texto}
@@ -191,17 +195,15 @@ export function EnderecosRelacionadosMapInner({
                       >
                         Abrir endereço
                       </a>
-                      {item.caminhos
-                        .filter((c) => c.intermediario)
-                        .map((c) => (
-                          <a
-                            key={`${c.intermediario!.tipo}-${c.intermediario!.id}`}
-                            href={c.intermediario!.href}
-                            className="text-xs font-medium text-[var(--cor-destaque-dourado)] underline-offset-2 hover:underline"
-                          >
-                            Abrir {c.intermediario!.titulo}
-                          </a>
-                        ))}
+                      {linksDoCaminho(item).map((link) => (
+                        <a
+                          key={link.key}
+                          href={link.href}
+                          className="text-xs font-medium text-[var(--cor-destaque-dourado)] underline-offset-2 hover:underline"
+                        >
+                          Abrir {link.label}
+                        </a>
+                      ))}
                     </div>
                     {selected && ferramenta !== "navegar" ? (
                       <p className="text-[11px] text-muted-strong">

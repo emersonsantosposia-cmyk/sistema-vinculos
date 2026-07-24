@@ -19,7 +19,12 @@ import {
 import { ListPagination } from "@/components/shared/ListPagination";
 import { MobileSortBar, SortableTh } from "@/components/shared/ListSort";
 import { Button, Input } from "@/components/ui/Form";
-import { formatCep, formatDate, formatEnderecoResumo } from "@/lib/format";
+import {
+  formatCep,
+  formatDate,
+  formatEnderecoResumo,
+  formatEnderecoTitulo,
+} from "@/lib/format";
 import {
   buildListFilterParams,
   ENTITY_SORT_COLUMNS,
@@ -63,7 +68,7 @@ export function EnderecosFilters({ total }: FiltersProps) {
           Buscar
         </label>
         <Input
-          placeholder="Nome, logradouro, cidade, bairro ou CEP…"
+          placeholder="Tipo, logradouro, cidade, bairro ou CEP…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -109,14 +114,17 @@ export function EnderecosTable({
         />
       }
       cards={rows.map((endereco) => {
-        const titulo =
-          endereco.nome ||
-          formatEnderecoResumo(endereco).split(" — ")[0] ||
-          "Sem nome";
+        const titulo = formatEnderecoTitulo(endereco);
         return (
           <ListCardLink key={endereco.id} href={`/enderecos/${endereco.id}`}>
             <ListCardTitle>{titulo}</ListCardTitle>
             <ListCardMeta>
+              {endereco.tipo ? (
+                <>
+                  <span>{endereco.tipo}</span>
+                  <ListCardMetaSep />
+                </>
+              ) : null}
               <span className="line-clamp-2">
                 {formatEnderecoResumo(endereco)}
               </span>
@@ -133,15 +141,15 @@ export function EnderecosTable({
           <thead>
             <tr className="border-b border-border bg-panel-soft text-xs font-bold tracking-[0.14em] text-gold uppercase">
               <SortableTh
-                sortKey="nome"
-                label="Nome"
+                sortKey="logradouro"
+                label="Endereço"
                 activeSort={sort}
                 activeDir={dir}
                 basePath={BASE}
               />
               <SortableTh
-                sortKey="logradouro"
-                label="Endereço"
+                sortKey="tipo"
+                label="Tipo"
                 activeSort={sort}
                 activeDir={dir}
                 basePath={BASE}
@@ -176,18 +184,23 @@ export function EnderecosTable({
                 key={endereco.id}
                 className="border-b border-border last:border-b-0 hover:bg-panel-hover"
               >
-                <td className="px-3 py-2">
+                <td className="max-w-[320px] px-3 py-2">
                   <Link
                     href={`/enderecos/${endereco.id}`}
                     className="font-medium text-foreground hover:underline"
                   >
-                    {endereco.nome ||
-                      formatEnderecoResumo(endereco).split(" — ")[0] ||
-                      "Sem nome"}
+                    {formatEnderecoTitulo(endereco)}
                   </Link>
+                  {endereco.bairro || endereco.cidade ? (
+                    <p className="mt-0.5 truncate text-xs text-muted">
+                      {[endereco.bairro, endereco.cidade, endereco.estado]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  ) : null}
                 </td>
-                <td className="max-w-[280px] truncate px-3 py-2 text-muted-strong">
-                  {formatEnderecoResumo(endereco)}
+                <td className="px-3 py-2 text-muted-strong">
+                  {endereco.tipo || "—"}
                 </td>
                 <td className="px-3 py-2 font-mono text-xs text-muted-strong">
                   {formatCep(endereco.cep)}

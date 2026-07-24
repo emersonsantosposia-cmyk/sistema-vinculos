@@ -37,7 +37,7 @@ async function main() {
   const { data: created, error: insErr } = await supabase
     .from("enderecos")
     .insert({
-      nome: "[TMP] validação coords",
+      tipo: "[TMP] validação coords",
       logradouro: "Avenida Afonso Pena",
       numero: "2374",
       cidade: "Campo Grande",

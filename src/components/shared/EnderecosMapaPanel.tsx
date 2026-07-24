@@ -480,8 +480,23 @@ export function EnderecosMapaPanel({ raizTipo, raizId }: Props) {
 
 function resumoEntidades(item: EnderecoMapaItem): string {
   if (item.caminhos.some((c) => c.modo === "direto")) return "direto";
-  const nomes = item.caminhos
-    .map((c) => c.intermediario?.titulo)
-    .filter(Boolean);
+  const nomes: string[] = [];
+  const seen = new Set<string>();
+  for (const c of item.caminhos) {
+    if (c.viaDocumento) {
+      const key = `doc:${c.viaDocumento.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        nomes.push(c.viaDocumento.titulo);
+      }
+    }
+    if (c.intermediario) {
+      const key = `${c.intermediario.tipo}:${c.intermediario.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        nomes.push(c.intermediario.titulo);
+      }
+    }
+  }
   return nomes.length ? nomes.join(", ") : "—";
 }

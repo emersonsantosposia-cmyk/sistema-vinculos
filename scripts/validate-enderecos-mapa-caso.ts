@@ -1,23 +1,35 @@
 /**
- * Valida coleta em lote de endereços relacionados a caso/documento
- * e utilitários de proximidade (Haversine / pares / raio).
+ * Valida mapa de endereços do caso: órbita via documentos + salvaguarda RLS.
+ *
+ * Cenário:
+ *   - Caso PFCG vinculado a doc PFCG e doc CGIN
+ *   - Pessoa com endereço exclusivo ligada só ao doc CGIN
+ *   - Analista CGIN vê o endereço; analista PFCG não (nem menção ao doc CGIN)
  *
  * Uso:
  *   npx tsx --env-file=.env.local scripts/validate-enderecos-mapa-caso.ts
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import { TEST_PREFIX } from "./seed-shared";
+import {
+  categoriaMarcador,
+  coletarEnderecosRelacionados,
+  descreverCaminhos,
+  linksDoCaminho,
+  type EnderecoMapaItem,
+} from "../src/lib/supabase/enderecos-mapa";
 import {
   formatDistancia,
   haversineMeters,
   paresProximos,
   pontosNoRaio,
 } from "../src/lib/geo";
-import {
-  categoriaMarcador,
-  descreverCaminhos,
-  type EnderecoMapaItem,
-} from "../src/lib/supabase/enderecos-mapa";
+
+const TEMP_PASSWORD = "Teste@123";
+const MARKER = `${TEST_PREFIX}MapaCaso-RLS`;
+const DOMAIN = "mapa-caso-rls-validate.rede-lince.test";
+const ENDERECO_SECRETO_NOME = `${MARKER} Endereço só via doc CGIN`;
 
 function requireEnv(name: string): string {
   const v = process.env[name]?.trim();
@@ -26,7 +38,101 @@ function requireEnv(name: string): string {
 }
 
 function assert(cond: unknown, msg: string) {
-  if (!cond) throw new Error(msg);
+  if (!cond) throw new Error(`FALHOU: ${msg}`);
+}
+
+async function ensureAnalista(
+  admin: SupabaseClient,
+  unidade: "CGIN" | "PFCG",
+): Promise<{ user: User; email: string }> {
+  const email = `mapa.${unidade.toLowerCase()}@${DOMAIN}`;
+  const suffix = unidade === "CGIN" ? "91" : "92";
+
+  const listed = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+  if (listed.error) throw new Error(listed.error.message);
+  let user = listed.data.users.find(
+    (u) => u.email?.toLowerCase() === email.toLowerCase(),
+  );
+
+  if (!user) {
+    const createdUser = await admin.auth.admin.createUser({
+      email,
+      password: TEMP_PASSWORD,
+      email_confirm: true,
+      user_metadata: { nome: `Mapa ${unidade}` },
+    });
+    if (createdUser.error || !createdUser.data.user) {
+      throw new Error(`createUser ${unidade}: ${createdUser.error?.message}`);
+    }
+    user = createdUser.data.user;
+  } else {
+    await admin.auth.admin.updateUserById(user.id, {
+      password: TEMP_PASSWORD,
+      email_confirm: true,
+    });
+  }
+
+  const { data: existingPerfil } = await admin
+    .from("perfis_usuario")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const perfilPayload = {
+    nome: `Mapa Analista ${unidade}`,
+    email,
+    role: "analista" as const,
+    unidade,
+    ativo: true,
+  };
+
+  if (existingPerfil) {
+    const { error } = await admin
+      .from("perfis_usuario")
+      .update(perfilPayload)
+      .eq("id", user.id);
+    if (error) throw new Error(`perfil update ${unidade}: ${error.message}`);
+  } else {
+    const { error } = await admin.from("perfis_usuario").insert({
+      id: user.id,
+      matricula: `9${suffix}0002`,
+      cpf: unidade === "CGIN" ? "88641577953" : "07584464670",
+      ...perfilPayload,
+    });
+    if (error) throw new Error(`perfil insert ${unidade}: ${error.message}`);
+  }
+
+  return { user, email };
+}
+
+async function signIn(
+  url: string,
+  anonKey: string,
+  email: string,
+): Promise<SupabaseClient> {
+  const client = createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error } = await client.auth.signInWithPassword({
+    email,
+    password: TEMP_PASSWORD,
+  });
+  if (error) throw new Error(`Login falhou (${email}): ${error.message}`);
+  return client;
+}
+
+function mencionaDocCgin(item: EnderecoMapaItem, docCginId: string, docCginNome: string): boolean {
+  const blob = [
+    ...descreverCaminhos(item, "Caso"),
+    ...linksDoCaminho(item).map((l) => `${l.href} ${l.label}`),
+    ...item.caminhos.flatMap((c) => [
+      c.viaDocumento?.id ?? "",
+      c.viaDocumento?.titulo ?? "",
+      c.intermediario?.id ?? "",
+      c.intermediario?.titulo ?? "",
+    ]),
+  ].join("\n");
+  return blob.includes(docCginId) || blob.includes(docCginNome);
 }
 
 async function main() {
@@ -54,89 +160,12 @@ async function main() {
     "c fora do raio",
   );
 
-  console.log("2) Buscando caso com vínculos no banco…");
-  const supabase = createClient(
-    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
-    { auth: { persistSession: false } },
-  );
-
-  // Encontra um caso que tenha pelo menos um vínculo
-  const { data: vinculosCaso, error: vErr } = await supabase
-    .from("vinculos")
-    .select(
-      "entidade_origem_tipo, entidade_origem_id, entidade_destino_tipo, entidade_destino_id",
-    )
-    .or("entidade_origem_tipo.eq.caso,entidade_destino_tipo.eq.caso")
-    .limit(50);
-  if (vErr) throw new Error(vErr.message);
-  if (!vinculosCaso?.length) {
-    console.log("  (nenhum vínculo de caso — pulando teste de integração)");
-    console.log("\n✓ validate-enderecos-mapa-caso OK (só geo unitário)");
-    return;
-  }
-
-  const casoId =
-    vinculosCaso.find((r) => r.entidade_origem_tipo === "caso")
-      ?.entidade_origem_id ??
-    vinculosCaso.find((r) => r.entidade_destino_tipo === "caso")
-      ?.entidade_destino_id;
-  assert(casoId, "casoId");
-
-  console.log(`  caso=${casoId}`);
-
-  // Replica a lógica de coleta via service role (mesmas queries em lote)
-  const { data: nivel1 } = await supabase
-    .from("vinculos")
-    .select("*")
-    .or(
-      `and(entidade_origem_tipo.eq.caso,entidade_origem_id.eq.${casoId}),and(entidade_destino_tipo.eq.caso,entidade_destino_id.eq.${casoId})`,
-    );
-
-  const pessoaIds = new Set<string>();
-  const enderecoDiretoIds = new Set<string>();
-  for (const row of nivel1 ?? []) {
-    const outroTipo =
-      row.entidade_origem_tipo === "caso" && row.entidade_origem_id === casoId
-        ? row.entidade_destino_tipo
-        : row.entidade_origem_tipo;
-    const outroId =
-      row.entidade_origem_tipo === "caso" && row.entidade_origem_id === casoId
-        ? row.entidade_destino_id
-        : row.entidade_origem_id;
-    if (outroTipo === "endereco") enderecoDiretoIds.add(outroId);
-    if (outroTipo === "pessoa") pessoaIds.add(outroId);
-  }
-
-  console.log(
-    `  nível1: ${nivel1?.length ?? 0} vínculos, ${pessoaIds.size} pessoas, ${enderecoDiretoIds.size} endereços diretos`,
-  );
-
-  if (pessoaIds.size > 0) {
-    const ids = [...pessoaIds];
-    const [o1, o2] = await Promise.all([
-      supabase
-        .from("vinculos")
-        .select("id")
-        .eq("entidade_origem_tipo", "pessoa")
-        .in("entidade_origem_id", ids),
-      supabase
-        .from("vinculos")
-        .select("id")
-        .eq("entidade_destino_tipo", "pessoa")
-        .in("entidade_destino_id", ids),
-    ]);
-    assert(!o1.error && !o2.error, "batch .in() pessoas deve funcionar");
-    console.log(
-      `  batch pessoas: ${(o1.data?.length ?? 0) + (o2.data?.length ?? 0)} vínculos (2 queries .in)`,
-    );
-  }
-
-  // Unitário: descrever caminho
-  const fake: EnderecoMapaItem = {
+  console.log("2) Unitário: múltiplos caminhos + via documento…");
+  const fakeMulti: EnderecoMapaItem = {
     enderecoId: "e1",
-    titulo: "Rua Teste",
+    titulo: "Rua Teste, 100",
     resumo: "Rua Teste, 100 — Centro · Campo Grande · MS",
+    tipo: "Casa",
     href: "/enderecos/e1",
     latitude: -20.47,
     longitude: -54.62,
@@ -153,14 +182,298 @@ async function main() {
           tipoDoEndereco: "Residência de",
         },
       },
+      {
+        modo: "via",
+        tipoVinculoRaiz: "anexo",
+        viaDocumento: {
+          id: "d1",
+          titulo: "RCI 001",
+          href: "/documentos/d1",
+          tipoVinculoDocEntidade: "menciona",
+        },
+        intermediario: {
+          tipo: "pessoa",
+          id: "p2",
+          titulo: "Maria Souza",
+          href: "/pessoas/p2",
+          tipoParaEndereco: "Reside em",
+          tipoDoEndereco: "Residência de",
+        },
+      },
     ],
   };
-  const desc = descreverCaminhos(fake, "Caso");
-  assert(desc[0]!.includes("João Silva"), "caminho menciona intermediário");
-  assert(desc[0]!.includes("Residência de"), "caminho usa papel do endereço");
-  assert(categoriaMarcador(fake) === "pessoa", "categoria via pessoa");
+  const desc = descreverCaminhos(fakeMulti, "Caso");
+  assert(desc.length === 2, "deve listar os dois caminhos");
+  assert(desc[0]!.includes("João Silva"), "caminho 1 menciona intermediário");
+  assert(desc[1]!.includes("Maria Souza"), "caminho 2 menciona pessoa");
+  assert(desc[1]!.includes("RCI 001"), "caminho 2 menciona documento");
+  assert(categoriaMarcador(fakeMulti) === "pessoa", "categoria via pessoa");
+  const links = linksDoCaminho(fakeMulti);
+  assert(
+    links.some((l) => l.href.includes("/documentos/d1")),
+    "popup deve linkar o documento",
+  );
+  assert(
+    links.some((l) => l.href.includes("/pessoas/p1")),
+    "popup deve linkar a pessoa do 1º caminho",
+  );
 
-  console.log("\n✓ validate-enderecos-mapa-caso OK");
+  const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const anonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const serviceKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+  const admin = createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  console.log("3) Garantir analistas CGIN / PFCG…");
+  const cginAcc = await ensureAnalista(admin, "CGIN");
+  const pfcgAcc = await ensureAnalista(admin, "PFCG");
+
+  const ids: {
+    caso?: string;
+    docPfcg?: string;
+    docCgin?: string;
+    pessoa?: string;
+    endereco?: string;
+    vinculos: string[];
+  } = { vinculos: [] };
+
+  try {
+    console.log("4) Montar cenário caso PFCG + docs PFCG/CGIN + endereço exclusivo…");
+
+    const { data: caso, error: casoErr } = await admin
+      .from("casos")
+      .insert({
+        unidade: "PFCG",
+        numero: "MAPA-RLS-001",
+        nome: `${MARKER} Caso PFCG`,
+        status: "em_andamento",
+        usuario_cadastro: pfcgAcc.user.id,
+      })
+      .select("id")
+      .single();
+    if (casoErr || !caso) throw new Error(`caso: ${casoErr?.message}`);
+    ids.caso = caso.id;
+
+    const { data: docPfcg, error: docPfcgErr } = await admin
+      .from("documentos")
+      .insert({
+        nome: `${MARKER} Doc PFCG`,
+        tipo: "RCI",
+        unidade: "PFCG",
+        usuario_cadastro: pfcgAcc.user.id,
+      })
+      .select("id, nome")
+      .single();
+    if (docPfcgErr || !docPfcg) {
+      throw new Error(`doc PFCG: ${docPfcgErr?.message}`);
+    }
+    ids.docPfcg = docPfcg.id;
+
+    const { data: docCgin, error: docCginErr } = await admin
+      .from("documentos")
+      .insert({
+        nome: `${MARKER} Doc secreto CGIN`,
+        tipo: "INFO",
+        unidade: "CGIN",
+        usuario_cadastro: cginAcc.user.id,
+      })
+      .select("id, nome")
+      .single();
+    if (docCginErr || !docCgin) {
+      throw new Error(`doc CGIN: ${docCginErr?.message}`);
+    }
+    ids.docCgin = docCgin.id;
+
+    const { data: pessoa, error: pessoaErr } = await admin
+      .from("pessoas")
+      .insert({
+        nome: `${MARKER} Pessoa só no doc CGIN`,
+        tipo: "ppf",
+        usuario_cadastro: cginAcc.user.id,
+      })
+      .select("id")
+      .single();
+    if (pessoaErr || !pessoa) throw new Error(`pessoa: ${pessoaErr?.message}`);
+    ids.pessoa = pessoa.id;
+
+    const { data: endereco, error: endErr } = await admin
+      .from("enderecos")
+      .insert({
+        tipo: ENDERECO_SECRETO_NOME,
+        logradouro: "Rua Exclusiva CGIN",
+        numero: "999",
+        bairro: "Centro",
+        cidade: "Campo Grande",
+        estado: "MS",
+        latitude: -20.46971,
+        longitude: -54.62011,
+        usuario_cadastro: cginAcc.user.id,
+      })
+      .select("id")
+      .single();
+    if (endErr || !endereco) throw new Error(`endereco: ${endErr?.message}`);
+    ids.endereco = endereco.id;
+
+    async function vincular(
+      origemTipo: string,
+      origemId: string,
+      destinoTipo: string,
+      destinoId: string,
+      aParaB: string,
+      bParaA: string,
+      userId: string,
+    ) {
+      const { data, error } = await admin
+        .from("vinculos")
+        .insert({
+          entidade_origem_tipo: origemTipo,
+          entidade_origem_id: origemId,
+          entidade_destino_tipo: destinoTipo,
+          entidade_destino_id: destinoId,
+          tipo_a_para_b: aParaB,
+          tipo_b_para_a: bParaA,
+          tipo_vinculo: aParaB,
+          usuario_cadastro: userId,
+        })
+        .select("id")
+        .single();
+      if (error || !data) throw new Error(`vinculo: ${error?.message}`);
+      ids.vinculos.push(data.id);
+    }
+
+    await vincular(
+      "caso",
+      caso.id,
+      "documento",
+      docPfcg.id,
+      "anexa",
+      "anexo de",
+      pfcgAcc.user.id,
+    );
+    await vincular(
+      "caso",
+      caso.id,
+      "documento",
+      docCgin.id,
+      "anexa",
+      "anexo de",
+      pfcgAcc.user.id,
+    );
+    await vincular(
+      "documento",
+      docCgin.id,
+      "pessoa",
+      pessoa.id,
+      "menciona",
+      "mencionado em",
+      cginAcc.user.id,
+    );
+    await vincular(
+      "pessoa",
+      pessoa.id,
+      "endereco",
+      endereco.id,
+      "Reside em",
+      "Residência de",
+      cginAcc.user.id,
+    );
+
+    console.log("5) Login analistas…");
+    const cgin = await signIn(url, anonKey, cginAcc.email);
+    const pfcg = await signIn(url, anonKey, pfcgAcc.email);
+
+    console.log("6) CGIN: endereço exclusivo deve aparecer (órbita via documento)…");
+    const { data: mapaCgin, error: errCgin } = await coletarEnderecosRelacionados(
+      "caso",
+      caso.id,
+      cgin,
+    );
+    assert(!errCgin && mapaCgin, `coleta CGIN: ${errCgin}`);
+    const hitCgin = [...mapaCgin!.comCoords, ...mapaCgin!.semCoords].find(
+      (i) => i.enderecoId === endereco.id,
+    );
+    assert(hitCgin, "CGIN deve ver o endereço exclusivo do doc CGIN");
+    assert(
+      hitCgin!.caminhos.some(
+        (c) =>
+          c.viaDocumento?.id === docCgin.id ||
+          c.intermediario?.id === pessoa.id,
+      ),
+      "caminho CGIN deve passar pelo doc/pessoa",
+    );
+    const textosCgin = descreverCaminhos(hitCgin!, "Caso");
+    assert(
+      textosCgin.some((t) => t.includes(docCgin.nome!)),
+      "popup CGIN deve mencionar o documento",
+    );
+    console.log("   OK  CGIN vê endereço + caminho via documento");
+
+    console.log("7) PFCG: endereço exclusivo NÃO aparece; sem menção ao doc CGIN…");
+    const { data: mapaPfcg, error: errPfcg } = await coletarEnderecosRelacionados(
+      "caso",
+      caso.id,
+      pfcg,
+    );
+    assert(!errPfcg && mapaPfcg, `coleta PFCG: ${errPfcg}`);
+    const todosPfcg = [...mapaPfcg!.comCoords, ...mapaPfcg!.semCoords];
+    assert(
+      !todosPfcg.some((i) => i.enderecoId === endereco.id),
+      "PFCG NÃO deve ver o endereço exclusivo",
+    );
+    assert(
+      !todosPfcg.some((i) => i.titulo.includes("Exclusiva CGIN")),
+      "PFCG NÃO deve listar o endereço por título",
+    );
+    for (const item of todosPfcg) {
+      assert(
+        !mencionaDocCgin(item, docCgin.id, docCgin.nome!),
+        "PFCG NÃO deve mencionar o documento CGIN em caminho/popup",
+      );
+    }
+
+    // Contagem: vínculo do doc CGIN ainda é legível, mas o mapa não o expande.
+    const { data: vincDoc } = await pfcg
+      .from("vinculos")
+      .select("id")
+      .or(
+        `and(entidade_origem_tipo.eq.caso,entidade_origem_id.eq.${caso.id},entidade_destino_tipo.eq.documento,entidade_destino_id.eq.${docCgin.id}),and(entidade_destino_tipo.eq.caso,entidade_destino_id.eq.${caso.id},entidade_origem_tipo.eq.documento,entidade_origem_id.eq.${docCgin.id})`,
+      )
+      .maybeSingle();
+    assert(vincDoc, "PFCG ainda lê a linha do vínculo (card restrito)");
+
+    const { data: docBloqueado } = await pfcg
+      .from("documentos")
+      .select("id")
+      .eq("id", docCgin.id)
+      .maybeSingle();
+    assert(!docBloqueado, "PFCG não lê o documento CGIN (RLS)");
+
+    console.log("   OK  salvaguarda: endereço e doc CGIN omitidos no mapa PFCG");
+
+    console.log("\n✓ validate-enderecos-mapa-caso OK");
+  } finally {
+    console.log("8) Limpeza…");
+    if (ids.vinculos.length) {
+      await admin.from("vinculos").delete().in("id", ids.vinculos);
+    }
+    if (ids.endereco) {
+      await admin.from("enderecos").delete().eq("id", ids.endereco);
+    }
+    if (ids.pessoa) {
+      await admin.from("pessoas").delete().eq("id", ids.pessoa);
+    }
+    if (ids.docCgin) {
+      await admin.from("documentos").delete().eq("id", ids.docCgin);
+    }
+    if (ids.docPfcg) {
+      await admin.from("documentos").delete().eq("id", ids.docPfcg);
+    }
+    if (ids.caso) {
+      await admin.from("casos").delete().eq("id", ids.caso);
+    }
+  }
 }
 
 main().catch((e: unknown) => {

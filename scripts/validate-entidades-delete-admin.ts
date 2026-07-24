@@ -156,7 +156,8 @@ async function insertSeed(
   const { data: endereco, error: enErr } = await admin
     .from("enderecos")
     .insert({
-      nome: `${MARKER} Endereco`,
+      tipo: `${MARKER} Endereco`,
+      logradouro: "Rua Delete Test",
       cidade: "Campo Grande",
       estado: "MS",
       usuario_cadastro: userId,

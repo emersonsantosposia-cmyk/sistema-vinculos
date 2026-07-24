@@ -27,7 +27,7 @@ const FIELDS: FieldSpec[] = [
   { table: "empresas", column: "razao_social" },
   { table: "empresas", column: "website" },
   // enderecos
-  { table: "enderecos", column: "nome" },
+  { table: "enderecos", column: "tipo" },
   { table: "enderecos", column: "logradouro" },
   { table: "enderecos", column: "complemento" },
   { table: "enderecos", column: "bairro" },

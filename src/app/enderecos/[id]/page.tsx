@@ -9,7 +9,7 @@ import { ObservacoesTimeline } from "@/components/shared/ObservacoesTimeline";
 import { VinculosDiagramPanel } from "@/components/shared/VinculosDiagramPanel";
 import { ErrorBanner, Panel } from "@/components/ui/Form";
 import { EntidadeStorageFoto } from "@/components/shared/EntidadeStorageFoto";
-import { formatCep, formatEnderecoResumo } from "@/lib/format";
+import { formatCep, formatEnderecoTitulo } from "@/lib/format";
 import { getEnderecoById } from "@/lib/supabase/enderecos-server";
 
 type Props = {
@@ -46,10 +46,7 @@ export default async function EnderecoDetailPage({ params }: Props) {
 
   if (!endereco) notFound();
 
-  const titulo =
-    endereco.nome ||
-    formatEnderecoResumo(endereco).split(" — ")[0] ||
-    "Endereço sem nome";
+  const titulo = formatEnderecoTitulo(endereco);
 
   return (
     <DashboardShell
@@ -79,7 +76,7 @@ export default async function EnderecoDetailPage({ params }: Props) {
         dados={
           <Panel title="Dados cadastrais">
             <dl className="grid gap-3 sm:grid-cols-2">
-              <Field label="Nome" value={endereco.nome || "—"} />
+              <Field label="Tipo" value={endereco.tipo || "—"} />
               <Field label="CEP" value={formatCep(endereco.cep)} />
               <Field label="Logradouro" value={endereco.logradouro || "—"} />
               <Field label="Número" value={endereco.numero || "—"} />

@@ -17,6 +17,7 @@ import {
 import { useSignedStorageUrl } from "@/lib/supabase/storage-urls";
 import { fetchViaCep } from "@/lib/viacep";
 import type { Endereco, GeocodePrecisao } from "@/lib/types";
+import { ENDERECO_TIPOS_SUGERIDOS } from "@/lib/types";
 
 function parseCoord(value: string): number | null {
   const trimmed = value.trim().replace(",", ".");
@@ -43,7 +44,7 @@ export function EnderecoForm({ initial }: Props) {
     initial?.cep?.replace(/\D/g, "") ?? "",
   );
 
-  const [nome, setNome] = useState(initial?.nome ?? "");
+  const [tipo, setTipo] = useState(initial?.tipo ?? "");
   const [cep, setCep] = useState(
     initial?.cep ? maskCepInput(initial.cep) : "",
   );
@@ -274,7 +275,7 @@ export function EnderecoForm({ initial }: Props) {
       setStatus(isEdit ? "Atualizando endereço…" : "Salvando endereço…");
 
       const payload = {
-        nome,
+        tipo,
         logradouro,
         numero,
         bairro,
@@ -342,14 +343,21 @@ export function EnderecoForm({ initial }: Props) {
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Label htmlFor="nome">Nome</Label>
+            <Label htmlFor="tipo">Tipo</Label>
             <Input
-              id="nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex.: sede, galpão, residência"
+              id="tipo"
+              list="endereco-tipos-sugeridos"
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value)}
+              placeholder="Digite ou escolha uma sugestão"
               disabled={pending}
+              autoComplete="off"
             />
+            <datalist id="endereco-tipos-sugeridos">
+              {ENDERECO_TIPOS_SUGERIDOS.map((sugestao) => (
+                <option key={sugestao} value={sugestao} />
+              ))}
+            </datalist>
           </div>
 
           <div>

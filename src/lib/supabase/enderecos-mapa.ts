@@ -1,13 +1,18 @@
 /**
- * Coleta endereços relacionados a um caso ou documento (até 2 níveis),
- * com consultas em lote por tipo (padrão C3 — `.in()`, nunca 1 query/vínculo).
+ * Coleta endereços relacionados a um caso ou documento.
+ *
+ * - Caso e documento: direto + 1 intermediário (2 saltos), em lote (padrão C3).
+ * - Somente caso: também órbita dos documentos vinculados
+ *   (doc → endereço e doc → entidade → endereço), após filtrar documentos
+ *   pela RLS de `documentos` (documentos restritos são ignorados em silêncio).
  */
 
 "use client";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/supabase/errors";
-import { formatEnderecoResumo } from "@/lib/format";
+import { formatEnderecoResumo, formatEnderecoTitulo } from "@/lib/format";
 import { formatTipoVinculoLabel } from "@/lib/vinculos-format";
 import {
   ENTIDADE_HREFS,
@@ -30,10 +35,30 @@ const INTERMEDIARIOS: EntidadeTipo[] = [
   "caso",
 ];
 
+/** Entidades cuja órbita de endereço entra no mapa do caso via documento. */
+const ENTIDADES_ORBITA_DOC: EntidadeTipo[] = [
+  "pessoa",
+  "empresa",
+  "veiculo",
+  "comunicacao",
+  "orcrim",
+];
+
 export type EnderecoMapaCaminho = {
   modo: "direto" | "via";
-  /** Rótulo do vínculo raiz → endereço (direto) ou raiz → intermediário. */
+  /** Rótulo do vínculo raiz → endereço (direto) ou raiz → intermediário/documento. */
   tipoVinculoRaiz: string | null;
+  /**
+   * Presente quando o caminho é caso → documento → entidade → endereço.
+   * (caso → documento → endereço usa só `intermediario` = documento.)
+   */
+  viaDocumento?: {
+    id: string;
+    titulo: string;
+    href: string;
+    /** Vínculo documento → entidade intermediária. */
+    tipoVinculoDocEntidade: string | null;
+  };
   intermediario?: {
     tipo: EntidadeTipo;
     id: string;
@@ -50,6 +75,8 @@ export type EnderecoMapaItem = {
   enderecoId: string;
   titulo: string;
   resumo: string;
+  /** Tipo do endereço (secundário no popup). */
+  tipo: string | null;
   href: string;
   latitude: number | null;
   longitude: number | null;
@@ -77,7 +104,12 @@ function perspectivaDe(
   row: VinculoRow,
   deTipo: EntidadeTipo,
   deId: string,
-): { paraTipo: EntidadeTipo; paraId: string; tipo: string | null; inverso: string | null } {
+): {
+  paraTipo: EntidadeTipo;
+  paraId: string;
+  tipo: string | null;
+  inverso: string | null;
+} {
   const { aParaB, bParaA } = resolveTipos(row);
   if (row.entidade_origem_tipo === deTipo && row.entidade_origem_id === deId) {
     return {
@@ -96,10 +128,10 @@ function perspectivaDe(
 }
 
 async function fetchVinculosDaRaiz(
+  supabase: SupabaseClient,
   raizTipo: EntidadeTipo,
   raizId: string,
 ): Promise<VinculoRow[]> {
-  const supabase = createClient();
   const [asOrigem, asDestino] = await Promise.all([
     supabase
       .from("vinculos")
@@ -123,11 +155,11 @@ async function fetchVinculosDaRaiz(
 
 /** Vínculos em lote: entidade do `tipo` com id em `ids` (origem ou destino). */
 async function fetchVinculosPorTipoIds(
+  supabase: SupabaseClient,
   tipo: EntidadeTipo,
   ids: string[],
 ): Promise<VinculoRow[]> {
   if (ids.length === 0) return [];
-  const supabase = createClient();
   const map = new Map<string, VinculoRow>();
 
   for (let i = 0; i < ids.length; i += PAGE) {
@@ -153,9 +185,31 @@ async function fetchVinculosPorTipoIds(
   return [...map.values()];
 }
 
+/**
+ * Intersecta ids de documento com SELECT em `documentos` (RLS por unidade).
+ * Documentos inacessíveis somem silenciosamente — sem contagem nem marcador.
+ */
+async function filtrarDocumentosAcessiveis(
+  supabase: SupabaseClient,
+  ids: string[],
+): Promise<Set<string>> {
+  const acessiveis = new Set<string>();
+  if (ids.length === 0) return acessiveis;
+  for (let i = 0; i < ids.length; i += PAGE) {
+    const chunk = ids.slice(i, i + PAGE);
+    const { data, error } = await supabase
+      .from("documentos")
+      .select("id")
+      .in("id", chunk);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) acessiveis.add(row.id as string);
+  }
+  return acessiveis;
+}
+
 type EnderecoRow = {
   id: string;
-  nome: string | null;
+  tipo: string | null;
   logradouro: string | null;
   numero: string | null;
   bairro: string | null;
@@ -166,17 +220,17 @@ type EnderecoRow = {
 };
 
 async function fetchEnderecosBatch(
+  supabase: SupabaseClient,
   ids: string[],
 ): Promise<Map<string, EnderecoRow>> {
   const result = new Map<string, EnderecoRow>();
   if (ids.length === 0) return result;
-  const supabase = createClient();
   for (let i = 0; i < ids.length; i += PAGE) {
     const chunk = ids.slice(i, i + PAGE);
     const { data, error } = await supabase
       .from("enderecos")
       .select(
-        "id, nome, logradouro, numero, bairro, cidade, estado, latitude, longitude",
+        "id, tipo, logradouro, numero, bairro, cidade, estado, latitude, longitude",
       )
       .in("id", chunk);
     if (error) throw new Error(error.message);
@@ -185,6 +239,19 @@ async function fetchEnderecosBatch(
     }
   }
   return result;
+}
+
+function caminhoKey(c: EnderecoMapaCaminho): string {
+  if (c.modo === "direto") {
+    return `direto:${c.tipoVinculoRaiz ?? ""}`;
+  }
+  const doc = c.viaDocumento
+    ? `${c.viaDocumento.id}:${c.viaDocumento.tipoVinculoDocEntidade ?? ""}`
+    : "";
+  const inter = c.intermediario
+    ? `${c.intermediario.tipo}:${c.intermediario.id}:${c.intermediario.tipoParaEndereco ?? ""}:${c.intermediario.tipoDoEndereco ?? ""}`
+    : "";
+  return `via:${c.tipoVinculoRaiz ?? ""}:${doc}:${inter}`;
 }
 
 function caminhoTexto(
@@ -206,6 +273,13 @@ function caminhoTexto(
       inter.tipoDoEndereco || inter.tipoParaEndereco,
     ) || ENTIDADE_LABELS[inter.tipo];
   const ligacaoRaiz = formatTipoVinculoLabel(caminho.tipoVinculoRaiz);
+
+  if (caminho.viaDocumento) {
+    const doc = caminho.viaDocumento;
+    const ligacaoDoc = formatTipoVinculoLabel(doc.tipoVinculoDocEntidade);
+    return `${enderecoPart} — ${papel} ${inter.titulo}, via documento “${doc.titulo}” como “${ligacaoDoc}”, vinculado(a) a este ${raizLabel.toLowerCase()} como “${ligacaoRaiz}”`;
+  }
+
   return `${enderecoPart} — ${papel} ${inter.titulo}, vinculado(a) a este ${raizLabel.toLowerCase()} como “${ligacaoRaiz}”`;
 }
 
@@ -214,6 +288,41 @@ export function descreverCaminhos(
   raizLabel: string,
 ): string[] {
   return item.caminhos.map((c) => caminhoTexto(item, c, raizLabel));
+}
+
+/** Links únicos do popup (intermediários + documentos do caminho). */
+export function linksDoCaminho(item: EnderecoMapaItem): Array<{
+  href: string;
+  label: string;
+  key: string;
+}> {
+  const seen = new Set<string>();
+  const out: Array<{ href: string; label: string; key: string }> = [];
+  for (const c of item.caminhos) {
+    if (c.viaDocumento) {
+      const key = `documento:${c.viaDocumento.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({
+          key,
+          href: c.viaDocumento.href,
+          label: c.viaDocumento.titulo,
+        });
+      }
+    }
+    if (c.intermediario) {
+      const key = `${c.intermediario.tipo}:${c.intermediario.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({
+          key,
+          href: c.intermediario.href,
+          label: c.intermediario.titulo,
+        });
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -266,30 +375,38 @@ export const MARCADOR_LEGENDA: Record<MarcadorCategoria, string> = {
   outro: "Via outra entidade",
 };
 
+type PendDireto = {
+  enderecoId: string;
+  tipoVinculoRaiz: string | null;
+};
+
+type PendVia = {
+  enderecoId: string;
+  tipoVinculoRaiz: string | null;
+  intermediarioTipo: EntidadeTipo;
+  intermediarioId: string;
+  tipoParaEndereco: string | null;
+  tipoDoEndereco: string | null;
+  viaDocumentoId?: string;
+  tipoVinculoDocEntidade?: string | null;
+};
+
 export async function coletarEnderecosRelacionados(
   raizTipo: "caso" | "documento",
   raizId: string,
+  client?: SupabaseClient,
 ): Promise<{ data: ColetarEnderecosResult | null; error: string | null }> {
   const raizLabel = ENTIDADE_LABELS[raizTipo];
+  const supabase = client ?? createClient();
 
   try {
-    const nivel1 = await fetchVinculosDaRaiz(raizTipo, raizId);
-
-    type PendDireto = {
-      enderecoId: string;
-      tipoVinculoRaiz: string | null;
-    };
-    type PendVia = {
-      enderecoId: string;
-      tipoVinculoRaiz: string | null;
-      intermediarioTipo: EntidadeTipo;
-      intermediarioId: string;
-      tipoParaEndereco: string | null;
-      tipoDoEndereco: string | null;
-    };
+    const nivel1 = await fetchVinculosDaRaiz(supabase, raizTipo, raizId);
 
     const diretos: PendDireto[] = [];
-    const intermediariosByTipo = new Map<EntidadeTipo, Map<string, string | null>>();
+    const intermediariosByTipo = new Map<
+      EntidadeTipo,
+      Map<string, string | null>
+    >();
 
     for (const row of nivel1) {
       const p = perspectivaDe(row, raizTipo, raizId);
@@ -307,12 +424,26 @@ export async function coletarEnderecosRelacionados(
       if (!map.has(p.paraId)) map.set(p.paraId, p.tipo);
     }
 
+    // Salvaguarda: só expande documentos que passam na RLS de `documentos`.
+    const docsCandidatos = intermediariosByTipo.get("documento");
+    if (docsCandidatos && docsCandidatos.size > 0) {
+      const acessiveis = await filtrarDocumentosAcessiveis(supabase, [
+        ...docsCandidatos.keys(),
+      ]);
+      const filtrado = new Map<string, string | null>();
+      for (const [id, tipoRaiz] of docsCandidatos) {
+        if (acessiveis.has(id)) filtrado.set(id, tipoRaiz);
+      }
+      if (filtrado.size === 0) intermediariosByTipo.delete("documento");
+      else intermediariosByTipo.set("documento", filtrado);
+    }
+
     const vias: PendVia[] = [];
 
     await Promise.all(
       [...intermediariosByTipo.entries()].map(async ([tipo, idToTipoRaiz]) => {
         const ids = [...idToTipoRaiz.keys()];
-        const rows = await fetchVinculosPorTipoIds(tipo, ids);
+        const rows = await fetchVinculosPorTipoIds(supabase, tipo, ids);
         for (const row of rows) {
           let interId: string | null = null;
           if (
@@ -343,6 +474,106 @@ export async function coletarEnderecosRelacionados(
       }),
     );
 
+    // Caso: órbita das entidades dos documentos acessíveis (3º salto, em lote).
+    if (raizTipo === "caso") {
+      const docsAcessiveis = intermediariosByTipo.get("documento");
+      if (docsAcessiveis && docsAcessiveis.size > 0) {
+        const docIds = [...docsAcessiveis.keys()];
+        const docRows = await fetchVinculosPorTipoIds(
+          supabase,
+          "documento",
+          docIds,
+        );
+
+        /** entidadeTipo → id → lista de (doc, tipos de vínculo) */
+        const entidadesByTipo = new Map<
+          EntidadeTipo,
+          Map<
+            string,
+            Array<{
+              documentoId: string;
+              tipoVinculoRaiz: string | null;
+              tipoVinculoDocEntidade: string | null;
+            }>
+          >
+        >();
+
+        for (const row of docRows) {
+          let docId: string | null = null;
+          if (
+            row.entidade_origem_tipo === "documento" &&
+            docsAcessiveis.has(row.entidade_origem_id)
+          ) {
+            docId = row.entidade_origem_id;
+          } else if (
+            row.entidade_destino_tipo === "documento" &&
+            docsAcessiveis.has(row.entidade_destino_id)
+          ) {
+            docId = row.entidade_destino_id;
+          }
+          if (!docId) continue;
+
+          const p = perspectivaDe(row, "documento", docId);
+          if (!ENTIDADES_ORBITA_DOC.includes(p.paraTipo)) continue;
+
+          let byId = entidadesByTipo.get(p.paraTipo);
+          if (!byId) {
+            byId = new Map();
+            entidadesByTipo.set(p.paraTipo, byId);
+          }
+          let refs = byId.get(p.paraId);
+          if (!refs) {
+            refs = [];
+            byId.set(p.paraId, refs);
+          }
+          refs.push({
+            documentoId: docId,
+            tipoVinculoRaiz: docsAcessiveis.get(docId) ?? null,
+            tipoVinculoDocEntidade: p.tipo,
+          });
+        }
+
+        await Promise.all(
+          [...entidadesByTipo.entries()].map(async ([tipo, idToDocs]) => {
+            const ids = [...idToDocs.keys()];
+            const rows = await fetchVinculosPorTipoIds(supabase, tipo, ids);
+            for (const row of rows) {
+              let entId: string | null = null;
+              if (
+                row.entidade_origem_tipo === tipo &&
+                idToDocs.has(row.entidade_origem_id)
+              ) {
+                entId = row.entidade_origem_id;
+              } else if (
+                row.entidade_destino_tipo === tipo &&
+                idToDocs.has(row.entidade_destino_id)
+              ) {
+                entId = row.entidade_destino_id;
+              }
+              if (!entId) continue;
+
+              const p = perspectivaDe(row, tipo, entId);
+              if (p.paraTipo !== "endereco") continue;
+
+              const docsRefs = idToDocs.get(entId) ?? [];
+              for (const ref of docsRefs) {
+                vias.push({
+                  enderecoId: p.paraId,
+                  tipoVinculoRaiz: ref.tipoVinculoRaiz,
+                  intermediarioTipo: tipo,
+                  intermediarioId: entId,
+                  tipoParaEndereco: p.tipo,
+                  tipoDoEndereco: p.inverso,
+                  viaDocumentoId: ref.documentoId,
+                  tipoVinculoDocEntidade: ref.tipoVinculoDocEntidade,
+                });
+              }
+            }
+          }),
+        );
+      }
+    }
+
     const allEnderecoIds = [
       ...new Set([
         ...diretos.map((d) => d.enderecoId),
@@ -351,15 +582,20 @@ export async function coletarEnderecosRelacionados(
     ];
 
     const interRefs = [
-      ...new Set(vias.map((v) => `${v.intermediarioTipo}:${v.intermediarioId}`)),
+      ...new Set([
+        ...vias.map((v) => `${v.intermediarioTipo}:${v.intermediarioId}`),
+        ...vias
+          .filter((v) => v.viaDocumentoId)
+          .map((v) => `documento:${v.viaDocumentoId}`),
+      ]),
     ].map((key) => {
       const [tipo, id] = key.split(":") as [EntidadeTipo, string];
       return { tipo, id };
     });
 
     const [enderecosMap, resumosInter] = await Promise.all([
-      fetchEnderecosBatch(allEnderecoIds),
-      getEntidadesResumoBatch(interRefs),
+      fetchEnderecosBatch(supabase, allEnderecoIds),
+      getEntidadesResumoBatch(interRefs, supabase),
     ]);
 
     const byId = new Map<string, EnderecoMapaItem>();
@@ -370,14 +606,12 @@ export async function coletarEnderecosRelacionados(
       const row = enderecosMap.get(enderecoId);
       if (!row) return null;
       const resumo = formatEnderecoResumo(row);
-      const titulo =
-        row.nome?.trim() ||
-        resumo.split(" — ")[0] ||
-        "Endereço sem identificação";
+      const titulo = formatEnderecoTitulo(row);
       const item: EnderecoMapaItem = {
         enderecoId,
         titulo,
         resumo,
+        tipo: row.tipo?.trim() || null,
         href: `${ENTIDADE_HREFS.endereco}/${enderecoId}`,
         latitude:
           row.latitude != null && Number.isFinite(Number(row.latitude))
@@ -393,10 +627,16 @@ export async function coletarEnderecosRelacionados(
       return item;
     }
 
+    function pushCaminho(item: EnderecoMapaItem, caminho: EnderecoMapaCaminho) {
+      const key = caminhoKey(caminho);
+      if (item.caminhos.some((c) => caminhoKey(c) === key)) return;
+      item.caminhos.push(caminho);
+    }
+
     for (const d of diretos) {
       const item = ensureItem(d.enderecoId);
       if (!item) continue;
-      item.caminhos.push({
+      pushCaminho(item, {
         modo: "direto",
         tipoVinculoRaiz: d.tipoVinculoRaiz,
       });
@@ -408,7 +648,7 @@ export async function coletarEnderecosRelacionados(
       const resumo = resumosInter.get(
         `${v.intermediarioTipo}:${v.intermediarioId}`,
       );
-      item.caminhos.push({
+      const caminho: EnderecoMapaCaminho = {
         modo: "via",
         tipoVinculoRaiz: v.tipoVinculoRaiz,
         intermediario: {
@@ -419,7 +659,17 @@ export async function coletarEnderecosRelacionados(
           tipoParaEndereco: v.tipoParaEndereco,
           tipoDoEndereco: v.tipoDoEndereco,
         },
-      });
+      };
+      if (v.viaDocumentoId) {
+        const docResumo = resumosInter.get(`documento:${v.viaDocumentoId}`);
+        caminho.viaDocumento = {
+          id: v.viaDocumentoId,
+          titulo: docResumo?.titulo ?? ENTIDADE_LABELS.documento,
+          href: `${ENTIDADE_HREFS.documento}/${v.viaDocumentoId}`,
+          tipoVinculoDocEntidade: v.tipoVinculoDocEntidade ?? null,
+        };
+      }
+      pushCaminho(item, caminho);
     }
 
     const all = [...byId.values()];
@@ -435,7 +685,8 @@ export async function coletarEnderecosRelacionados(
       error: null,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro ao coletar endereços.";
+    const message =
+      err instanceof Error ? err.message : "Erro ao coletar endereços.";
     return {
       data: null,
       error: friendlyError(message, "Erro ao coletar endereços relacionados."),

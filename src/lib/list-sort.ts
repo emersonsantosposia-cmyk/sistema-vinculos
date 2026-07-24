@@ -38,8 +38,8 @@ export const ENTITY_SORT_COLUMNS = {
     { key: "data_cadastro", label: "Cadastro" },
   ],
   enderecos: [
-    { key: "nome", label: "Nome" },
     { key: "logradouro", label: "Endereço" },
+    { key: "tipo", label: "Tipo" },
     { key: "cep", label: "CEP" },
     { key: "estado", label: "UF" },
     { key: "data_cadastro", label: "Cadastro" },
