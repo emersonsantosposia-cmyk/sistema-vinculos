@@ -67,12 +67,12 @@ const PARES_ENTIDADE_PESSOA: ReadonlyArray<{
   },
   {
     paginaTipo: "empresa",
-    entidadeParaPessoa: "Pertence a",
+    entidadeParaPessoa: "Sócio(a)",
     pessoaParaEntidade: "Sócio(a)",
   },
   {
     paginaTipo: "empresa",
-    entidadeParaPessoa: "Pertence a",
+    entidadeParaPessoa: "Sócio",
     pessoaParaEntidade: "Sócio",
   },
   {
